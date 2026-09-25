@@ -3,6 +3,7 @@ function AM({
   state: t,
   v: n,
   pack: r,
+  tr: TR,
   onPatch: i,
   tab: a,
   onTab: o
@@ -69,7 +70,7 @@ function AM({
         [`現價（9/21 收）`, `$${Y(n.price,2)}`],
         [`市值`, `${Y(y,0)}bn`],
         [`企業價值`, `${Y(b,0)}bn`],
-        [`本模型目標價`, `$${Y(m.blended,0)}`],
+        [`本模型目標價（情境區間）`, `$${Y(m.blended,1)}（$${Y(TR.A[0],1)}–$${Y(TR.A[1],1)}）`],
         [`潛在空間`, hA(m.upside * 100, 0)],
         [`投資結論`, m.call]
       ].map(([e, t], n) => (0, $.jsxs)(Jj, {
@@ -766,7 +767,7 @@ function AM({
             className: `flex flex-wrap items-center gap-2`,
             children: [(0, $.jsx)(`h2`, {
               className: `font-display text-lg font-semibold`,
-              children: `目標價與操作區間`
+              children: `目標價與區間`
             }), (0, $.jsx)(Uj, {
               tone: D,
               children: m.call
@@ -782,7 +783,13 @@ function AM({
             }), c.invalid ? `＝ EV/EBITDA（融資後）$${Y(f, 0)} × 100%（DCF 失效已排除）` : `＝ DCF $${Y(c.perShare, 0)}（${n.dcfMode === `option` ? `選擇權` : `0 截斷`}）× ${hA(m.weights.dcf * 100, 0)} ＋ EV/EBITDA（融資後）$${Y(f, 0)} × ${hA(m.weights.pe * 100, 0)}`, `。相對現價 $`, Y(n.price, 2), ` 為`, ` `, (0, $.jsx)(`span`, {
               className: m.upside >= 0 ? `text-ok` : `text-bad`,
               children: hA(m.upside * 100, 0)
-            }), `。下檔 $`, Y(m.lo, 0), `、上檔 $`, Y(m.hi, 0), `。五期需股權 `, Y(p, 0), `bn。`]
+            }), `。五期需股權 `, Y(p, 0), `bn。`]
+          }), TR.note ? (0, $.jsx)(`p`, {
+            className: `mt-2 text-xs leading-relaxed text-muted`,
+            children: TR.note
+          }) : null, (0, $.jsx)(`p`, {
+            className: `mt-2 text-sm leading-relaxed`,
+            children: `${TR.head}；${TR.bLabel} $${Y(TR.B[0], 1)}–$${Y(TR.B[1], 1)}，${TR.pos}。${TR.judge}`
           }), (0, $.jsx)(`div`, {
             className: `mt-4 overflow-x-auto`,
             children: (0, $.jsxs)(`table`, {
@@ -994,17 +1001,17 @@ function AM({
           }), (0, $.jsxs)(`div`, {
             className: `mt-4 grid gap-3 md:grid-cols-3`,
             children: [(0, $.jsx)(MM, {
-              title: `賣出／下檔`,
-              body: `低於 $${Y(m.lo,0)}`,
-              hint: `股權需求擴大、邊際利率／CDS 上移、EBITDA 倍數壓縮或訓練需求放緩使未售產能承壓。`
+              title: `點位（評等依此）`,
+              body: `$${Y(TR.pt,1)} · ${m.call}`,
+              hint: `目前輸入的加權目標價。賣出門檻 $${Y(TR.th,1)}（現價 −15%）；上檔 ≥25% 且終值占比 <90%、股權需求不超過現市值 1.5 倍才給買進。`
             }), (0, $.jsx)(MM, {
-              title: `中立區間`,
-              body: `$${Y(m.lo,0)}–$${Y(m.hi,0)}`,
-              hint: `現價已部分反映擴張路徑，但 UFCF 五期為負、籌資依賴信用市場。`
+              title: `情境區間（保守與積極情境）`,
+              body: `$${Y(TR.A[0],1)}–$${Y(TR.A[1],1)}`,
+              hint: `只換擴張力道、保留其餘手動調整：${TR.scen.map(s => `${s.name} $${Y(s.tgt,1)}（${s.call}）`).join(`、`)}。`
             }), (0, $.jsx)(MM, {
-              title: `買進／上檔`,
-              body: m.funded ? `高於 $${Y(m.hi,0)} 的確認` : `本路徑不給買進`,
-              hint: m.funded ? `產能如期、Cash CapEx 下降、期末現金翻正。` : `股權需求超過現市值 1.5 倍時不開放買進；降低 CapEx、提高客戶預付或放寬債務上限可降低股權需求。`
+              title: TR.bLabel,
+              body: `$${Y(TR.B[0],1)}–$${Y(TR.B[1],1)}`,
+              hint: `目前輸入，EV/EBITDA 倍數換成 ${multTxt(TR.mults[0])}x 與 ${multTxt(TR.mults[1])}x；${TR.pos}。`
             })]
           }), m.notes.length ? (0, $.jsx)(`ul`, {
             className: `mt-4 space-y-1 text-xs leading-relaxed text-muted`,

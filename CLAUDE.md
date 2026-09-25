@@ -35,14 +35,19 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 3. 改名一律用 `rename_ids.py`（詞法分析，只改程式碼、不改畫面文字，含 `...name` 展開語法）；新名稱須先確認不存在於模板函式庫。
 4. Excel `<sheetPr>` 子元素順序必須是 tabColor → outlinePr → pageSetUpPr，否則 Excel 回報「檔案損毀」；LibreOffice 與 openpyxl 不會發現，所以 `verify_ooxml.py` 必須通過。
 5. 總結頁列印依賴 segD 的 `sumQ-np`、`sumQ-main` class。
+6. Excel 情境區間是模擬運算表（「輸入與假設」H 區）：Excel 規定輸入格（情境選擇）與運算表須在同一工作表；LibreOffice 重算後會改寫成 `TABLE()`，必須接著執行 `fix_datatable.py`（`verify_ooxml.py` 會檢查）。
 
 ## 待辦（依序；每項一個 PR）
 1. 環境移植（上節）。
-2. 目標價改為區間呈現（取代單點 45/55 加權）。
+2. ~~目標價改為區間呈現（取代單點 45/55 加權）~~（v4.1 完成）。
 3. 一頁摘要＋市場共識對照；同時把同業 Comps（segB 的 lM、build_xlsx 的 peers）移入 company.json。共識數據由 Andy 在聊天中查證後提供資料檔，逐筆含來源、日期與標記（[Verified]／[Interested-party]…）；**不要自行杜撰或補數字**。
 4. 季度層（Q3 財報 11/9 前完成）。
 5. Excel 規範與精簡（色彩慣例、具名範圍、分頁合併、說明文字精簡）。
 6. 其餘短名稱輔助函式改名（讀懂用途後才改）。
+
+## 已決定事項（不再列為待決）
+1. LibreOffice Calc 維持在工作階段內補裝（`apt-get install -y --no-install-recommends libreoffice-calc-nogui`），不改由環境預裝。
+2. playwright 固定 1.56.0；只在雲端環境更新預裝 Chromium 時才調整，現在不需處理。
 
 ## 溝通
 以繁體中文回報；專業、客觀、以事實為準。遇到需要判斷口徑（評價方法、預設值、評等門檻）的事項，停下來列出選項與影響，由 Andy 決定。

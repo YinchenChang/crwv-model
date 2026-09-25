@@ -445,6 +445,8 @@ _dv = _DV(type="whole", operator="between", formula1="1", formula2="4", allow_bl
 ws.add_data_validation(_dv); _dv.add(EVY.split("!")[1].replace("$", ""))
 WDCF = gi(r, "權重：DCF", "%", CO['methodology']['blendWeights']['dcf'], "", PCT); r += 1
 WEVE = gi(r, "權重：EV/EBITDA", "%", CO['methodology']['blendWeights']['pe'], "", PCT); r += 1
+RM_LO = gi(r, "方法區間倍數：下端", "x", min(CO['methodology']['rangeMultiples']), "v4.1 方法區間：目前輸入、EV/EBITDA 倍數換成兩端；6x 為穩態倍數上緣 [Assumed]", MULT); r += 1
+RM_HI = gi(r, "方法區間倍數：上端", "x", max(CO['methodology']['rangeMultiples']), "", MULT); r += 1
 SHG = gi(r, "股數年增（SBC 稀釋）", "%", 0.01, "SBC 約 0.66bn／年 ÷ $80 ≈ 1.4%／年，取 1% [Derived]", PCT); r += 1
 SBCY = gi(r, "年度 SBC", "US$bn", V['sbc'], "Q2 0.165／季年化約 0.66，取 0.7 [Derived]"); r += 1
 r = section(ws, r, "DCF 股權為負時的處理（0 截斷／選擇權）", level=2)
@@ -1560,6 +1562,90 @@ ws.cell(row=t0 + 4, column=3, value=f"=C{t0+2}/C{t0+3}-1").number_format = PCT
 ws.cell(row=t0 + 2, column=9,
         value="期前融資瀑布：缺口先由額度與資產層新債支應，殘差以股權募足；估值不再扣缺口本金").font = SMALL
 TGT = f"C{t0+2}"
+UPS = f"C{t0+4}"
+NOTE_R = r  # v4.1：DCF 權重說明（公式在目標價區間段建好後寫入）
+ws.cell(row=r, column=1, value="DCF 權重說明").font = BLACK
+ws.cell(row=r, column=9, value="只在 DCF 被 0 截斷時顯示；DCF 失效時改為一句；DCF 為正時空白（與 HTML 同一字串）").font = SMALL
+r += 1
+
+# v4.1：目標價區間（點位＝目前輸入的加權目標價，評等仍依點位）
+# 情境區間：保守與積極情境的加權目標價，取自『輸入與假設』底部的模擬運算表（輸入格＝情境選擇，保留其餘手動輸入）
+# 方法區間：目前輸入，EV/EBITDA 倍數換成『輸入與假設』F 區的兩端倍數
+r += 1
+r = section(ws, r, "目標價區間（情境區間、方法區間；評等仍依點位）")
+IN_WS = wb["輸入與假設"]
+DT_H = IN_WS.max_row + 3          # 模擬運算表的公式列（其上一列為段落標題）
+DT_SC = ["low", "base", "high"]
+DT_NM = {k: CO['scenarios']['labels'][k] for k in DT_SC}
+DT_SHORT = {k: DT_NM[k].split(" ")[0] for k in DT_SC}
+_IW = "'輸入與假設'!"
+ws.cell(row=r, column=9, value="評等規則不變：空間 ≥25% 且終值占比 <90%、股權募資 ≤1.5 倍現市值 → 買進；空間 ≤−15%，或股權募資 >1.5 倍且空間 ≤−8% → 賣出；其餘中立").font = SMALL
+R0 = r
+def _code(px):  # 評等代碼：1＝買進、0＝中立、−1＝賣出（與 HTML rateCall 同規則）
+    c = f"({px}/MAX({PX},0.01)-1)"
+    return (f"IF(AND({c}>=0.25,$C${R0+1}<0.9,$C${R0+2}<=1.5),1,"
+            f"IF(OR({c}<=-0.15,AND($C${R0+2}>1.5,{c}<=-0.08)),-1,0))")
+_CALL = lambda cell: f'CHOOSE({cell}+2,"賣出","中立","買進")'
+_T1 = lambda x: f'TEXT({x},"0.0")'
+_MT = lambda x: f'IF({x}=INT({x}),TEXT({x},"0"),TEXT({x},"0.0"))'
+_EVM = lambda m: (f"{DCF_PS}*IF({DCF_BAD}=1,0,{WDCF})+MAX(0,(C{m0+1}*{m}-C{m0+3})/C{m0+4})*C{m0+5}*IF({DCF_BAD}=1,1,1-{WDCF})")
+rows_rg = [
+    ("目標價區間｜點位（目前輸入的加權目標價）", [f"={TGT}"], USD),
+    ("目標價區間｜終值占 EV（評等用）", [f"=C{d0+3}/MAX(ABS(C{d0+4}),1)*IF(C{d0+4}=0,1,SIGN(C{d0+4}))"], PCT),
+    ("目標價區間｜股權募資 ÷ 現市值（評等用）", [f"=SUM('各期收支'!C{FRR['eq']}:G{FRR['eq']})/({PX}*{SH})"], MULT),
+    ("目標價區間｜點位評等代碼（1＝買進、0＝中立、−1＝賣出）", [f"={_code(TGT)}", f"={_CALL(f'C{R0+3}')}"], NUM0),
+    ("目標價區間｜賣出門檻價（現價 × (1 − 15%)）", [f"={PX}*(1-0.15)"], USD),
+]
+for j, k in enumerate(DT_SC):
+    rows_rg.append((f"目標價區間｜{DT_NM[k]}（加權目標價／評等代碼／距賣出門檻）",
+                    [f"={_IW}D{DT_H+1+j}", f"={_IW}E{DT_H+1+j}", f"=C{R0+5+j}-$C${R0+4}"], USD))
+rows_rg += [
+    ("目標價區間｜情境區間（下緣／上緣）", [f"=MIN(C{R0+5},C{R0+7})", f"=MAX(C{R0+5},C{R0+7})"], USD),
+    ("目標價區間｜方法區間倍數（下端／上端）", [f"=MIN({RM_LO},{RM_HI})", f"=MAX({RM_LO},{RM_HI})"], MULT),
+    ("目標價區間｜方法區間（下緣／上緣）", [f"=MIN({_EVM(f'C{R0+9}')},{_EVM(f'D{R0+9}')})", f"=MAX({_EVM(f'C{R0+9}')},{_EVM(f'D{R0+9}')})"], USD),
+    ("目標價區間｜100% EV/EBITDA 目標價（價位／評等代碼）", [f"={EVE_ADJ}", f"={_code(EVE_ADJ)}", f"={_CALL(f'D{R0+11}')}"], USD),
+    ("目標價區間｜未截斷 DCF 每股", [f"=(C{d0+6}+C{d0+9})/C{d0+10}"], USD),
+]
+for nm, fs, fmt in rows_rg:
+    ws.cell(row=r, column=1, value=nm).font = BLACK
+    for j, f in enumerate(fs):
+        c = ws.cell(row=r, column=3 + j, value=f); c.number_format = fmt; c.font = BLACK
+    r += 1
+for rr in (R0 + 5, R0 + 6, R0 + 7):
+    ws.cell(row=rr, column=4).number_format = NUM0
+ws.cell(row=R0 + 11, column=4).number_format = NUM0
+ws.cell(row=R0 + 3, column=3).number_format = NUM0
+ws.cell(row=R0 + 5, column=9, value="引用『輸入與假設』底部模擬運算表（情境選擇 1／2／3），保留其餘手動輸入").font = SMALL
+ws.cell(row=R0 + 10, column=9, value="＝DCF 採用值 × 有效權重 ＋ EV/EBITDA 腿（倍數換成兩端）× 有效權重").font = SMALL
+_A0, _A1, _B0, _B1 = f"C{R0+8}", f"D{R0+8}", f"C{R0+10}", f"D{R0+10}"
+_TH = f"$C${R0+4}"
+_mg = lambda j, k: (f'IF(ABS(E{R0+5+j})<0.05*{PX},"{DT_SHORT[k]}情境 $"&{_T1(f"C{R0+5+j}")}&"，"&IF(E{R0+5+j}<0,"距賣出門檻","高於賣出門檻")'
+                    f'&" $"&{_T1(_TH)}&" 僅 $"&{_T1(f"ABS(E{R0+5+j})")}&"。","")')
+_ns = '&" "&'.join(f'IF(D{R0+5+j}<>-1,"{DT_SHORT[k]}","")' for j, k in enumerate(DT_SC))
+_nsc = "+".join(f"(D{R0+5+j}<>-1)" for j in range(3))
+text_rg = [
+    ("目標價區間｜點位摘要", f'="目標價 $"&{_T1(TGT)}&"（情境區間 $"&{_T1(_A0)}&"–$"&{_T1(_A1)}&"）"'),
+    ("目標價區間｜方法區間標籤", f'="方法區間（目前情境，"&{_MT(f"C{R0+9}")}&"–"&{_MT(f"D{R0+9}")}&"x）"'),
+    ("目標價區間｜點位位置", (f'=IF(ABS({EVEBITDA}-D{R0+9})<1E-9,"目前點位位於方法區間上緣（"&{_MT(f"D{R0+9}")}&"x 為穩態倍數上緣）",'
+                        f'IF(ABS({EVEBITDA}-C{R0+9})<1E-9,"目前點位位於方法區間下緣（"&{_MT(f"C{R0+9}")}&"x）",'
+                        f'"目前點位"&IF(AND({EVEBITDA}>C{R0+9},{EVEBITDA}<D{R0+9}),"位於方法區間內",IF({EVEBITDA}>D{R0+9},"高於方法區間上緣","低於方法區間下緣"))'
+                        f'&"（目前倍數 "&{_MT(EVEBITDA)}&"x）"))')),
+    ("目標價區間｜判斷句", (f'=IF({_A1}<{PX},"情境區間上緣 $"&{_T1(_A1)}&" 低於現價 $"&TEXT({PX},"0.00")'
+                       f'&IF({_nsc}>0,"，但"&SUBSTITUTE(TRIM({_ns})," ","、")&"情境未達賣出門檻 $"&{_T1(_TH)},"：賣出在三個擴張情境下都成立"),'
+                       f'"情境區間上緣 $"&{_T1(_A1)}&" 不低於現價 $"&TEXT({PX},"0.00")&"：賣出並非在三個擴張情境下都成立")&"。"'
+                       + "".join("&" + _mg(j, k) for j, k in enumerate(DT_SC)))),
+]
+for nm, f in text_rg:
+    ws.cell(row=r, column=1, value=nm).font = BOLD if nm.endswith("判斷句") else BLACK
+    ws.cell(row=r, column=3, value=f).font = BLACK
+    r += 1
+_RAW = f"C{R0+12}"
+ws.cell(row=NOTE_R, column=3, value=(
+    f'=IF({DCF_BAD}=1,"DCF 失效，已以 EV/EBITDA 100% 計。",IF(AND({DMODE}<>2,{_RAW}<0),'
+    f'"DCF 為 $0 仍計 "&TEXT({WDCF},"0%")&" 權重的原因：DCF 沒有失效，而是算出的股權價值為負（每股約 −$"&{_T1(f"ABS({_RAW})")}&"），'
+    f'代表自由現金流折現後的企業價值不足以償還淨負債。EV/EBITDA 沒有扣除 GPU 汰換與擴張支出，保留 DCF 權重，是為了讓目標價反映「EBITDA 付不起資本成本」。'
+    f'若不計 DCF，目標價為 $"&{_T1(EVE_ADJ)}&"（"&{_CALL(f"D{R0+11}")}&"）；"&TEXT({WDCF},"0%")&"／"&TEXT(1-{WDCF},"0%")&" 為判斷值。",""))')).font = BLACK
+RG_PT_CODE = f"C{R0+3}"
 
 # v3.5：錨定年度 × 倍數矩陣（全為活公式；與 HTML evGrid 同一算法）
 from openpyxl.formatting.rule import CellIsRule as _CIR
@@ -2018,6 +2104,25 @@ for tag, text in src:
     ws.row_dimensions[r].height = 46
     r += 1
 
+# v4.1：情境區間的模擬運算表（Excel「模擬分析 → 運算列表」；輸入格＝情境選擇）。
+# Excel 規定輸入格與運算表須在同一工作表，所以放在『輸入與假設』底部。LibreOffice 重算後會改寫成 TABLE()，
+# 由 fix_datatable.py 還原為 OOXML 的 dataTable 公式（保留 LibreOffice 算出的值）。
+ws = wb["輸入與假設"]
+assert ws.max_row + 3 == DT_H, "輸入與假設在評價頁建立後又新增了列，模擬運算表位置需重算"
+r = section(ws, DT_H - 1, "H｜情境區間運算表（模擬運算表；由 Excel 自動計算，勿手動輸入）")
+ws.cell(row=DT_H - 1, column=9, value="保守與積極情境的加權目標價（情境區間）；其餘手動輸入保留。資料表公式：{=TABLE(,情境選擇)}").font = SMALL
+ws.cell(row=DT_H, column=1, value="情境區間運算表｜公式列（加權目標價／評等代碼）").font = BLACK
+for j, f in enumerate([f"='評價_DCF與目標價'!{TGT}", f"='評價_DCF與目標價'!{RG_PT_CODE}"]):
+    c = ws.cell(row=DT_H, column=4 + j, value=f); c.font = BLACK; c.number_format = USD if j == 0 else NUM0
+from openpyxl.worksheet.formula import DataTableFormula as _DTF
+for j, k in enumerate(DT_SC):
+    rr = DT_H + 1 + j
+    ws.cell(row=rr, column=1, value=f"情境區間運算表｜{DT_NM[k]}").font = BLACK
+    c = ws.cell(row=rr, column=3, value=j + 1); c.font = BLACK; c.number_format = NUM0
+ws.cell(row=DT_H + 1, column=4, value=_DTF(ref=f"D{DT_H+1}:E{DT_H+3}", dt2D=False, dtr=False, r1=SEL.split("!")[1].replace("$", "")))
+for rr in range(DT_H + 1, DT_H + 4):
+    ws.cell(row=rr, column=4).number_format = USD; ws.cell(row=rr, column=5).number_format = NUM0
+
 for s in wb.worksheets:
     s.sheet_view.showGridLines = False
     if s.title not in ("導覽", "來源"):
@@ -2037,7 +2142,7 @@ import json as _json
 # 輸出位置相對於 repo 根目錄：預設 out/；可用第 1 個參數指定 xlsx 路徑（outline.json 一律寫在 out/）
 _OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "out")
 _osrv.makedirs(_OUT_DIR, exist_ok=True)
-_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260924_CoreWeave收支模型_v4_0.xlsx")
+_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_1.xlsx")
 _json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
 wb.save(_xlsx)
 print("saved", _xlsx)

@@ -1,5 +1,5 @@
 function zM() {
-  let [e, t] = (0, v.useState)(PM), [n, r] = (0, v.useState)(0), [i, a] = (0, v.useState)(`summary`), [o, s] = (0, v.useState)(() => structuredClone(VAL_DEFAULTS)), [c, l] = (0, v.useState)(0), u = (0, v.useRef)(null), d = (0, v.useMemo)(() => runFunding(e), [e]), f = (0, v.useMemo)(() => runValuation(d, e, o), [d, e, o]), p = (0, v.useMemo)(() => EM(f, d, e), [f, d, e]), m = (0, v.useMemo)(() => sensitivities(e, o), [e, o]), h = lA(e.cds), g = d.totals.end >= 0, _ = d.totals.operatingGap + e.cash >= 0, y = (0, v.useMemo)(() => aA(e, d), [e, d]), b = (0, v.useMemo)(() => rpoBridge(d), [d]), x = (0, v.useMemo)(() => sA(e, d), [e, d]), S = (0, v.useMemo)(() => cA(e), [e]), C = e => s(t => ({
+  let [e, t] = (0, v.useState)(PM), [n, r] = (0, v.useState)(0), [i, a] = (0, v.useState)(`summary`), [o, s] = (0, v.useState)(() => structuredClone(VAL_DEFAULTS)), [c, l] = (0, v.useState)(0), u = (0, v.useRef)(null), d = (0, v.useMemo)(() => runFunding(e), [e]), f = (0, v.useMemo)(() => runValuation(d, e, o), [d, e, o]), TR = (0, v.useMemo)(() => targetRange(d, e, o, f), [d, e, o, f]), p = (0, v.useMemo)(() => EM(f, d, e), [f, d, e]), m = (0, v.useMemo)(() => sensitivities(e, o), [e, o]), h = lA(e.cds), g = d.totals.end >= 0, _ = d.totals.operatingGap + e.cash >= 0, y = (0, v.useMemo)(() => aA(e, d), [e, d]), b = (0, v.useMemo)(() => rpoBridge(d), [d]), x = (0, v.useMemo)(() => sA(e, d), [e, d]), S = (0, v.useMemo)(() => cA(e), [e]), C = e => s(t => ({
     ...t,
     ...e
   })), w = e => t(t => ({
@@ -103,8 +103,8 @@ function zM() {
             children: [`$`, Y(e.a.costMW[4] * (e.capexScale ?? 1) * o.wacc / (1 - Math.pow(1 + o.wacc, -e.gpuLife)), 1), `m`]
           }), `。目標價 `, (0, $.jsxs)(`span`, {
             className: `font-medium text-accent-fg`,
-            children: [`$`, Y(f.call.blended, 0)]
-          }), `（`, f.call.upside >= 0 ? `+` : ``, hA(f.call.upside * 100, 0), `），結論「`, f.call.call, `」。`, (0, $.jsx)(tipQ, {
+            children: [`$`, Y(f.call.blended, 1)]
+          }), `（情境區間 $${Y(TR.A[0], 1)}–$${Y(TR.A[1], 1)}），較現價 `, f.call.upside >= 0 ? `+` : ``, hA(f.call.upside * 100, 0), `，結論「`, f.call.call, `」。`, (0, $.jsx)(tipQ, {
             t: `三個判斷依據：(1) Backlog 不是現金——RPO 103.7bn 須先蓋出產能才能認列，五期認列 84%，產能不足時收不到。(2) 單位經濟——每 MW 年 EBITDA（每 MW 年收入×利用率×FY30 EBITDA 率）低於 GPU 的年化資本回收（每 MW 成本×資本回收係數），擴張本身不創造價值；要翻轉須每 MW 年收入約 $14m 以上或每 MW 成本降至約 $27m 以下。(3) 融資——缺口依序由額度、新債（總債務 ≤ 1.0× backlog，依 2026 年實際融資組合校準）、股權（每年上限＝現市值 20%）、高息債補足；市場願意以多少價格吸收多少新股，是估值最敏感的假設之一（見目標價頁敏感度表）。FY26 欄為 1H 實際＋2H 模型。`,
             w: 500
           })]
@@ -193,6 +193,7 @@ function zM() {
           e: e,
           o: o,
           m: m,
+          tr: TR,
           active: i === `summary`
         })
       }), (0, $.jsx)(`div`, {
@@ -202,6 +203,7 @@ function zM() {
           state: e,
           v: o,
           pack: f,
+          tr: TR,
           onPatch: C,
           tab: c,
           onTab: l
@@ -216,7 +218,7 @@ function zM() {
             [`營運缺口（不含股權）`, mA(d.totals.operatingGap) + `bn`],
             [`期初＋可轉債＋瀑布融資`, mA(e.cash + d.totals.atm + d.totals.facility) + `bn`],
             [`需股權募資（瀑布）`, mA(d.totals.equity) + `bn`],
-            [`連動評價／結論`, `$${Y(f.call.blended,0)} · ${f.call.call}`]
+            [`連動評價／結論`, `$${Y(f.call.blended,1)}（$${Y(TR.A[0],1)}–$${Y(TR.A[1],1)}）· ${f.call.call}`]
           ].map(([e, t], n) => (0, $.jsxs)(Jj, {
             className: `p-3 md:p-4`,
             children: [(0, $.jsx)(`div`, {

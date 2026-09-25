@@ -755,6 +755,10 @@
   "blendWeights": {
    "dcf": 0.45,
    "pe": 0.55
-  }
+  },
+  "rangeMultiples": [
+   5,
+   6
+  ]
  }
 }
