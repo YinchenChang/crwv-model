@@ -1,8 +1,9 @@
-# 用法：python3 build_html_portable.py <版本> <輸出路徑> <日期> <模板 HTML>
+# 用法：python3 build_html_portable.py <版本> <輸出路徑> <日期> [模板 HTML]（模板省略時用 repo 內的 docs/template_v3_3.html；相對路徑以目前目錄為準）
 # 模板可用任一版已發布的 HTML（例如 20260923_CoreWeave收支模型_v3_3.html），只取其中的 React／Recharts 函式庫部分。
 import sys, os
 H = os.path.dirname(os.path.abspath(__file__))
-ver, out, date, tpl = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+ver, out, date = sys.argv[1], sys.argv[2], sys.argv[3]
+tpl = sys.argv[4] if len(sys.argv) > 4 else os.path.join(H, 'docs', 'template_v3_3.html')
 L = open(os.path.join(H, 'app_pretty.js'), encoding='utf-8').read().split('\n')
 rng = lambda a, b: '\n'.join(L[a-1:b])
 mid1 = rng(686, 2518); mid2 = rng(2941, 2976); mid3 = rng(3650, 3751)
