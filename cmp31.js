@@ -110,7 +110,7 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
 { const R=targetRange(d,q,VAL_DEFAULTS,p), RG='評價_DCF與目標價|目標價區間｜', CODE={買進:1,中立:0,賣出:-1};
   cmp('區間 點位', RG+'點位（目前輸入的加權目標價）', [R.pt]);
   cmp('區間 點位評等', RG+'點位評等代碼（1＝買進、0＝中立、−1＝賣出）', [CODE[p.call.call]]);
-  cmp('區間 賣出門檻', RG+'賣出門檻價（現價 × (1 − 15%)）', [R.th]);
+  cmp('區間 賣出門檻', RG+'賣出門檻價（現價 × (1 − '+pctQ(SELL_TH)+')）', [R.th]);
   R.scen.forEach(s=>cmp('區間 情境 '+s.sc, RG+SCENARIOS[s.sc].label+'（加權目標價／評等代碼／距賣出門檻）', [s.tgt, CODE[s.call], s.gap]));
   cmp('情境區間 A', RG+'情境區間（下緣／上緣）', R.A);
   cmp('方法區間倍數', RG+'方法區間倍數（下端／上端）', R.mults);

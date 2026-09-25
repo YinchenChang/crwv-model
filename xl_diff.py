@@ -1,20 +1,133 @@
-# Excel 逐格比對（公式與常數；另可比對重算後的值）。用法：python3 xl_diff.py a.xlsx b.xlsx [--values]
+# Excel 逐格比對（公式與常數；另可比對重算後的值）。用法：python3 xl_diff.py a.xlsx b.xlsx [--values] [--by-label]
+# --by-label（v4.2）：列數或 A 欄不同的工作表（例如新增輸入列造成位移），改以「區段＋A 欄列名稱」配對列再逐格比對；
+#   區段＝該列之上最近的第一層區段標題列（淺藍底 D9E2F3），同名的表頭列（例如各區的「項目」）因此可區分。
+#   配對鍵重複、或 A 欄空白的列有內容時直接報錯並列出，不自行配對。A、B 兩檔結構相同的工作表仍逐格比對。
+#   新版多出的列列為「新增列」，不計為差異；舊版有、新版沒有的列計為差異。
+#   公式比對時，舊版公式中的列號（含跨工作表引用）先依列對照換算成新位置再比；
+#   舊版是文字、新版改為文字公式且重算後的值與舊版文字相同者列為「文字改為活公式」，不計為差異（值由 --values 另行核對）。
+#   新版公式把對「新增列」儲存格的引用換回該格的常數後（「+-」併為「-」）與舊版公式相同者，列為「常數改為引用輸入格」，不計為差異。
 import sys, re, openpyxl
-a, b = sys.argv[1], sys.argv[2]; vals = '--values' in sys.argv
+a, b = sys.argv[1], sys.argv[2]; vals = '--values' in sys.argv; by_label = '--by-label' in sys.argv
+SEC = 'FFD9E2F3'  # build_xlsx.py FILL_SEC（第一層區段標題）
+
+
 def norm(v):
     if isinstance(v, str): return re.sub(r'v\d\.\d', 'vX', v)
     if hasattr(v, 'ref') and not isinstance(v, (int, float)):  # 模擬運算表／陣列公式物件（v4.1）：依屬性比對，不比物件身分
         return f'{type(v).__name__}{sorted((k, str(x)) for k, x in vars(v).items())}'
     return v
+
+
+def same(x, y):
+    return x == y or (isinstance(x, float) and isinstance(y, float) and abs(x - y) < 1e-9)
+
+
+def keys(ws):
+    """每列的配對鍵 (區段, A 欄名稱)；回傳 {鍵: 列號} 與錯誤清單。"""
+    out, errs, sec, seen = {}, [], '', {}
+    for r in range(1, ws.max_row + 1):
+        c = ws.cell(r, 1); lab = c.value
+        if lab is None or str(lab).strip() == '':
+            if any(ws.cell(r, j).value is not None for j in range(2, ws.max_column + 1)):
+                errs.append(f'{ws.title} 第 {r} 列：A 欄空白但有內容，無法以列名稱配對')
+            continue
+        lab = str(lab)
+        if c.fill is not None and c.fill.fgColor is not None and c.fill.fgColor.rgb == SEC:
+            sec = lab
+        k = (sec, lab)
+        seen.setdefault(k, []).append(r)
+        out[k] = r
+    for k, rs in seen.items():
+        if len(rs) > 1:
+            errs.append(f'{ws.title}：列名稱重複「{k[1]}」（區段「{k[0][:30]}」；第 {"、".join(map(str, rs))} 列）')
+    return out, errs
+
+
 wa, wb = openpyxl.load_workbook(a, data_only=vals), openpyxl.load_workbook(b, data_only=vals)
-diffs = []
+vb = openpyxl.load_workbook(b, data_only=True) if (by_label and not vals) else None
+diffs, added, conv, errs, inl = [], [], [], [], []
 if wa.sheetnames != wb.sheetnames: diffs.append(('sheets', wa.sheetnames, wb.sheetnames))
+col_a = lambda ws: [ws.cell(r, 1).value for r in range(1, ws.max_row + 1)]
+rowmap, mode = {}, {}  # rowmap[工作表][舊列號] = 新列號（label 模式）
 for n in wa.sheetnames:
     if n not in wb.sheetnames: continue
     A, B = wa[n], wb[n]
-    for r in range(1, max(A.max_row, B.max_row) + 1):
+    if by_label and (A.max_row != B.max_row or col_a(A) != col_a(B)):
+        ka, ea = keys(A); kb, eb = keys(B); errs += ea + [e + '（新版）' for e in eb]
+        mode[n] = 'label'; rowmap[n] = {ra: kb[k] for k, ra in ka.items() if k in kb}
+        added += [(n, rb, k[1]) for k, rb in sorted(kb.items(), key=lambda t: t[1]) if k not in ka]
+        diffs += [(n, f'第 {ra} 列', f'新版缺少此列：{k[1][:60]}', '') for k, ra in ka.items() if k not in kb]
+    else:
+        mode[n] = 'pos'
+if errs:
+    print('ERROR：無法以列名稱配對（不自行配對）'); [print('  ' + e) for e in errs]; sys.exit(2)
+
+REF = re.compile(r"(?:('(?:[^']|'')+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?)(\d+)(?![\w(])")
+
+
+def remap(f, sheet):
+    """把舊版公式中的列號依 rowmap 換成新列號；字串常數內的文字不動。"""
+    if not isinstance(f, str) or not f.startswith('='): return f
+    parts = re.split(r'("(?:[^"]|"")*")', f)
+    def sub(m):
+        sh = m.group(1); tgt = sh.strip("'").replace("''", "'") if sh else sheet
+        if m.start() > 0 and (m.string[m.start() - 1].isalnum() or m.string[m.start() - 1] in '_.'): return m.group(0)
+        rm = rowmap.get(tgt)
+        if rm is None: return m.group(0)
+        r = int(m.group(3)); return f"{sh + '!' if sh else ''}{m.group(2)}{rm.get(r, r)}"
+    return ''.join(p if i % 2 else REF.sub(sub, p) for i, p in enumerate(parts))
+
+
+ADDED = set()  # 新版新增列 (工作表, 列號)
+
+
+def inline(f, sheet):
+    """新版公式中引用新增列的儲存格換成該格常數（僅常數格）。"""
+    if not isinstance(f, str) or not f.startswith('='): return f
+    parts = re.split(r'("(?:[^"]|"")*")', f)
+    def sub(m):
+        sh = m.group(1); tgt = sh.strip("'").replace("''", "'") if sh else sheet
+        if (tgt, int(m.group(3))) not in ADDED: return m.group(0)
+        v = wb[tgt][m.group(2).replace('$', '') + m.group(3)].value
+        return repr(v) if isinstance(v, (int, float)) else m.group(0)
+    return ''.join(p if i % 2 else REF.sub(sub, p).replace('+-', '-') for i, p in enumerate(parts))
+
+
+def rng(s, sheet):  # 模擬運算表屬性（ref＝C143:E145、r1＝C5）亦依列對照換算
+    return re.sub(r'(\$?[A-Z]{1,3}\$?)(\d+)', lambda m: f'{m.group(1)}{rowmap.get(sheet, {}).get(int(m.group(2)), int(m.group(2)))}', s)
+
+
+def norm_old(v, sheet):
+    if vals: return norm(v)
+    if isinstance(v, str): return norm(remap(v, sheet))
+    if hasattr(v, 'ref') and not isinstance(v, (int, float)):
+        return f'{type(v).__name__}{sorted((k, rng(str(x), sheet) if k in ("ref", "r1", "r2") else remap(str(x), sheet)) for k, x in vars(v).items())}'
+    return v
+
+
+ADDED.update((n, r) for n, r, _ in added)
+for n in wa.sheetnames:
+    if n not in wb.sheetnames: continue
+    A, B = wa[n], wb[n]
+    if mode[n] == 'label':
+        pairs = sorted(rowmap[n].items())
+    else:
+        pairs = [(r, r) for r in range(1, max(A.max_row, B.max_row) + 1)]
+    for ra, rb in pairs:
         for c in range(1, max(A.max_column, B.max_column) + 1):
-            x, y = norm(A.cell(r, c).value), norm(B.cell(r, c).value)
-            if x != y and not (isinstance(x, float) and isinstance(y, float) and abs(x - y) < 1e-9):
-                diffs.append((n, A.cell(r, c).coordinate, str(x)[:70], str(y)[:70]))
+            x, y = norm_old(A.cell(ra, c).value, n) if by_label else norm(A.cell(ra, c).value), norm(B.cell(rb, c).value)
+            if same(x, y): continue
+            ox = A.cell(ra, c).value
+            if vb is not None and isinstance(ox, str) and not ox.startswith('=') and isinstance(y, str) and y.startswith('=') \
+                    and norm(vb[n].cell(rb, c).value) == norm(ox):
+                conv.append((n, B.cell(rb, c).coordinate, ox[:50])); continue
+            if by_label and not vals and isinstance(y, str) and norm(inline(B.cell(rb, c).value, n)) == x:
+                inl.append((n, B.cell(rb, c).coordinate)); continue
+            diffs.append((n, B.cell(rb, c).coordinate, str(x)[:70], str(y)[:70]))
 print(len(diffs), 'differences'); [print(*d) for d in diffs[:15]]
+if by_label:
+    lab = [n for n, m in mode.items() if m == 'label']
+    print(f'以列名稱配對的工作表：{"、".join(lab) if lab else "無（全部逐格）"}')
+    print(f'新增列 {len(added)}：'); [print(f'  {n} 第 {r} 列 {t[:60]}') for n, r, t in added]
+    if inl: print(f'常數改為引用輸入格 {len(inl)}（引用換回常數後與舊版公式相同）：' + '、'.join(f'{n}!{c}' for n, c in inl))
+    if conv: print(f'文字改為活公式 {len(conv)}（重算後值與舊版文字相同）：'); [print(f'  {n} {c} {t}') for n, c, t in conv]

@@ -454,6 +454,19 @@ DMODE = gi(r, "DCF 下限方式（1＝0 截斷、2＝選擇權）", "", (1 if V[
 SIGMA = gi(r, "企業價值波動率 σ", "%", V['sigma'], "選擇權法用 [Assumed]", PCT); r += 1
 RF = gi(r, "無風險利率", "%", V['rf'], "選擇權法用 [Assumed]", PCT); r += 1
 OPTT = gi(r, "選擇權期間（年）", "年", V['optT'], "至 FY30 末", NUM1); r += 1
+# v4.2：評等門檻（company.json → methodology.rating）；評價頁的評等代碼、賣出門檻價、判斷句與「檢查」頁都引用這裡
+RT = CO['methodology']['rating']
+RT_PCT = lambda x: (lambda v: f"{v:.0f}%" if v == int(v) else f"{v:.1f}%")(round(abs(x) * 100, 4))
+_MT = lambda x: f'IF({x}=INT({x}),TEXT({x},"0"),TEXT({x},"0.0"))'  # 倍數文字：整數不帶小數（與 HTML multTxt 同格式）
+_PC = lambda x: _MT(f"ROUND(ABS({x})*100,4)") + '&"%"'  # 門檻百分比文字（絕對值）：與 HTML pctQ 同格式
+r = section(ws, r, "評等門檻（空間＝加權目標價 ÷ 現價 − 1）", level=2)
+RT_BUY = gi(r, "買進：空間下限", "%", RT['buyUpsideMin'], "空間 ≥ 此值、終值占比 < 上限，且股權募資未超標 → 買進 [Assumed]", PCT); r += 1
+RT_TV = gi(r, "買進：終值占 EV 上限", "%", RT['buyTvShareMax'], "終值占比達此值以上不給買進 [Assumed]", PCT); r += 1
+RT_SELL = gi(r, "賣出：空間上限", "%", RT['sellUpsideMax'], "空間 ≤ 此值 → 賣出；賣出門檻價＝現價 ×（1 ＋ 此值） [Assumed]", PCT); r += 1
+RT_EQ = gi(r, "股權募資上限（÷ 現市值）", "x", RT['equityRaiseMaxMult'], "五期股權募資超過現市值的此倍數：市場吸收能力存疑，禁止買進 [Assumed]", MULT); r += 1
+RT_SELL2 = gi(r, "股權募資超標時的賣出：空間上限", "%", RT['sellUpsideMaxIfEquityOver'], "股權募資超標且空間 ≤ 此值 → 賣出 [Assumed]", PCT); r += 1
+RT_MG = gi(r, "判斷句：距賣出門檻揭露（占現價）", "%", RT['sellMarginAlert'], "任一情境與賣出門檻的距離小於現價的此比例時，判斷句揭露該距離 [Assumed]", PCT); r += 1
+RT_TVW = gi(r, "終值占 EV 警示", "%", RT['tvShareWarn'], "超過此值表示結論由終值假設決定（「檢查」頁與 DCF 說明） [Assumed]", PCT); r += 1
 r += 1
 
 # ---------------- G 參考：1H26 實際 ----------------
@@ -1470,7 +1483,7 @@ dcf_lines = [
     ("減：淨負債", f"=-{ND}", NUM, "6/30 本金 35.551 − 現金 5.524"),
     ("股權價值", None, NUM, None),
     ("DCF 每股", None, USD, None),
-    ("終值占 EV 比重", None, PCT, "超過 85% 表示結論由終值假設決定，不由現金流決定"),
+    ("終值占 EV 比重", None, PCT, f'="超過 "&{_PC(RT_TVW)}&" 表示結論由終值假設決定，不由現金流決定"'),
     ("新股募得現金（現值）", None, NUM, "期初到位，折現期數 0／0.5／1.5／2.5／3.5 年"),
     ("融資後股數（含瀑布新股）", None, '0.000', None),
     ("DCF 失效？（WACC ≤ g 或常態化 FCF ≤ 0）", None, NUM0, "1＝失效：DCF 權重歸零、EV/EBITDA 100%。股權為負不算失效"),
@@ -1579,22 +1592,22 @@ DT_SC = ["low", "base", "high"]
 DT_NM = {k: CO['scenarios']['labels'][k] for k in DT_SC}
 DT_SHORT = {k: DT_NM[k].split(" ")[0] for k in DT_SC}
 _IW = "'輸入與假設'!"
-ws.cell(row=r, column=9, value="評等規則不變：空間 ≥25% 且終值占比 <90%、股權募資 ≤1.5 倍現市值 → 買進；空間 ≤−15%，或股權募資 >1.5 倍且空間 ≤−8% → 賣出；其餘中立").font = SMALL
+ws.cell(row=r, column=9, value=(f'="評等規則不變：空間 ≥"&{_PC(RT_BUY)}&" 且終值占比 <"&{_PC(RT_TV)}&"、股權募資 ≤"&{_MT(RT_EQ)}&" 倍現市值 → 買進；'
+                                f'空間 ≤−"&{_PC(RT_SELL)}&"，或股權募資 >"&{_MT(RT_EQ)}&" 倍且空間 ≤−"&{_PC(RT_SELL2)}&" → 賣出；其餘中立"')).font = SMALL
 R0 = r
-def _code(px):  # 評等代碼：1＝買進、0＝中立、−1＝賣出（與 HTML rateCall 同規則）
+def _code(px):  # 評等代碼：1＝買進、0＝中立、−1＝賣出（與 HTML rateCall 同規則；門檻引用『輸入與假設』F 區評等門檻）
     c = f"({px}/MAX({PX},0.01)-1)"
-    return (f"IF(AND({c}>=0.25,$C${R0+1}<0.9,$C${R0+2}<=1.5),1,"
-            f"IF(OR({c}<=-0.15,AND($C${R0+2}>1.5,{c}<=-0.08)),-1,0))")
+    return (f"IF(AND({c}>={RT_BUY},$C${R0+1}<{RT_TV},$C${R0+2}<={RT_EQ}),1,"
+            f"IF(OR({c}<={RT_SELL},AND($C${R0+2}>{RT_EQ},{c}<={RT_SELL2})),-1,0))")
 _CALL = lambda cell: f'CHOOSE({cell}+2,"賣出","中立","買進")'
 _T1 = lambda x: f'TEXT({x},"0.0")'
-_MT = lambda x: f'IF({x}=INT({x}),TEXT({x},"0"),TEXT({x},"0.0"))'
 _EVM = lambda m: (f"{DCF_PS}*IF({DCF_BAD}=1,0,{WDCF})+MAX(0,(C{m0+1}*{m}-C{m0+3})/C{m0+4})*C{m0+5}*IF({DCF_BAD}=1,1,1-{WDCF})")
 rows_rg = [
     ("目標價區間｜點位（目前輸入的加權目標價）", [f"={TGT}"], USD),
     ("目標價區間｜終值占 EV（評等用）", [f"=C{d0+3}/MAX(ABS(C{d0+4}),1)*IF(C{d0+4}=0,1,SIGN(C{d0+4}))"], PCT),
     ("目標價區間｜股權募資 ÷ 現市值（評等用）", [f"=SUM('各期收支'!C{FRR['eq']}:G{FRR['eq']})/({PX}*{SH})"], MULT),
     ("目標價區間｜點位評等代碼（1＝買進、0＝中立、−1＝賣出）", [f"={_code(TGT)}", f"={_CALL(f'C{R0+3}')}"], NUM0),
-    ("目標價區間｜賣出門檻價（現價 × (1 − 15%)）", [f"={PX}*(1-0.15)"], USD),
+    (f"目標價區間｜賣出門檻價（現價 × (1 − {RT_PCT(RT['sellUpsideMax'])})）", [f"={PX}*(1+{RT_SELL})"], USD),
 ]
 for j, k in enumerate(DT_SC):
     rows_rg.append((f"目標價區間｜{DT_NM[k]}（加權目標價／評等代碼／距賣出門檻）",
@@ -1619,7 +1632,7 @@ ws.cell(row=R0 + 5, column=9, value="引用『輸入與假設』底部模擬運�
 ws.cell(row=R0 + 10, column=9, value="＝DCF 採用值 × 有效權重 ＋ EV/EBITDA 腿（倍數換成兩端）× 有效權重").font = SMALL
 _A0, _A1, _B0, _B1 = f"C{R0+8}", f"D{R0+8}", f"C{R0+10}", f"D{R0+10}"
 _TH = f"$C${R0+4}"
-_mg = lambda j, k: (f'IF(ABS(E{R0+5+j})<0.05*{PX},"{DT_SHORT[k]}情境 $"&{_T1(f"C{R0+5+j}")}&"，"&IF(E{R0+5+j}<0,"距賣出門檻","高於賣出門檻")'
+_mg = lambda j, k: (f'IF(ABS(E{R0+5+j})<{RT_MG}*{PX},"{DT_SHORT[k]}情境 $"&{_T1(f"C{R0+5+j}")}&"，"&IF(E{R0+5+j}<0,"距賣出門檻","高於賣出門檻")'
                     f'&" $"&{_T1(_TH)}&" 僅 $"&{_T1(f"ABS(E{R0+5+j})")}&"。","")')
 _ns = '&" "&'.join(f'IF(D{R0+5+j}<>-1,"{DT_SHORT[k]}","")' for j, k in enumerate(DT_SC))
 _nsc = "+".join(f"(D{R0+5+j}<>-1)" for j in range(3))
@@ -1683,9 +1696,10 @@ for kind in ("EV/EBITDA 腿", "加權目標價"):
 ws = wb.create_sheet("評價_可比公司")
 for c, w in zip("ABCDEFGHIJKL", [26, 10, 10, 10, 10, 13, 13, 11, 11, 18, 70, 4]):
     ws.column_dimensions[c].width = w
-ws["A1"] = "可比公司 — 以 EV/Sales 為主（市值：2026-09-21 收盤）"
+PEERS = CO['peers']  # 同業 Comps：資料只在 company.json → peers（與 HTML 共用）
+ws["A1"] = f"可比公司 — 以 EV/Sales 為主（市值：{PEERS['priceDate']} 收盤）"
 ws["A1"].font = TITLE
-ws["A2"] = "EV＝市值＋（有息負債−非受限現金）；含租賃＝EV＋營業租賃負債。EV/EBITDA 僅供參考（同業 GAAP EBITDA 皆為負，顯示 n/m）。此表不進入目標價。與 HTML Comps 分頁同一組數字"
+ws["A2"] = PEERS['textXlsx']['subtitle']
 ws["A2"].font = SMALL
 r = 4
 heads = ["公司", "市值", "淨負債", "EV", "TTM 營收", "EV/Sales（TTM）", "含租賃 EV/Sales", "TTM EBITDA", "EV/EBITDA", "資料期", "備註"]
@@ -1693,12 +1707,7 @@ for j, h in enumerate(heads):
     c = ws.cell(row=r, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
 ws.cell(row=r, column=6).fill = PatternFill("solid", fgColor="0F5C61")
 r += 1
-peers = [
-    ("NBIS Nebius", 63.81, 2.16, 1.36, 0.0, -0.612, 0.418, "EBITDA：FY25 20-F", "季報未 XBRL 標註，EBITDA 用 FY2025；營收為 TTM。前瞻 EV/Sales 約 9.3x（由 9/18 forward PS 8.46 推算 [Derived]）"),
-    ("IREN", 18.61, 1.70, 0.707, 0.003, -1.047, 0.418, "FY26 10-K（6/30）", "自有電廠、營業租賃負債僅 0.003bn；FY26 合約 ARR 4.0bn"),
-    ("APLD Applied Digital", 8.22, 3.37, 0.6113, 0.066, -0.236, 0.067, "FY26 10-K（5/31）", "租約多未起租，營收尚未反映約 36bn 合約"),
-    ("CORZ Core Scientific", 5.90, 2.53, 0.4403, 0.109, -0.561, 0.063, "TTM 至 Q2（6/30）", "託管轉型期"),
-]
+peers = [(e["labelXlsx"], e["mkt"], e["netDebt"], e["rev"], e["opl"], e["opInc"], e["da"], e["asOf"], e["noteXlsx"]) for e in PEERS["list"]]
 p0 = r
 for nm, mkt, nd, rev, opl, opi, da, asof, note in peers:
     ws.cell(row=r, column=1, value=nm).font = BLACK
@@ -1718,16 +1727,16 @@ c = ws.cell(row=r, column=7, value=f"=MEDIAN(G{p0}:G{r-1})"); c.number_format = 
 med_r = r
 r += 1
 ws.cell(row=r, column=1, value="CRWV（TTM 至 Q2）").font = BOLD
-c = ws.cell(row=r, column=2, value=47.12); c.font = BLUE; c.number_format = NUM
+c = ws.cell(row=r, column=2, value=CO['callFacts']['mktCapLast']); c.font = BLUE; c.number_format = NUM
 c = ws.cell(row=r, column=3, value=f"={ND}"); c.font = GREEN; c.number_format = NUM
 c = ws.cell(row=r, column=4, value=f"=B{r}+C{r}"); c.number_format = NUM
-c = ws.cell(row=r, column=5, value=7.59); c.font = BLUE; c.number_format = NUM
+c = ws.cell(row=r, column=5, value=CO['callFacts']['ttmRev']); c.font = BLUE; c.number_format = NUM
 c = ws.cell(row=r, column=6, value=f"=D{r}/E{r}"); c.number_format = MULT; c.font = BOLD
-c = ws.cell(row=r, column=7, value=f"=(D{r}+16.319)/E{r}"); c.number_format = MULT
-c = ws.cell(row=r, column=8, value="=-0.231+3.991"); c.font = BLUE; c.number_format = NUM
+c = ws.cell(row=r, column=7, value=f"=(D{r}+{CO['latestQuarter']['opLeaseLiab']})/E{r}"); c.number_format = MULT
+c = ws.cell(row=r, column=8, value=f"={CO['callFacts']['ttmOpInc']}+{CO['callFacts']['ttmDa']}"); c.font = BLUE; c.number_format = NUM
 c = ws.cell(row=r, column=9, value=f'=IF(H{r}>0,D{r}/H{r},"n/m")'); c.number_format = MULT
 ws.cell(row=r, column=10, value="TTM 至 Q2").font = SMALL
-ws.cell(row=r, column=11, value="EV 用 9/21 市值與 6/30 淨負債；含租賃再加營業租賃負債 16.319").font = SMALL
+ws.cell(row=r, column=11, value=f"EV 用 9/21 市值與 6/30 淨負債；含租賃再加營業租賃負債 {CO['latestQuarter']['opLeaseLiab']}").font = SMALL
 crwv_r = r
 r += 1
 ws.cell(row=r, column=1, value="CRWV 模型 FY27E").font = BLACK
@@ -1736,16 +1745,12 @@ c = ws.cell(row=r, column=3, value=f"={ND}"); c.number_format = NUM
 c = ws.cell(row=r, column=4, value=f"=B{r}+C{r}"); c.number_format = NUM
 c = ws.cell(row=r, column=5, value=f"='損益'!D{rev_v}"); c.font = GREEN; c.number_format = NUM
 c = ws.cell(row=r, column=6, value=f"=D{r}/E{r}"); c.number_format = MULT
-c = ws.cell(row=r, column=7, value=f"=(D{r}+16.319)/E{r}"); c.number_format = MULT
+c = ws.cell(row=r, column=7, value=f"=(D{r}+{CO['latestQuarter']['opLeaseLiab']})/E{r}"); c.number_format = MULT
 c = ws.cell(row=r, column=8, value=f"='損益'!D{ebitda_v}"); c.font = GREEN; c.number_format = NUM
 c = ws.cell(row=r, column=9, value=f"=D{r}/H{r}"); c.number_format = MULT
 ws.cell(row=r, column=11, value="市值用模型股數（含 ATM 上限）；分母為模型 FY27 營收").font = SMALL
 r += 2
-notes = [
-    "讀法：CRWV 的 TTM EV/Sales 約為同業中位數的四成。折價來源有三，不能全部解讀為便宜：(1) 同業仍在爬坡，TTM 營收遠小於已簽約規模，TTM 倍數偏高；",
-    "(2) CRWV 用租約取得機房，加入營業租賃負債後倍數升至約 12x，同業加與不加差別很小；(3) 客戶集中（前三大 72%）與五期外部資金需求。",
-    "前瞻：NBIS 前瞻 EV/Sales 約 9.3x（由 9/18 forward PS 推算 [Derived]），CRWV 模型 FY27E 約 3x。此表為市場比較用，不進入目標價（DCF 45%＋EV/EBITDA 55%）。",
-]
+notes = PEERS['textXlsx']['notes']
 for t in notes:
     ws.cell(row=r, column=1, value=t).font = SMALL
     r += 1
@@ -1952,8 +1957,8 @@ checks = [
     ("損益營收＝資金營收", None, "=0",
      "=IF(ABS(B{r})<0.001,\"通過\",\"不一致\")", NUM,
      "FY27 損益算力收入 − 產能頁 isRev。兩邊必須同一組數字"),
-    ("終值占 EV 比重", f"='評價_DCF與目標價'!C{d0+8}", "<85%",
-     "=IF(B{r}<0.85,\"通過\",\"觀察\")", PCT,
+    ("終值占 EV 比重", f"='評價_DCF與目標價'!C{d0+8}", f'="<"&{_PC(RT_TVW)}',
+     "=IF(B{r}<" + RT_TVW + ",\"通過\",\"觀察\")", PCT,
      "過高表示結論由終值假設決定"),
     ("EBITDA 單一來源（FY27 損益 EBITDA÷營收 − 輸入 EBITDA 率）", None, "=0",
      "=IF(ABS(B{r})<0.0001,\"通過\",\"不一致\")", '0.0000', "損益與資金引用同一列 EBITDA 率"),
@@ -1963,8 +1968,8 @@ checks = [
      "=IF(B{r}=0,\"通過\",\"觀察\")", NUM0, "失效只定義為 WACC ≤ g 或常態化 FCF ≤ 0；股權為負不算失效"),
     ("期末現金 ≥ 最低現金（期前融資）", None, "≥2.0",
      "=IF(B{r}>=1.999,\"通過\",\"不一致\")", NUM, "瀑布每期補足至最低現金；最小值應等於最低現金"),
-    ("股權募資 ÷ 現市值", None, "≤1.5x",
-     "=IF(B{r}<=1.5,\"通過\",\"觀察\")", MULT, "超過 1.5 倍：市場吸收能力存疑，結論不得為買進"),
+    ("股權募資 ÷ 現市值", None, f'="≤"&{_MT(RT_EQ)}&"x"',
+     "=IF(B{r}<=" + RT_EQ + ",\"通過\",\"觀察\")", MULT, f'="超過 "&{_MT(RT_EQ)}&" 倍：市場吸收能力存疑，結論不得為買進"'),
     ("債務明細合計 = 10-Q 本金 35.551", None, "35.551",
      "=IF(ABS(B{r}-35.551)<0.01,\"通過\",\"不一致\")", NUM, "16 筆工具逐筆加總"),
     ("FY26 全年 CapEx（MW 公式）", None, "35–39",
@@ -2142,7 +2147,7 @@ import json as _json
 # 輸出位置相對於 repo 根目錄：預設 out/；可用第 1 個參數指定 xlsx 路徑（outline.json 一律寫在 out/）
 _OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "out")
 _osrv.makedirs(_OUT_DIR, exist_ok=True)
-_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_1.xlsx")
+_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_2.xlsx")
 _json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
 wb.save(_xlsx)
 print("saved", _xlsx)

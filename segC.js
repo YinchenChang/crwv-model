@@ -318,7 +318,7 @@ function AM({
           className: `max-w-full overflow-x-auto`,
           children: [(0, $.jsx)(hdrQ, {
             title: `可比公司（以 EV/Sales 為主）`,
-            tip: `市值為 2026-09-21 收盤（S&P Global via stockanalysis.com）；EV＝市值＋（有息負債 − 非受限現金），負債與現金取各公司最新申報。EV/Sales 為主要比較倍數：同業 GAAP EBITDA 皆為負，EV/EBITDA 無法比較，僅列為參考。「含租賃」欄把營業租賃負債加進 EV——CRWV 以租約取得機房，同業多為自有，這一欄讓兩種資本結構可以對齊比較。刻意不列 MSFT／AMZN／GOOGL：淨現金、EBITDA 為正，與槓桿型 neocloud 不可比。`
+            tip: COMPANY_DATA.peers.textHtml.headerTip
           }), (0, $.jsx)(`div`, {
             className: `mt-3`,
             style: xstyQ.wrap,
@@ -348,13 +348,13 @@ function AM({
                       background: t % 2 ? `#fbfaf7` : `#fff`
                     },
                     children: [(0, $.jsx)(`b`, {
-                      children: e.ticker
+                      children: e.labelHtml
                     }), ` `, (0, $.jsx)(`span`, {
                       style: {
                         color: `#6b7280`,
                         fontSize: 11
                       },
-                      children: e.role
+                      children: e.roleHtml
                     })]
                   }), [e.mkt, e.netDebt, e.ev, e.rev].map((e, n) => (0, $.jsx)(`td`, {
                     style: {
@@ -408,7 +408,7 @@ function AM({
                       fontFamily: `ui-sans-serif, system-ui, sans-serif`,
                       background: t % 2 ? `#fbfaf7` : `#fff`
                     },
-                    children: e.note
+                    children: e.noteHtml
                   })]
                 }, e.ticker)), (0, $.jsxs)(`tr`, {
                   children: [(0, $.jsx)(`td`, {
@@ -564,12 +564,12 @@ function AM({
           }), (0, $.jsxs)(`p`, {
             className: `mt-3 text-xs leading-relaxed text-muted`,
             children: [`讀法：CRWV 的 TTM EV/Sales `, Y((CALL_FACTS.mktCapLast + n.netDebt) / CALL_FACTS.ttmRev, 1), `x，約為同業中位數 `, Y(wM(lM.map(e => e.ev / e.rev)), 1), `x 的四成。`, (0, $.jsx)(tipQ, {
-              t: `這個折價有三個來源，不能全部解讀為便宜：(1) 分母時點不同——同業仍在爬坡，TTM 營收遠小於已簽約規模（APLD 合約租約約 36bn、IREN 合約 ARR 4.0bn），TTM 倍數因此偏高；CRWV 營收已放量，倍數自然較低。(2) 資本結構——CRWV 用租約取得機房，若把營業租賃負債 16.3bn 加進 EV，倍數升至約 12x；同業多為自有資產，加與不加差別很小。(3) 客戶集中與融資需求——前三大客戶占 72% 營收、五期仍需外部資金。若要看前瞻：NBIS 前瞻 EV/Sales 約 9.3x（由 9/18 forward PS 8.46 依 9/21 市值推算 [Derived]），CRWV 模型 FY27E 約 3x，差距仍約 3 倍。`,
+              t: COMPANY_DATA.peers.textHtml.readingTip,
               w: 480
             })]
           }), (0, $.jsx)(`p`, {
             className: `mt-3 text-xs leading-relaxed text-muted`,
-            children: `口徑與限制：市值為 2026-09-21 收盤，負債與現金為各公司最新申報（IREN FY26 10-K 6/30、APLD FY26 10-K 5/31、CORZ 與 CRWV Q2 10-Q 6/30；NBIS 為來源揭露值）——市值即時、資產負債表季末，日期不一致是所有 EV 計算的共同限制，未作 pro forma 調整（CRWV 的 9/17 可轉債 3.7bn 亦未計入）。營收為各自 TTM／最近會計年度（APLD 年度結束於 5/31）。EV/EBITDA 列為參考：同業 GAAP EBITDA 皆為負，只有 CRWV 可計算。此表為市場比較用，不進入目標價（目標價仍為 DCF 45%＋EV/EBITDA 55%）。`
+            children: COMPANY_DATA.peers.textHtml.caveat
           })]
 
         }), a === 2 && (0, $.jsxs)(Jj, {
@@ -1003,7 +1003,7 @@ function AM({
             children: [(0, $.jsx)(MM, {
               title: `點位（評等依此）`,
               body: `$${Y(TR.pt,1)} · ${m.call}`,
-              hint: `目前輸入的加權目標價。賣出門檻 $${Y(TR.th,1)}（現價 −15%）；上檔 ≥25% 且終值占比 <90%、股權需求不超過現市值 1.5 倍才給買進。`
+              hint: `目前輸入的加權目標價。賣出門檻 $${Y(TR.th,1)}（現價 −${pctQ(SELL_TH)}）；上檔 ≥${pctQ(RATE_TH.buyUpsideMin)} 且終值占比 <${pctQ(RATE_TH.buyTvShareMax)}、股權需求不超過現市值 ${multTxt(RATE_TH.equityRaiseMaxMult)} 倍才給買進。`
             }), (0, $.jsx)(MM, {
               title: `情境區間（保守與積極情境）`,
               body: `$${Y(TR.A[0],1)}–$${Y(TR.A[1],1)}`,
@@ -1020,7 +1020,7 @@ function AM({
             }, e))
           }) : null, (0, $.jsx)(`p`, {
             className: `mt-4 text-xs leading-relaxed text-muted`,
-            children: `缺口處理：採期前融資瀑布——每期在需要前先融足，使期末現金不低於最低現金；依序動用未動用額度、資產層新債（總債務 ≤ 債務／backlog 上限）、股權（按現價折價發行）。新債利息進損益，新股進股數；DCF 以融資後股數計每股，並加回新股募得現金的現值；EV/EBITDA 用錨定年末（預設 FY29）淨負債與股數。舉債部分反映在錨定年末淨負債（與舊版扣缺口本金等價），股權部分反映在股數。 結論規則：股權募資 > 現市值 1.5 倍 → 禁止買進；加權目標價低於現價 15% 以上，或股權需求過大且目標價低於現價 8% 以上 → 賣出；上檔 ≥25% 且股權需求未超標才買進。這是研究框架，不是投資建議。Street $144 隱含市場相信資產層債務能以可接受成本持續擴張、股權稀釋有限，與本模型的債務上限與股權殘差假設不同。`
+            children: `缺口處理：採期前融資瀑布——每期在需要前先融足，使期末現金不低於最低現金；依序動用未動用額度、資產層新債（總債務 ≤ 債務／backlog 上限）、股權（按現價折價發行）。新債利息進損益，新股進股數；DCF 以融資後股數計每股，並加回新股募得現金的現值；EV/EBITDA 用錨定年末（預設 FY29）淨負債與股數。舉債部分反映在錨定年末淨負債（與舊版扣缺口本金等價），股權部分反映在股數。 結論規則：股權募資 > 現市值 ${multTxt(RATE_TH.equityRaiseMaxMult)} 倍 → 禁止買進；加權目標價低於現價 ${pctQ(SELL_TH)} 以上，或股權需求過大且目標價低於現價 ${pctQ(RATE_TH.sellUpsideMaxIfEquityOver)} 以上 → 賣出；上檔 ≥${pctQ(RATE_TH.buyUpsideMin)} 且股權需求未超標才買進。這是研究框架，不是投資建議。Street $144 隱含市場相信資產層債務能以可接受成本持續擴張、股權稀釋有限，與本模型的債務上限與股權殘差假設不同。`
           })]
         })]
       })]

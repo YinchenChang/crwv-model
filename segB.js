@@ -1,55 +1,7 @@
 PERIOD_LABELS = PERIODS, // 接續模板片段 mid1 結尾未結束的宣告鏈，所以不可加 var
   HIST_PL = COMPANY_DATA.historicalPL,
   VAL_DEFAULTS = structuredClone(COMPANY_DATA.valuation),
-  lM = [{
-    ticker: `NBIS`,
-    name: `Nebius Group`,
-    role: `Neocloud 直接對標`,
-    mkt: 63.81,
-    netDebt: 2.16,
-    ev: 65.97,
-    rev: 1.36,
-    opl: 0,
-    ebitda: -.194,
-    asOf: `EBITDA：FY25 20-F`,
-    note: `GAAP 營業損失 −0.612＋D&A 0.418（FY2025；季報 6-K 未 XBRL 標註，無法算 TTM）。營收為 TTM 1.36`
-  }, {
-    ticker: `IREN`,
-    name: `IREN Limited`,
-    role: `Neocloud／自建電力`,
-    mkt: 18.61,
-    netDebt: 1.7,
-    ev: 20.31,
-    rev: .707,
-    opl: .003,
-    ebitda: -.629,
-    asOf: `FY26 10-K（6/30）`,
-    note: `GAAP 營業損失 −1.047＋D&A 0.418。自有電廠、營業租賃負債僅 0.003bn`
-  }, {
-    ticker: `APLD`,
-    name: `Applied Digital`,
-    role: `房東（Polaris Forge）`,
-    mkt: 8.22,
-    netDebt: 3.37,
-    ev: 11.59,
-    rev: .6113,
-    opl: .066,
-    ebitda: -.169,
-    asOf: `FY26 10-K（5/31）`,
-    note: `GAAP 營業損失 −0.236＋D&A 0.067。租約多未起租，EBITDA 尚未反映 36bn 合約`
-  }, {
-    ticker: `CORZ`,
-    name: `Core Scientific`,
-    role: `房東（高密度託管）`,
-    mkt: 5.9,
-    netDebt: 2.53,
-    ev: 8.43,
-    rev: .4403,
-    opl: .109,
-    ebitda: -.498,
-    asOf: `TTM 至 Q2（6/30）`,
-    note: `GAAP 營業損失 −0.561＋D&A 0.063。託管轉型期`
-  }];
+  lM = COMPANY_DATA.peers.list.map(e => ({ ...e, ev: e.mkt + e.netDebt, ebitda: e.opInc + e.da })); // 同業 Comps：資料只在 company.json → peers；EV 與 EBITDA 現算（與 Excel 公式一致）
 
 function uM(e, t) {
   return t ? e / t - 1 : 0
@@ -231,10 +183,14 @@ var BLEND_W = COMPANY_DATA.methodology.blendWeights,
     netDebt: `錨定年末總債務 − 現金`
   }]
 
-// 評等規則（v4.1 自 blendCall 抽出，規則不變）：c＝相對現價的空間、o＝終值占 EV、B＝股權募資超過現市值 1.5 倍
-var SELL_TH = -.15;
+// 評等規則（v4.1 自 blendCall 抽出；v4.2 門檻改讀 company.json → methodology.rating）：c＝相對現價的空間、o＝終值占 EV、B＝股權募資超過現市值上限倍數
+var RATE_TH = COMPANY_DATA.methodology.rating,
+  SELL_TH = RATE_TH.sellUpsideMax;
 function rateCall(c, o, B) {
-  return c >= .25 && o < .9 && !B ? `買進` : c <= SELL_TH || B && c <= -.08 ? `賣出` : `中立`
+  return c >= RATE_TH.buyUpsideMin && o < RATE_TH.buyTvShareMax && !B ? `買進` : c <= SELL_TH || B && c <= RATE_TH.sellUpsideMaxIfEquityOver ? `賣出` : `中立`
+}
+function pctQ(x) { // 門檻的百分比文字（取絕對值，正負號由呈現處決定）：0.25 → 25%、-0.15 → 15%
+  return `${multTxt(Math.round(Math.abs(x) * 1e6) / 1e4)}%`
 }
 
 function blendCall(e) {
@@ -248,8 +204,8 @@ function blendCall(e) {
     mktCap: M,
     shares0: S0,
     dcfInvalid: DI
-  } = e, WD = DI ? 0 : BLEND_W.dcf, WE = 1 - WD, s = (DI ? 0 : WD * n) + WE * i, c = s / Math.max(t, .01) - 1, u = a <= .01, B = a > 1.5 * M, d = [];
-  u ? d.push(`融資狀態：五期缺口可全由債務（額度＋資產層新債，受 債務／backlog 上限約束）支應，不需新股。`) : d.push(`融資狀態：五期需股權募資 ${a.toFixed(0)}bn（約現市值 ${(a/Math.max(M,1)).toFixed(1)} 倍），新發行 ${q.toFixed(2)}bn 股，原股東最終持股約 ${(S0/(S0+q)*100).toFixed(0)}%。股權在需要前一期募足（期前融資），不再以缺口本金扣減估值。`), B && d.push(`股權募資超過現市值 1.5 倍：市場吸收能力存疑，禁止買進。`), o > .85 && d.push(`終值占企業價值過高，DCF 對 WACC／永續成長／維持性 CapEx 比率極敏感。`);
+  } = e, WD = DI ? 0 : BLEND_W.dcf, WE = 1 - WD, s = (DI ? 0 : WD * n) + WE * i, c = s / Math.max(t, .01) - 1, u = a <= .01, B = a > RATE_TH.equityRaiseMaxMult * M, d = [];
+  u ? d.push(`融資狀態：五期缺口可全由債務（額度＋資產層新債，受 債務／backlog 上限約束）支應，不需新股。`) : d.push(`融資狀態：五期需股權募資 ${a.toFixed(0)}bn（約現市值 ${(a/Math.max(M,1)).toFixed(1)} 倍），新發行 ${q.toFixed(2)}bn 股，原股東最終持股約 ${(S0/(S0+q)*100).toFixed(0)}%。股權在需要前一期募足（期前融資），不再以缺口本金扣減估值。`), B && d.push(`股權募資超過現市值 ${multTxt(RATE_TH.equityRaiseMaxMult)} 倍：市場吸收能力存疑，禁止買進。`), o > RATE_TH.tvShareWarn && d.push(`終值占企業價值過高，DCF 對 WACC／永續成長／維持性 CapEx 比率極敏感。`);
   let f = rateCall(c, o, B);
   DI && d.unshift(`DCF 失效，已排除於目標價（權重改為 EV/EBITDA 100%）。`);
   return {
@@ -345,7 +301,7 @@ function scnQ(e, sc) {
 // 情境區間＝保守與積極情境的加權目標價（保留手動調整）；方法區間＝目前輸入、EV/EBITDA 倍數換成 methodology.rangeMultiples 兩端。
 // 判斷句與 DCF 權重說明在此產生（HTML 各頁共用；Excel 以文字公式產生同一字串，cmp31 逐字比對）。
 var RANGE_MULTS = COMPANY_DATA.methodology.rangeMultiples,
-  MARGIN_ALERT = .05; // 任一情境與賣出門檻的距離小於現價的 5% 時，判斷句揭露該距離
+  MARGIN_ALERT = RATE_TH.sellMarginAlert; // 任一情境與賣出門檻的距離小於現價的此比例（預設 5%）時，判斷句揭露該距離
 function multTxt(m) {
   return Number.isInteger(m) ? m.toFixed(0) : m.toFixed(1)
 }
@@ -415,7 +371,7 @@ function EM(e, t, n) {
     ok: c,
     severity: c ? e.call.funded ? `ok` : `watch` : `block`,
     title: `股權募資過大禁止買進`,
-    detail: e.call.funded ? `五期缺口可全由債務支應，無需新股。` : `五期需股權 ${e.hole.toFixed(0)}bn；${e.call.blocked ? `超過現市值 1.5 倍，結論不會是買進` : `未超過現市值 1.5 倍`}。結論「${e.call.call}」。`
+    detail: e.call.funded ? `五期缺口可全由債務支應，無需新股。` : `五期需股權 ${e.hole.toFixed(0)}bn；${e.call.blocked ? `超過現市值 ${multTxt(RATE_TH.equityRaiseMaxMult)} 倍，結論不會是買進` : `未超過現市值 ${multTxt(RATE_TH.equityRaiseMaxMult)} 倍`}。結論「${e.call.call}」。`
   }, {
     id: `val-atm`,
     ok: l,
