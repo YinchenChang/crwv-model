@@ -1,4 +1,5 @@
-# Excel 逐格比對（公式與常數；另可比對重算後的值）。用法：python3 xl_diff.py a.xlsx b.xlsx [--values] [--by-label]
+# Excel 逐格比對（公式與常數；另可比對重算後的值）。用法：python3 xl_diff.py a.xlsx b.xlsx [--values] [--by-label] [--ignore=工作表,工作表]
+# --ignore（v4.3）：兩檔都略過這些工作表（例如內容刻意改寫的「來源」、新增的「摘要」），其餘照常比對；略過的工作表另外列出。
 # --by-label（v4.2）：列數或 A 欄不同的工作表（例如新增輸入列造成位移），改以「區段＋A 欄列名稱」配對列再逐格比對；
 #   區段＝該列之上最近的第一層區段標題列（淺藍底 D9E2F3），同名的表頭列（例如各區的「項目」）因此可區分。
 #   配對鍵重複、或 A 欄空白的列有內容時直接報錯並列出，不自行配對。A、B 兩檔結構相同的工作表仍逐格比對。
@@ -8,6 +9,7 @@
 #   新版公式把對「新增列」儲存格的引用換回該格的常數後（「+-」併為「-」）與舊版公式相同者，列為「常數改為引用輸入格」，不計為差異。
 import sys, re, openpyxl
 a, b = sys.argv[1], sys.argv[2]; vals = '--values' in sys.argv; by_label = '--by-label' in sys.argv
+IGN = [x for o in sys.argv if o.startswith('--ignore=') for x in o.split('=', 1)[1].split(',') if x]
 SEC = 'FFD9E2F3'  # build_xlsx.py FILL_SEC（第一層區段標題）
 
 
@@ -45,6 +47,9 @@ def keys(ws):
 
 wa, wb = openpyxl.load_workbook(a, data_only=vals), openpyxl.load_workbook(b, data_only=vals)
 vb = openpyxl.load_workbook(b, data_only=True) if (by_label and not vals) else None
+for _w in (wa, wb) + ((vb,) if vb else ()):
+    for _n in IGN:
+        if _n in _w.sheetnames: del _w[_n]
 diffs, added, conv, errs, inl = [], [], [], [], []
 if wa.sheetnames != wb.sheetnames: diffs.append(('sheets', wa.sheetnames, wb.sheetnames))
 col_a = lambda ws: [ws.cell(r, 1).value for r in range(1, ws.max_row + 1)]
@@ -125,6 +130,7 @@ for n in wa.sheetnames:
                 inl.append((n, B.cell(rb, c).coordinate)); continue
             diffs.append((n, B.cell(rb, c).coordinate, str(x)[:70], str(y)[:70]))
 print(len(diffs), 'differences'); [print(*d) for d in diffs[:15]]
+if IGN: print(f'略過的工作表（未比對）：{"、".join(IGN)}')
 if by_label:
     lab = [n for n, m in mode.items() if m == 'label']
     print(f'以列名稱配對的工作表：{"、".join(lab) if lab else "無（全部逐格）"}')

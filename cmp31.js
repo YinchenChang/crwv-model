@@ -123,6 +123,24 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
   cmpT('文字 點位位置', RG+'點位位置', R.pos);
   cmpT('文字 判斷句', RG+'判斷句', R.judge);
   cmpT('文字 DCF 權重說明', '評價_DCF與目標價|DCF 權重說明', R.note); }
+// v4.3：市場共識（I 區逐筆：數值、文字、擷取日期、標記）與一頁摘要（差距、隱含倍數、結論句／判斷句／隱含倍數句／Q3 句逐字）
+{ const R=targetRange(d,q,VAL_DEFAULTS,p), cv=consensusView(d,p,VAL_DEFAULTS,R), SM='摘要|';
+  const cmpT=(label,xlKey,h)=>{ const x=X[xlKey]; if(!x){rows.push([label,'MISSING XL KEY '+xlKey]);return;} rows.push([x[0]===h?'OK ':'XX ',label,JSON.stringify(h),JSON.stringify(x[0])]); };
+  for(const it of consensusItems()){ const k='輸入與假設|'+it.label, x=X[k]; if(!x){rows.push(['共識 '+it.label,'MISSING XL KEY '+k]);continue;}
+    const okV=it.vals.length?it.vals.every((z,i)=>typeof x[i]==='number'&&Math.abs(z-x[i])<1e-9):x[0]===it.text;
+    const ok=okV&&x[3]===it.date&&(x[4]??'')===it.tag;
+    rows.push([ok?'OK ':'XX ','共識 '+it.label,JSON.stringify([...it.vals,it.text,it.date,it.tag]),JSON.stringify(x)]); }
+  for(const [n,k] of [['營收','rev'],['調整後 EBITDA','ebitda'],['CapEx（毛額）','capex'],['淨負債','nd']]){
+    cmp('摘要 '+n+' 模型',SM+'差異｜'+n+'｜模型',cv.rows.map(r=>r.m[k])); cmp('摘要 '+n+' 共識',SM+'差異｜'+n+'｜共識',cv.rows.map(r=>r.c[k]));
+    cmp('摘要 '+n+' 差距',SM+'差異｜'+n+'｜差距',cv.rows.map(r=>r.gap[k])); }
+  cmp('摘要 EBITDA率 模型',SM+'差異｜EBITDA 率｜模型',cv.rows.map(r=>r.m.ebM)); cmp('摘要 EBITDA率 共識',SM+'差異｜EBITDA 率｜共識',cv.rows.map(r=>r.c.ebM));
+  cmp('摘要 EBITDA率 差距pt',SM+'差異｜EBITDA 率｜差距（百分點）',cv.rows.map(r=>r.gap.ebM));
+  cmp('摘要 分歧起始年',SM+'差異｜分歧起始年（1＝FY26…3＝FY28；0＝無）',[cv.first+1]);
+  cmp('隱含 共識目標價倍數',SM+'隱含｜共識平均目標價隱含 FY28 EV/EBITDA',[cv.impTgt]); cmp('隱含 現價倍數',SM+'隱含｜現價隱含 FY28 EV/EBITDA',[cv.impPx]);
+  cmp('隱含 模型上緣',SM+'隱含｜模型方法區間上緣',[cv.mHi]);
+  cmp('摘要 點位',SM+'結論｜點位（加權目標價）',[R.pt]); cmp('摘要 空間',SM+'結論｜空間',[cv.up]); cmp('摘要 點位−門檻',SM+'結論｜點位 − 賣出門檻',[cv.gapTh]);
+  cmpT('文字 摘要評等',SM+'結論｜評等',p.call.call); cmpT('文字 摘要結論句',SM+'結論｜結論句',cv.head); cmpT('文字 摘要情境判斷句',SM+'結論｜情境判斷句',R.judge);
+  cmpT('文字 共識判斷句',SM+'差異｜判斷句',cv.judge); cmpT('文字 隱含倍數句',SM+'隱含｜隱含倍數句',cv.implied); cmpT('文字 Q3 句',SM+'驗證｜Q3 句',cv.q3); }
 { const G=evAnchorGrid(d,q,VAL_DEFAULTS); G.mults.forEach((m,i)=>{ cmp('矩陣腿 '+m+'x', V+'錨定×倍數｜EV/EBITDA 腿｜'+m.toFixed(1)+'x', G.leg[i]); cmp('矩陣目標 '+m+'x', V+'錨定×倍數｜加權目標價｜'+m.toFixed(1)+'x', G.tgt[i]); }); }
 for(const r of rows) console.log(r.join(' | '));
 // HTML P&L table FY26 display check

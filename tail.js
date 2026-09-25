@@ -325,6 +325,9 @@ var FMODS = [{
   }, {
     name: `評價`,
     items: [[1, `Comps`], [2, `DCF`], [3, `目標價`], [4, `反向 DCF`]]
+  }, {
+    name: `市場共識`,
+    items: [[5, `共識對照`]]
   }];
 
 function navQ({

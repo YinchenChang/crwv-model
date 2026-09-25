@@ -4,7 +4,8 @@
   "ticker": "CRWV",
   "updateDate": "2026-09-24",
   "priceDate": "2026-09-21",
-  "sourceOrderNote": "時序先法說（8/11）、後 10-Q（8/12）、再 8-K（9/17 可轉債＋ATM）。入帳數字聽 10-Q；全年指引聽法說；事實打架聽 10-Q。Q2 新增 500 MW（6 月單月 300 MW）當觀察，不年化進基準。"
+  "sourceOrderNote": "時序先法說（8/11）、後 10-Q（8/12）、再 8-K（9/17 可轉債＋ATM）。入帳數字聽 10-Q；全年指引聽法說；事實打架聽 10-Q。Q2 新增 500 MW（6 月單月 300 MW）當觀察，不年化進基準。",
+  "consensusFile": "data/consensus_crwv_20260925.json"
  },
  "periods": [
   "FY26",
@@ -40,7 +41,28 @@
   "opInc": -0.193,
   "ni": -1.366,
   "eps": -2.53,
-  "ngEps": -1.94
+  "ngEps": -1.94,
+  "adjEbitda": 2.667,
+  "adjEbitdaMeta": {
+   "q1": 1.157,
+   "q2": 1.51,
+   "tag": "Verified",
+   "sources": [
+    {
+     "quarter": "Q1",
+     "name": "Futurum Q1 FY2026 財報摘要",
+     "url": "https://futurumgroup.com/insights/coreweave-q1-fy-2026-capacity-constraints-amid-accelerating-ai-demand/"
+    },
+    {
+     "quarter": "Q2",
+     "name": "Investing.com Q2 2026 財報報導",
+     "url": "https://www.investing.com/news/company-news/coreweave-q2-2026-slides-revenue-doubles-backlog-surges-246-93CH-4852949"
+    }
+   ],
+   "crossCheck": "MarketScreener 季度表同列 1,157／1,510，一致",
+   "note": "公司公布之實際數，引用自財報報導轉述，非公司新聞稿原文",
+   "usage": "只用於「與市場的差異」的 FY26 調整後 EBITDA 比較；模型 GAAP 損益與評價不使用"
+  }
  },
  "historicalPL": [
   {
@@ -376,9 +398,6 @@
   "convertPx": 97.85,
   "atmShares": 35,
   "price0917": 79.88,
-  "streetTarget": 144.46,
-  "streetN": 38,
-  "bernstein": 74,
   "tier34Active": 0.25,
   "tier34Contracted": 0.74,
   "cdsMid": 720,
@@ -768,7 +787,8 @@
    "sellUpsideMaxIfEquityOver": -0.08,
    "sellMarginAlert": 0.05,
    "tvShareWarn": 0.85
-  }
+  },
+  "consensusGapTol": 0.05
  },
  "peers": {
   "priceDate": "2026-09-21",

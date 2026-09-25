@@ -21,6 +21,7 @@ for sh in wb.sheetnames:
         if sh=='評價_可比公司': v=[ws.cell(row=r,column=2+i).value for i in range(8)]
         elif sh=='檢查_連動': v=[ws.cell(row=r,column=2).value]
         else: v=[ws.cell(row=r,column=3+i).value for i in range(5)]
+        if sh=='摘要' or (sh=='輸入與假設' and str(n).startswith('共識｜')): o[f"{sh}|{n}"]=v; continue  # v4.3：一頁摘要與市場共識 I 區（含文字列、擷取日期、標記）
         if any(isinstance(x,(int,float)) for x in v): o[f"{sh}|{n}"]=v
         elif sh=='評價_DCF與目標價' and (n.startswith('目標價區間｜') or n=='DCF 權重說明'): o[f"{sh}|{n}"]=[v[0] or '']  # v4.1：文字列（判斷句等）逐字比對
 json.dump(o,open(out,'w'),ensure_ascii=False); print('ok',sel,len(o))

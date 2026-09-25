@@ -67,7 +67,7 @@ function AM({
     }), (0, $.jsx)(`div`, {
       className: `grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6`,
       children: [
-        [`現價（9/21 收）`, `$${Y(n.price,2)}`],
+        [`現價（${mdQ(PRICE_DATE)} 收）`, `$${Y(n.price,2)}`],
         [`市值`, `${Y(y,0)}bn`],
         [`企業價值`, `${Y(b,0)}bn`],
         [`本模型目標價（情境區間）`, `$${Y(m.blended,1)}（$${Y(TR.A[0],1)}–$${Y(TR.A[1],1)}）`],
@@ -92,12 +92,12 @@ function AM({
           children: `評價假設`
         }), (0, $.jsx)(`p`, {
           className: `mt-1 text-xs leading-relaxed text-muted`,
-          children: `現價為 2026-09-21 收盤 $85.43。股數隨 ATM 開關連動（關閉則扣回 35m 股上限）。營收＝資金模型算力產能＋非算力服務。稅率 21% 為名目（公司因評價備抵仍認列稅費，H1 現金稅約 0.1bn）。淨負債用 6/30 本金 35.55 − 現金 5.54，與期初現金同日，9/17 可轉債的現金與負債兩邊都不計，以免雙計。`
+          children: `現價為 ${PRICE_DATE} 收盤 $${Y(VAL_DEFAULTS.price, 2)}。股數隨 ATM 開關連動（關閉則扣回 35m 股上限）。營收＝資金模型算力產能＋非算力服務。稅率 21% 為名目（公司因評價備抵仍認列稅費，H1 現金稅約 0.1bn）。淨負債用 6/30 本金 35.55 − 現金 5.54，與期初現金同日，9/17 可轉債的現金與負債兩邊都不計，以免雙計。`
         }), (0, $.jsxs)(`div`, {
           className: `mt-4 space-y-3`,
           children: [(0, $.jsx)(kM, {
             label: `現價 US$`,
-            hint: `${Y(n.price, 2)}（9/21 收盤）`,
+            hint: `${Y(n.price, 2)}（${mdQ(PRICE_DATE)} 收盤）`,
             children: (0, $.jsx)(OM, {
               value: n.price,
               onChange: e => i({
@@ -217,7 +217,7 @@ function AM({
             })]
           }), (0, $.jsx)(`p`, {
             className: `text-xs leading-relaxed text-muted`,
-            children: `2026 營收錨在公司指引 12.4–13.2（1H 4.653 已入帳）。FY27 無公司指引，Street 約 26.5bn 僅供對照。改資金模型的 MW／CapEx／ATM，此頁營收、UFCF、目標價與結論會跟著動。五期首期為半年（2H26），DCF 折現期數按 0.5／1.5／2.5／3.5／4.5 年。`
+            children: `2026 營收錨在公司指引 12.4–13.2（1H 4.653 已入帳）。FY27 無公司指引；市場共識 FY27 營收 ${Y(CONSENSUS.annualEstimates.FY27.revenue, 2)}bn（${CONSENSUS.annualEstimates.source}，擷取 ${CONSENSUS.annualEstimates.retrieved}，${CONSENSUS.annualEstimates.tag}）僅供對照，見「市場共識」分頁。改資金模型的 MW／CapEx／ATM，此頁營收、UFCF、目標價與結論會跟著動。五期首期為半年（2H26），DCF 折現期數按 0.5／1.5／2.5／3.5／4.5 年。`
           })]
         })]
       }), (0, $.jsxs)(`div`, {
@@ -501,7 +501,7 @@ function AM({
                       background: `#eef2f7`,
                       fontFamily: `ui-sans-serif, system-ui, sans-serif`
                     },
-                    children: `EV 用 9/21 市值與 6/30 淨負債 30.0；含租賃再加營業租賃負債 16.3。GAAP 營業損失 −0.231＋D&A 3.991`
+                    children: `EV 用 ${mdQ(COMPANY_DATA.peers.priceDate)} 市值與 6/30 淨負債 30.0；含租賃再加營業租賃負債 16.3。GAAP 營業損失 −0.231＋D&A 3.991`
                   })]
                 }), (0, $.jsxs)(`tr`, {
                   children: [(0, $.jsx)(`td`, {
@@ -762,7 +762,7 @@ function AM({
               w: 440
             })]
           })]
-        }), a === 3 && (0, $.jsxs)(Jj, {
+        }), a === 5 && (0, $.jsx)(ConsTabQ, { d: e, p: r, o: n, tr: TR }), a === 3 && (0, $.jsxs)(Jj, {
           children: [(0, $.jsxs)(`div`, {
             className: `flex flex-wrap items-center gap-2`,
             children: [(0, $.jsx)(`h2`, {
@@ -983,7 +983,6 @@ function AM({
               children: [
                 [`DCF（已含 CapEx）`, c.perShare, `不重複扣缺口`],
                 [`EV/EBITDA（融資後）`, f, `${PERIOD_LABELS[r.evK]} 末淨負債 ${Y(r.ndA,1)}bn ／ ${PERIOD_LABELS[r.evK]} 末股數 ${Y(r.shA,3)}bn${r.evK > 1 ? `；以 WACC 折回 FY27 末` : ``}`],
-                [`Street 平均（參考）`, CALL_FACTS.streetTarget, `${CALL_FACTS.streetN} 家（S&P Global）；Bernstein $${CALL_FACTS.bernstein} Underperform。並非本模型`]
               ].map(([e, t, n]) => (0, $.jsxs)(`tr`, {
                 className: `border-t border-border`,
                 children: [(0, $.jsx)(`td`, {
