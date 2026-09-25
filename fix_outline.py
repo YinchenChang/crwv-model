@@ -3,7 +3,8 @@
 # 否則 Excel 會回報「檔案損毀，無法開啟」（LibreOffice／openpyxl 不檢查此順序）。
 import sys, zipfile, re, json, shutil, os
 src = sys.argv[1]; tmp = src + '.tmp'
-OUT = json.load(open('/home/claude/outline.json'))
+# outline.json 由 build_xlsx.py 寫在 repo 根目錄的 out/；可用第 2 個參數另指定
+OUT = json.load(open(sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out', 'outline.json')))
 OUTLINE_PR = '<outlinePr summaryBelow="0" summaryRight="1"/>'
 ORDER = ['tabColor', 'outlinePr', 'pageSetUpPr']
 

@@ -1,6 +1,10 @@
 # CoreWeave 收支模型 v4.0 原始碼包
 
-HTML 與 Excel 都由這裡的原始碼產生。新對話中若要修改模型，請把本資料夾解壓到 `/home/claude/`，並同時上傳 v4.0 的 HTML（作為函式庫模板）。
+HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo 根目錄；建置產物寫到 `out/`（不納入版控），交付成品放 `dist/`。HTML 的函式庫模板為 `docs/template_v3_3.html`。
+
+各任務的完整回報（改了什麼、verify.sh 輸出、關鍵數字對照、待決事項）存於 `docs/reports/`。
+
+**一鍵建置與核對**：`scripts/verify.sh`（純結構修改加 `--vs-dist`，另與 `dist/` 成品比對畫面文字與 Excel 逐格數值）。任何一項失敗即以非零代碼結束。
 
 ## 檔案
 | 檔案 | 用途 |
@@ -13,20 +17,29 @@ HTML 與 Excel 都由這裡的原始碼產生。新對話中若要修改模型�
 | tail.js | 共用元件：Excel 式表格 BM、浮動說明 tipQ、分類選單 accQ、兩層選單 navQ、FMODS／VMODS、VLOG |
 | app_pretty.js | 原 Oracle 模板的美化程式碼（取其中三段共用 UI） |
 | rm_andy.js | Andy 修改過的開關元件（說明改為浮動提示） |
-| build_html_portable.py | 組裝 HTML：`python3 build_html_portable.py 3.6 輸出.html <更新日> 20260924_CoreWeave收支模型_v4_0.html`（組裝順序：segA、模板段、segB、模板段、segC、模板段、segD、tail、segE） |
-| build_xlsx.py | 產生 Excel（輸出路徑與版本號寫在檔尾 wb.save 與導覽 A1；自同目錄讀取 vlog.py、rv_snap.json；輸出到 /home/claude/out/，執行前先 `mkdir -p /home/claude/out`） |
-| fix_outline.py | LibreOffice 重算後，補回 Excel 群組按鈕位置與收合狀態：`python3 fix_outline.py 檔案.xlsx`（v3.4 修正：outlinePr 依 schema 放在 tabColor 之後） |
+| build_html_portable.py | 組裝 HTML：`python3 build_html_portable.py 4.0 out/輸出.html 2026-09-24 [模板 HTML]`（模板省略時用 `docs/template_v3_3.html`；組裝順序：segA、模板段、segB、模板段、segC、模板段、segD、tail、segE） |
+| build_xlsx.py | 產生 Excel：`python3 build_xlsx.py [輸出.xlsx]`（預設 `out/20260924_CoreWeave收支模型_v4_0.xlsx`；版本號寫在導覽 A1；自同目錄讀取 vlog.py、rv_snap.json、company.json；群組資訊寫到 `out/outline.json`） |
+| fix_outline.py | LibreOffice 重算後，補回 Excel 群組按鈕位置與收合狀態：`python3 fix_outline.py 檔案.xlsx [outline.json]`（預設讀 `out/outline.json`；v3.4 修正：outlinePr 依 schema 放在 tabColor 之後） |
 | verify_ooxml.py | Excel 嚴格結構檢查（XML 格式、工作表與 sheetPr 子元素順序）；v3.4 新增 |
 | vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
 | rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」頁使用；以 node 執行 segA+segB 的 rvQ 重算） |
-| xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值；cmp31.js 以 HTML 引擎逐列比對（三情境各 93 項） |
+| xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值（暫存檔在 `out/`，以 `scripts/recalc.py` 重算）；cmp31.js 以 HTML 引擎逐列比對（三情境各 104 項；讀取目前目錄的 `xl17_*.json`） |
+| scripts/recalc.py | LibreOffice headless 重算：`python3 scripts/recalc.py 檔案.xlsx [逾時秒數]`＝開啟、全部重算、原地存檔，輸出 JSON 並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）；有錯誤或失敗時代碼 1 |
+| scripts/verify.sh | 一次跑完建置與核對（見下節） |
+| scripts/cloud_setup.sh | 雲端環境 setup script（只裝 Python 套件；LibreOffice Calc 於工作階段內補裝，見 CLAUDE.md） |
 
-## Excel 產生流程
-1. `mkdir -p /home/claude/out && python3 build_xlsx.py`
-2. `python3 /mnt/skills/public/xlsx/scripts/recalc.py <xlsx> 120`
-3. `python3 fix_outline.py <xlsx>`
-4. Excel 結構核對：`python3 verify_ooxml.py <xlsx>` 必須輸出 `OOXML OK`（LibreOffice／openpyxl 能開不代表 Excel 能開）
-5. 數值核對：`for s in 1 2 3; do python3 xlx.py <xlsx> $s xl17_$s.json; done`，再 `node cmp31.js low|base|high`（輸出 OK 行數）
+## Excel 產生流程（scripts/verify.sh 步驟 2–7 即為此流程）
+1. `python3 build_xlsx.py`（輸出到 `out/`）
+2. `python3 scripts/recalc.py out/<xlsx> 120`（必須回報 `"total_errors": 0`）
+3. `python3 fix_outline.py out/<xlsx>`
+4. Excel 結構核對：`python3 verify_ooxml.py out/<xlsx>` 必須輸出 `OOXML OK`（LibreOffice／openpyxl 能開不代表 Excel 能開）
+5. 數值核對：`for s in 1 2 3; do python3 xlx.py out/<xlsx> $s out/xl17_$s.json; done`，再於 `out/` 內 `node ../cmp31.js low|base|high`（輸出 OK 行數）
+
+## 執行環境需求
+- Python 3.11 以上＋`openpyxl`、`playwright==1.56.0`（`crawl.py`；對應雲端環境預裝的 Chromium build 1194，見 `scripts/cloud_setup.sh`）、`pypdf`；Node 18 以上（`structuredClone`）。
+- LibreOffice **含 Calc 模組**（Debian／Ubuntu：`libreoffice-calc-nogui`）。只有 `libreoffice-core` 時 `soffice --version` 正常，但開啟 xlsx 會停住；`scripts/recalc.py` 逾時會提示此原因。
+- 未設 locale 的環境（`LANG` 為空）下 LibreOffice 會把中文檔名轉成 `??`：`scripts/recalc.py` 已固定 `LC_ALL=C.UTF-8` 並以 file URL 傳遞路徑。
+- `crawl.py`：Playwright 預設的 Chromium 無法啟動時（例如 playwright 未固定版本、與預裝 Chromium 不符），改用環境變數 `CHROMIUM_PATH`，未設時用 `/opt/pw-browsers/chromium`。
 
 ## 注意
 - 新增到 tail.js 或 seg 檔的全域名稱，必須避開模板函式庫已用的名稱（例如 nf、XS、Hd、Tp 都會衝突），慣例是加 Q 字尾。
@@ -37,7 +50,7 @@ HTML 與 Excel 都由這裡的原始碼產生。新對話中若要修改模型�
 
 ## v3.5 核對方式（EV/EBITDA 錨定年度）
 - 預設三情境：`python3 xlx.py <xlsx> 1|2|3 xl17_<n>.json`，再 `node cmp31.js low|base|high`（目前各 104 項）。
-- 其他錨定年度：`python3 xlx.py <xlsx> 2 xl17_2_a3.json 3` 後 `node cmp31.js base 3`（第 4 個參數＝錨定年度 1–4）。
+- 其他錨定年度：`python3 xlx.py <xlsx> 2 out/xl17_2_a3.json 3` 後於 `out/` 內 `node ../cmp31.js base 3`（第 4 個參數＝錨定年度 1–4）。
 - 矩陣：HTML `evGrid()`（segB）與 Excel「評價_DCF與目標價」的「錨定×倍數｜…」列逐格比對（40 格）。
 
 ## v4.0 架構：公司資料單一來源
@@ -112,5 +125,5 @@ HTML 與 Excel 都由這裡的原始碼產生。新對話中若要修改模型�
 ### v4.0 核對工具
 - `load_engine.js`：在 node 載入 company.json＋segA＋segB（cmp31.js 使用）。
 - `xl_diff.py a.xlsx b.xlsx [--values]`：Excel 逐格比對（公式或重算後的值）。
-- `crawl.py <html> <out.json>`：逐頁逐分頁擷取畫面文字，用於比對兩版 HTML 的顯示是否相同。
+- `crawl.py <html> <out.json>`：逐頁逐分頁擷取畫面文字，用於比對兩版 HTML 的顯示是否相同。2026-09-25 修正：原本只擷取第一個 `<main>`（資金模型頁的一個區塊），總結頁與損益與評價頁的內容、以及多數次級分頁實際上沒有被比對；現改為擷取整頁可見文字並逐一展開兩層選單（v4.0 為 32 個視圖、約 111,000 字）。
 - 結構性修改的驗收標準：cmp31 三情境全數一致；crawl 比對除版本紀錄外 0 差異；xl_diff 除版本紀錄外 0 差異。

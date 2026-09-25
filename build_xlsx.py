@@ -1914,7 +1914,8 @@ _r = _find("JV 已承諾餘額於 2026 年內履行")
 ws.cell(row=_r, column=2, value=f"=SUM('輸入與假設'!C{IN['JV 已承諾餘額出資']}:G{IN['JV 已承諾餘額出資']})").number_format = NUM
 _r = _find("模型每 MW 年租金（FY30）")
 ws.cell(row=_r, column=2, value=f"='運營_站點'!G{RENT_PER}").number_format = NUM
-ws.cell(row=_r, column=4, value=f"=IF(B{_r}>={BENCH}*{SHARE.replace('$C$', "'運營_站點'!$C$")}*0.8,\"通過\",\"觀察\")")
+_share_x = SHARE.replace('$C$', "'運營_站點'!$C$")  # 另存變數：f-string 內重用引號需 Python 3.12+
+ws.cell(row=_r, column=4, value=f"=IF(B{_r}>={BENCH}*{_share_x}*0.8,\"通過\",\"觀察\")")
 _r = _find("EBITDA 單一來源（FY27 損益 EBITDA÷營收 − 輸入 EBITDA 率）")
 ws.cell(row=_r, column=2, value=f"='損益'!D{ebitda_v}/'損益'!D{rev_v}-'輸入與假設'!D{IN['EBITDA 率']}").number_format = '0.0000'
 _r = _find("現金 EBITDA ＋ 信用調整 − 損益 EBITDA（FY27）")
@@ -2033,6 +2034,10 @@ for _n, _c in _tab.items():
 for _ws in wb.worksheets:
     apply_outline(_ws)
 import json as _json
-_json.dump({k: v for k, v in OUTLINE.items()}, open("/home/claude/outline.json", "w"), ensure_ascii=False)
-wb.save("/home/claude/out/20260924_CoreWeave收支模型_v4_0.xlsx")
-print("saved")
+# 輸出位置相對於 repo 根目錄：預設 out/；可用第 1 個參數指定 xlsx 路徑（outline.json 一律寫在 out/）
+_OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "out")
+_osrv.makedirs(_OUT_DIR, exist_ok=True)
+_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260924_CoreWeave收支模型_v4_0.xlsx")
+_json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
+wb.save(_xlsx)
+print("saved", _xlsx)
