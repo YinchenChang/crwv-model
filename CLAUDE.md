@@ -11,7 +11,7 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 - `segA.js`～`segE.js`、`tail.js`：HTML 引擎與畫面；`app_pretty.js`：模板函式庫片段來源。
 - `build_xlsx.py`、`fix_outline.py`、`verify_ooxml.py`：Excel 建置與結構檢查。
 - `cmp31.js`＋`xlx.py`（HTML vs Excel 數值）、`crawl.py`（畫面文字）、`xl_diff.py`（Excel 逐格）：核對工具。
-- `dist/`：交付成品（HTML、xlsx）。`docs/`：交接檔、建置用模板 `template_v3_3.html`。
+- `dist/`：交付成品（HTML、xlsx）。`docs/`：交接檔、建置用模板 `template_v3_3.html`；`docs/reports/`：各任務的完整回報。
 
 ## 第一個任務（環境移植，完成前不要做其他改版）
 原始碼原本在另一個沙盒執行，有寫死的路徑，需先移植：
@@ -27,6 +27,7 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 - 版本號：**只有 `dist/` 成品（HTML 或 Excel）改變時才升版**；純工具修改（建置／核對腳本、文件、setup script 等，`dist/` 不變）不升版、不新增 VLOG。升版時 `vlog.py`（Excel 唯一來源）與 `tail.js` 的 VLOG（HTML）**兩處都要**新增一列；成品命名 `更新日_CoreWeave收支模型_v版本號`，放 `dist/`，並移除舊版成品。
 - 同時更新交接檔（`docs/`）與 README。
 - 一個任務一個分支、一個 PR；PR 說明寫：改了什麼、驗收結果、需 Andy 決定的事項。
+- 任務回報存檔：每個任務結束時，把完整回報寫成 `docs/reports/YYYYMMDD_任務名稱.md`（日期為完成日），隨 PR 一起提交。內容與 PR 說明相同，至少包含：改了什麼、`scripts/verify.sh` 完整輸出、關鍵數字前後對照（三情境目標價等；未改數字時註明「無變動」並列出現值）、需 Andy 決定的事項。同一任務在 PR 中有後續修改時，同步更新該檔與 PR 說明。
 
 ## 勿改（踩過的坑）
 1. 模板函式庫在 segA、segB 的插入點前是**未結束的 var 宣告鏈**：注入的第一句必須是 `COMPANY_DATA = {…};`，segB 第一行必須是 `PERIOD_LABELS = …,`，兩者都**不可加 var**。
