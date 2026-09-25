@@ -106,6 +106,23 @@ cmp('PV股權', V+'新股募得現金（現值）', [p.d.pvEquityRaised]);
 cmp('融資後股數', V+'融資後股數（含瀑布新股）', [p.d.postShares]);
 cmp('EV/EBITDA融資後', V+'EV/EBITDA 每股（融資後）', [p.peAdj]);
 cmp('加權目標價', V+'加權目標價', [p.call.blended]);
+// v4.1：目標價區間（情境區間、方法區間、100% EV/EBITDA 目標價）與判斷句、DCF 權重說明（文字逐字比對）
+{ const R=targetRange(d,q,VAL_DEFAULTS,p), RG='評價_DCF與目標價|目標價區間｜', CODE={買進:1,中立:0,賣出:-1};
+  cmp('區間 點位', RG+'點位（目前輸入的加權目標價）', [R.pt]);
+  cmp('區間 點位評等', RG+'點位評等代碼（1＝買進、0＝中立、−1＝賣出）', [CODE[p.call.call]]);
+  cmp('區間 賣出門檻', RG+'賣出門檻價（現價 × (1 − 15%)）', [R.th]);
+  R.scen.forEach(s=>cmp('區間 情境 '+s.sc, RG+SCENARIOS[s.sc].label+'（加權目標價／評等代碼／距賣出門檻）', [s.tgt, CODE[s.call], s.gap]));
+  cmp('情境區間 A', RG+'情境區間（下緣／上緣）', R.A);
+  cmp('方法區間倍數', RG+'方法區間倍數（下端／上端）', R.mults);
+  cmp('方法區間 B', RG+'方法區間（下緣／上緣）', R.B);
+  cmp('100% EV/EBITDA 目標價', RG+'100% EV/EBITDA 目標價（價位／評等代碼）', [R.ev100, CODE[R.ev100Call]]);
+  cmp('未截斷 DCF 每股', RG+'未截斷 DCF 每股', [p.d.perShareRaw]);
+  const cmpT=(label,xlKey,h)=>{ const x=X[xlKey]; if(!x){rows.push([label,'MISSING XL KEY '+xlKey]);return;} rows.push([x[0]===h?'OK ':'XX ',label,JSON.stringify(h),JSON.stringify(x[0])]); };
+  cmpT('文字 點位摘要', RG+'點位摘要', R.head);
+  cmpT('文字 方法區間標籤', RG+'方法區間標籤', R.bLabel);
+  cmpT('文字 點位位置', RG+'點位位置', R.pos);
+  cmpT('文字 判斷句', RG+'判斷句', R.judge);
+  cmpT('文字 DCF 權重說明', '評價_DCF與目標價|DCF 權重說明', R.note); }
 { const G=evAnchorGrid(d,q,VAL_DEFAULTS); G.mults.forEach((m,i)=>{ cmp('矩陣腿 '+m+'x', V+'錨定×倍數｜EV/EBITDA 腿｜'+m.toFixed(1)+'x', G.leg[i]); cmp('矩陣目標 '+m+'x', V+'錨定×倍數｜加權目標價｜'+m.toFixed(1)+'x', G.tgt[i]); }); }
 for(const r of rows) console.log(r.join(' | '));
 // HTML P&L table FY26 display check

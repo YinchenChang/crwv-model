@@ -231,6 +231,12 @@ var BLEND_W = COMPANY_DATA.methodology.blendWeights,
     netDebt: `錨定年末總債務 − 現金`
   }]
 
+// 評等規則（v4.1 自 blendCall 抽出，規則不變）：c＝相對現價的空間、o＝終值占 EV、B＝股權募資超過現市值 1.5 倍
+var SELL_TH = -.15;
+function rateCall(c, o, B) {
+  return c >= .25 && o < .9 && !B ? `買進` : c <= SELL_TH || B && c <= -.08 ? `賣出` : `中立`
+}
+
 function blendCall(e) {
   let {
     spot: t,
@@ -244,16 +250,12 @@ function blendCall(e) {
     dcfInvalid: DI
   } = e, WD = DI ? 0 : BLEND_W.dcf, WE = 1 - WD, s = (DI ? 0 : WD * n) + WE * i, c = s / Math.max(t, .01) - 1, u = a <= .01, B = a > 1.5 * M, d = [];
   u ? d.push(`融資狀態：五期缺口可全由債務（額度＋資產層新債，受 債務／backlog 上限約束）支應，不需新股。`) : d.push(`融資狀態：五期需股權募資 ${a.toFixed(0)}bn（約現市值 ${(a/Math.max(M,1)).toFixed(1)} 倍），新發行 ${q.toFixed(2)}bn 股，原股東最終持股約 ${(S0/(S0+q)*100).toFixed(0)}%。股權在需要前一期募足（期前融資），不再以缺口本金扣減估值。`), B && d.push(`股權募資超過現市值 1.5 倍：市場吸收能力存疑，禁止買進。`), o > .85 && d.push(`終值占企業價值過高，DCF 對 WACC／永續成長／維持性 CapEx 比率極敏感。`);
-  let f = c >= .25 && o < .9 && !B ? `買進` : c <= -.15 || B && c <= -.08 ? `賣出` : `中立`;
+  let f = rateCall(c, o, B);
   DI && d.unshift(`DCF 失效，已排除於目標價（權重改為 EV/EBITDA 100%）。`);
-  let p = (DI ? i : Math.min(n, i)) * .9,
-    m = (DI ? i : Math.max(n, i)) * 1.05;
   return {
     blended: s,
     upside: c,
     call: f,
-    lo: p,
-    hi: m,
     notes: d,
     hole: a,
     funded: u,
@@ -325,6 +327,58 @@ function runValuation(e, t, n) {
     shA: a[Math.min(4, Math.max(1, Math.round(i.evYear ?? 1)))].shares,
     call: f,
     shares: r
+  }
+}
+
+// 依情境改寫 Accepted／Billable／FY31 預建／表外租金，其餘手動調整保留（與頁首情境按鈕相同規則；v4.1 自 segE 移入，供目標價區間共用）
+function scnQ(e, sc) {
+  return {
+    ...e,
+    scenario: sc,
+    a: { ...structuredClone(e.a), newLease: [...SCENARIOS[sc].a.newLease] },
+    mw31: SCENARIOS[sc].mw31,
+    m: { ...e.m, accepted: [...SCENARIOS[sc].acc], billable: [...SCENARIOS[sc].bil] }
+  };
+}
+
+// v4.1：目標價區間。點位＝目前輸入的加權目標價（評等仍依點位）；
+// 情境區間＝保守與積極情境的加權目標價（保留手動調整）；方法區間＝目前輸入、EV/EBITDA 倍數換成 methodology.rangeMultiples 兩端。
+// 判斷句與 DCF 權重說明在此產生（HTML 各頁共用；Excel 以文字公式產生同一字串，cmp31 逐字比對）。
+var RANGE_MULTS = COMPANY_DATA.methodology.rangeMultiples,
+  MARGIN_ALERT = .05; // 任一情境與賣出門檻的距離小於現價的 5% 時，判斷句揭露該距離
+function multTxt(m) {
+  return Number.isInteger(m) ? m.toFixed(0) : m.toFixed(1)
+}
+function targetRange(d, st, o, base) {
+  base = base || runValuation(d, st, o);
+  let P = o.price, th = P * (1 + SELL_TH), pt = base.call.blended,
+    sc = [`low`, `base`, `high`].map(k => {
+      let s2 = scnQ(st, k), d2 = runFunding(s2), p2 = runValuation(d2, s2, o);
+      return { sc: k, name: SCENARIOS[k].label.split(` `)[0], tgt: p2.call.blended, call: p2.call.call, gap: p2.call.blended - th }
+    }),
+    A = [Math.min(sc[0].tgt, sc[2].tgt), Math.max(sc[0].tgt, sc[2].tgt)],
+    mLo = Math.min(...RANGE_MULTS), mHi = Math.max(...RANGE_MULTS),
+    bm = [mLo, mHi].map(m => runValuation(d, st, { ...o, evEbitda: m }).call.blended),
+    B = [Math.min(...bm), Math.max(...bm)],
+    m = o.evEbitda, eq = (a, b) => Math.abs(a - b) < 1e-9,
+    wd = base.call.weights.dcf, we = base.call.weights.pe,
+    ev100 = base.peAdj, ev100Call = rateCall(ev100 / Math.max(P, .01) - 1, base.d.tvShare, base.call.blocked),
+    raw = base.d.perShareRaw,
+    notSell = sc.filter(s => s.call !== `賣出`).map(s => s.name),
+    pos = eq(m, mHi) ? `目前點位位於方法區間上緣（${multTxt(mHi)}x 為穩態倍數上緣）`
+      : eq(m, mLo) ? `目前點位位於方法區間下緣（${multTxt(mLo)}x）`
+      : `目前點位${m > mLo && m < mHi ? `位於方法區間內` : m > mHi ? `高於方法區間上緣` : `低於方法區間下緣`}（目前倍數 ${multTxt(m)}x）`,
+    judge = (A[1] < P
+      ? `情境區間上緣 $${Y(A[1], 1)} 低於現價 $${Y(P, 2)}` + (notSell.length ? `，但${notSell.join(`、`)}情境未達賣出門檻 $${Y(th, 1)}` : `：賣出在三個擴張情境下都成立`)
+      : `情境區間上緣 $${Y(A[1], 1)} 不低於現價 $${Y(P, 2)}：賣出並非在三個擴張情境下都成立`) + `。` +
+      sc.filter(s => Math.abs(s.gap) < MARGIN_ALERT * P).map(s => `${s.name}情境 $${Y(s.tgt, 1)}，${s.gap < 0 ? `距賣出門檻` : `高於賣出門檻`} $${Y(th, 1)} 僅 $${Y(Math.abs(s.gap), 1)}。`).join(``),
+    note = base.d.invalid ? `DCF 失效，已以 EV/EBITDA 100% 計。`
+      : o.dcfMode !== `option` && raw < 0 ? `DCF 為 $0 仍計 ${hA(wd * 100, 0)} 權重的原因：DCF 沒有失效，而是算出的股權價值為負（每股約 ${mA(raw, 1)}），代表自由現金流折現後的企業價值不足以償還淨負債。EV/EBITDA 沒有扣除 GPU 汰換與擴張支出，保留 DCF 權重，是為了讓目標價反映「EBITDA 付不起資本成本」。若不計 DCF，目標價為 $${Y(ev100, 1)}（${ev100Call}）；${hA(wd * 100, 0)}／${hA(we * 100, 0)} 為判斷值。`
+      : ``;
+  return {
+    pt, P, th, scen: sc, A, B, mults: [mLo, mHi], ev100, ev100Call, pos, judge, note,
+    bLabel: `方法區間（目前情境，${multTxt(mLo)}–${multTxt(mHi)}x）`,
+    head: `目標價 $${Y(pt, 1)}（情境區間 $${Y(A[0], 1)}–$${Y(A[1], 1)}）`
   }
 }
 

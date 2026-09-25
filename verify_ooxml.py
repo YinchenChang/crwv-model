@@ -8,7 +8,7 @@ SEQ = ['sheetPr','dimension','sheetViews','sheetFormatPr','cols','sheetData','sh
        'headerFooter','rowBreaks','colBreaks','customProperties','cellWatches','ignoredErrors','smartTags','drawing',
        'legacyDrawing','legacyDrawingHF','picture','oleObjects','controls','webPublishItems','tableParts','extLst']
 SP = ['tabColor', 'outlinePr', 'pageSetUpPr']
-z = zipfile.ZipFile(sys.argv[1]); err = []
+z = zipfile.ZipFile(sys.argv[1]); err = []; DT = []
 if z.testzip(): err.append('ZIP CRC 錯誤')
 for n in z.namelist():
     d = z.read(n)
@@ -29,4 +29,8 @@ for n in z.namelist():
     sp = re.search(r'<sheetPr[^>]*>(.*?)</sheetPr>', s, re.S)
     kids = re.findall(r'<(\w+)', sp.group(1)) if sp else []
     if kids != [k for k in SP if k in kids]: err.append(f'{n}: sheetPr 子元素順序錯誤 {kids}')
+    # v4.1：模擬運算表須為 Excel 的 dataTable 公式；LibreOffice 的 TABLE() 一般公式 Excel 不認得（fix_datatable.py 負責還原）
+    if 'TABLE(' in s: err.append(f'{n}: 殘留 LibreOffice 的 TABLE() 公式（未執行 fix_datatable.py？）')
+    if 't="dataTable"' in s: DT.append(n)
+if not DT: err.append('找不到模擬運算表（t="dataTable"）：情境區間將不是活公式')
 print('\n'.join(err) if err else 'OOXML OK'); sys.exit(1 if err else 0)

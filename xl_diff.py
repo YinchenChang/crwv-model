@@ -1,7 +1,11 @@
 # Excel 逐格比對（公式與常數；另可比對重算後的值）。用法：python3 xl_diff.py a.xlsx b.xlsx [--values]
 import sys, re, openpyxl
 a, b = sys.argv[1], sys.argv[2]; vals = '--values' in sys.argv
-norm = lambda v: re.sub(r'v\d\.\d', 'vX', v) if isinstance(v, str) else v
+def norm(v):
+    if isinstance(v, str): return re.sub(r'v\d\.\d', 'vX', v)
+    if hasattr(v, 'ref') and not isinstance(v, (int, float)):  # 模擬運算表／陣列公式物件（v4.1）：依屬性比對，不比物件身分
+        return f'{type(v).__name__}{sorted((k, str(x)) for k, x in vars(v).items())}'
+    return v
 wa, wb = openpyxl.load_workbook(a, data_only=vals), openpyxl.load_workbook(b, data_only=vals)
 diffs = []
 if wa.sheetnames != wb.sheetnames: diffs.append(('sheets', wa.sheetnames, wb.sheetnames))

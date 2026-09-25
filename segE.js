@@ -12,17 +12,6 @@ function elQ(tag, props, children) {
   return Array.isArray(children) ? (0, $.jsxs)(tag, p) : (0, $.jsx)(tag, p);
 }
 
-// 依情境改寫 Accepted／Billable／FY31 預建／表外租金，其餘手動調整保留（與頁首情境按鈕相同規則）
-function scnQ(e, sc) {
-  return {
-    ...e,
-    scenario: sc,
-    a: { ...structuredClone(e.a), newLease: [...SCENARIOS[sc].a.newLease] },
-    mw31: SCENARIOS[sc].mw31,
-    m: { ...e.m, accepted: [...SCENARIOS[sc].acc], billable: [...SCENARIOS[sc].bil] }
-  };
-}
-
 // 投影片在容器內等比縮放（所見即簡報與列印結果）
 function ScaleQ({ children }) {
   let r = (0, v.useRef)(null), [w, sw] = (0, v.useState)(SW_Q);
@@ -132,7 +121,7 @@ var SUMCSSQ = `
 .sumQ-btn.pri { background: var(--color-ink); color: var(--color-accent-fg); border-color: var(--color-ink); }
 `;
 
-function SumQ({ d, f, e, o, m, active }) {
+function SumQ({ d, f, e, o, m, tr: TR, active }) {
   // --- 情境比較（保留目前手動調整，只換擴張力道）---
   let scen = (0, v.useMemo)(() => [`low`, `base`, `high`].map(sc => {
     let st = scnQ(e, sc), dd = runFunding(st), pp = runValuation(dd, st, o), po = runValuation(dd, st, { ...o, dcfMode: `option` });
@@ -173,7 +162,7 @@ function SumQ({ d, f, e, o, m, active }) {
   let S = (kicker, title, body) => slides.push({ kicker, title, body });
 
   // 1｜結論
-  S(`結論`, `目標價 $${Y(tgt, 1)}，較現價 $${Y(P, 2)} ${up >= 0 ? `高` : `低`} ${hA(Math.abs(up) * 100, 0)}：${f.call.call}`, [
+  S(`結論`, `${TR.head}，較現價 $${Y(P, 2)} ${up >= 0 ? `高` : `低`} ${hA(Math.abs(up) * 100, 0)}：${f.call.call}`, [
     elQ(`p`, { key: `p`, style: { fontSize: 21, lineHeight: 1.6, color: `var(--color-muted)`, margin: 0, maxWidth: 1080 } },
       `Backlog 不是現金：RPO 必須先蓋出產能才能認列，而每 MW 賺的錢付不起 GPU 的資本成本——蓋得愈多，愈要靠外部資金。`),
     elQ(`div`, { key: `g`, style: { display: `grid`, gridTemplateColumns: `repeat(3, 1fr)`, gap: 18, marginTop: 26 } }, scen.map(s => elQ(`div`, {
@@ -183,6 +172,8 @@ function SumQ({ d, f, e, o, m, active }) {
       elQ(`div`, { key: `b`, style: { fontSize: 46, fontWeight: 700, marginTop: 4, fontVariantNumeric: `tabular-nums` } }, `$${Y(s.tgt, 1)}`),
       elQ(`div`, { key: `c`, style: { fontSize: 15, marginTop: 4, opacity: .8 } }, `選擇權模式 $${Y(s.opt, 1)} · ${s.call}`)
     ]))),
+    elQ(`p`, { key: `j`, style: { fontSize: 16, lineHeight: 1.5, margin: `14px 0 0`, maxWidth: 1180 } },
+      `${TR.judge}${TR.bLabel} $${Y(TR.B[0], 1)}–$${Y(TR.B[1], 1)}：${TR.pos}；評等依點位。`),
     elQ(`div`, { key: `r`, style: { display: `grid`, gridTemplateColumns: `repeat(3, 1fr)`, gap: 18, marginTop: 22 } }, [
       [`收入受產能約束`, `排程 RPO $${Y(b.scheduled, 1)}bn，五期可實現 $${Y(b.collected, 1)}bn；模型期毛 CapEx $${Y(T.gross, 0)}bn。`],
       [ebMW < recov ? `單位經濟為負` : `單位經濟為正`, `FY30 每 MW 年 EBITDA $${Y(ebMW, 1)}m，${ebMW < recov ? `低於` : `高於`} GPU 年化資本回收 $${Y(recov, 1)}m。`],
@@ -268,6 +259,8 @@ function SumQ({ d, f, e, o, m, active }) {
         ...scen.map(s => elQ(`td`, { key: s.sc, style: { padding: `6px 12px`, textAlign: `right`, borderBottom: `1px solid var(--color-border)`, color: i === 9 ? (s.call === `賣出` ? `var(--color-bad)` : s.call === `買進` ? `var(--color-ok)` : `var(--color-watch)`) : `inherit` } }, fn(s)))
       ])))
     ]),
+    elQ(`p`, { key: `j`, style: { fontSize: 16, lineHeight: 1.5, margin: `16px 0 0` } },
+      `情境區間（保守與積極情境）$${Y(TR.A[0], 1)}–$${Y(TR.A[1], 1)}。${TR.judge}`),
     elQ(`p`, { key: `n`, style: { fontSize: 14, color: `var(--color-muted)`, marginTop: `auto`, lineHeight: 1.5 } },
       `加權目標價＝DCF ${hA((f.call.weights?.dcf ?? .45) * 100, 0)}＋EV/EBITDA（${PERIOD_LABELS[o.evYear ?? 1]}，${Y(o.evEbitda, 1)}x）${hA((f.call.weights?.pe ?? .55) * 100, 0)}。DCF 股權價值為負時以 0 截斷；選擇權模式以 Merton（σ ${hA(o.sigma * 100, 0)}）估計有限責任下的股權價值。`)
   ]);
