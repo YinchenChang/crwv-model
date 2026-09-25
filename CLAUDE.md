@@ -15,6 +15,7 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 
 ## 第一個任務（環境移植，完成前不要做其他改版）
 原始碼原本在另一個沙盒執行，有寫死的路徑，需先移植：
+0. 先檢查工具：`soffice --version`、`python3 -c "import openpyxl, playwright"`、Playwright 的 Chromium 能否啟動。雲端環境的 setup script 有 5 分鐘上限，可能沒裝完（紀錄在 `/var/log/crwv_setup.log`）；缺什麼就在工作階段內補裝：`apt-get install -y --no-install-recommends libreoffice-calc-nogui`、`pip install --break-system-packages openpyxl pypdf playwright`、`python3 -m playwright install chromium`；Chromium 若因缺系統函式庫無法啟動，執行 `python3 -m playwright install-deps chromium`。回報時列出實際補裝了哪些。
 1. 把 `/home/claude/...` 與 `/mnt/...` 的寫死路徑改為相對於 repo 根目錄（`build_xlsx.py` 的輸出、`fix_outline.py` 的 outline.json、`xlx.py` 的暫存檔、`build_html_portable.py` 的模板參數）。
 2. 原本的 Excel 重算用沙盒內建的 `recalc.py`（此處沒有）：用 LibreOffice headless 自寫 `scripts/recalc.py`，功能＝開啟、全部重算、存檔，並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）。
 3. 新增 `scripts/verify.sh`，一次跑完：建 HTML → 建 Excel → 重算 → fix_outline → verify_ooxml → 三情境 xlx＋cmp31 → FY27 錨定 cmp31。任何一項失敗即非零結束。
