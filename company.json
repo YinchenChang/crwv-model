@@ -759,6 +759,98 @@
   "rangeMultiples": [
    5,
    6
-  ]
+  ],
+  "rating": {
+   "buyUpsideMin": 0.25,
+   "buyTvShareMax": 0.9,
+   "sellUpsideMax": -0.15,
+   "equityRaiseMaxMult": 1.5,
+   "sellUpsideMaxIfEquityOver": -0.08,
+   "sellMarginAlert": 0.05,
+   "tvShareWarn": 0.85
+  }
+ },
+ "peers": {
+  "priceDate": "2026-09-21",
+  "priceSource": "S&P Global via stockanalysis.com",
+  "list": [
+   {
+    "ticker": "NBIS",
+    "name": "Nebius Group",
+    "labelHtml": "NBIS",
+    "roleHtml": "Neocloud 直接對標",
+    "labelXlsx": "NBIS Nebius",
+    "mkt": 63.81,
+    "netDebt": 2.16,
+    "rev": 1.36,
+    "opl": 0.0,
+    "opInc": -0.612,
+    "da": 0.418,
+    "asOf": "EBITDA：FY25 20-F",
+    "noteHtml": "GAAP 營業損失 −0.612＋D&A 0.418（FY2025；季報 6-K 未 XBRL 標註，無法算 TTM）。營收為 TTM 1.36",
+    "noteXlsx": "季報未 XBRL 標註，EBITDA 用 FY2025；營收為 TTM。前瞻 EV/Sales 約 9.3x（由 9/18 forward PS 8.46 推算 [Derived]）"
+   },
+   {
+    "ticker": "IREN",
+    "name": "IREN Limited",
+    "labelHtml": "IREN",
+    "roleHtml": "Neocloud／自建電力",
+    "labelXlsx": "IREN",
+    "mkt": 18.61,
+    "netDebt": 1.7,
+    "rev": 0.707,
+    "opl": 0.003,
+    "opInc": -1.047,
+    "da": 0.418,
+    "asOf": "FY26 10-K（6/30）",
+    "noteHtml": "GAAP 營業損失 −1.047＋D&A 0.418。自有電廠、營業租賃負債僅 0.003bn",
+    "noteXlsx": "自有電廠、營業租賃負債僅 0.003bn；FY26 合約 ARR 4.0bn"
+   },
+   {
+    "ticker": "APLD",
+    "name": "Applied Digital",
+    "labelHtml": "APLD",
+    "roleHtml": "房東（Polaris Forge）",
+    "labelXlsx": "APLD Applied Digital",
+    "mkt": 8.22,
+    "netDebt": 3.37,
+    "rev": 0.6113,
+    "opl": 0.066,
+    "opInc": -0.236,
+    "da": 0.067,
+    "asOf": "FY26 10-K（5/31）",
+    "noteHtml": "GAAP 營業損失 −0.236＋D&A 0.067。租約多未起租，EBITDA 尚未反映 36bn 合約",
+    "noteXlsx": "租約多未起租，營收尚未反映約 36bn 合約"
+   },
+   {
+    "ticker": "CORZ",
+    "name": "Core Scientific",
+    "labelHtml": "CORZ",
+    "roleHtml": "房東（高密度託管）",
+    "labelXlsx": "CORZ Core Scientific",
+    "mkt": 5.9,
+    "netDebt": 2.53,
+    "rev": 0.4403,
+    "opl": 0.109,
+    "opInc": -0.561,
+    "da": 0.063,
+    "asOf": "TTM 至 Q2（6/30）",
+    "noteHtml": "GAAP 營業損失 −0.561＋D&A 0.063。託管轉型期",
+    "noteXlsx": "託管轉型期"
+   }
+  ],
+  "textHtml": {
+   "headerTip": "市值為 2026-09-21 收盤（S&P Global via stockanalysis.com）；EV＝市值＋（有息負債 − 非受限現金），負債與現金取各公司最新申報。EV/Sales 為主要比較倍數：同業 GAAP EBITDA 皆為負，EV/EBITDA 無法比較，僅列為參考。「含租賃」欄把營業租賃負債加進 EV——CRWV 以租約取得機房，同業多為自有，這一欄讓兩種資本結構可以對齊比較。刻意不列 MSFT／AMZN／GOOGL：淨現金、EBITDA 為正，與槓桿型 neocloud 不可比。",
+   "readingTip": "這個折價有三個來源，不能全部解讀為便宜：(1) 分母時點不同——同業仍在爬坡，TTM 營收遠小於已簽約規模（APLD 合約租約約 36bn、IREN 合約 ARR 4.0bn），TTM 倍數因此偏高；CRWV 營收已放量，倍數自然較低。(2) 資本結構——CRWV 用租約取得機房，若把營業租賃負債 16.3bn 加進 EV，倍數升至約 12x；同業多為自有資產，加與不加差別很小。(3) 客戶集中與融資需求——前三大客戶占 72% 營收、五期仍需外部資金。若要看前瞻：NBIS 前瞻 EV/Sales 約 9.3x（由 9/18 forward PS 8.46 依 9/21 市值推算 [Derived]），CRWV 模型 FY27E 約 3x，差距仍約 3 倍。",
+   "caveat": "口徑與限制：市值為 2026-09-21 收盤，負債與現金為各公司最新申報（IREN FY26 10-K 6/30、APLD FY26 10-K 5/31、CORZ 與 CRWV Q2 10-Q 6/30；NBIS 為來源揭露值）——市值即時、資產負債表季末，日期不一致是所有 EV 計算的共同限制，未作 pro forma 調整（CRWV 的 9/17 可轉債 3.7bn 亦未計入）。營收為各自 TTM／最近會計年度（APLD 年度結束於 5/31）。EV/EBITDA 列為參考：同業 GAAP EBITDA 皆為負，只有 CRWV 可計算。此表為市場比較用，不進入目標價（目標價仍為 DCF 45%＋EV/EBITDA 55%）。"
+  },
+  "textXlsx": {
+   "subtitle": "EV＝市值＋（有息負債−非受限現金）；含租賃＝EV＋營業租賃負債。EV/EBITDA 僅供參考（同業 GAAP EBITDA 皆為負，顯示 n/m）。此表不進入目標價。與 HTML Comps 分頁同一組數字",
+   "notes": [
+    "讀法：CRWV 的 TTM EV/Sales 約為同業中位數的四成。折價來源有三，不能全部解讀為便宜：(1) 同業仍在爬坡，TTM 營收遠小於已簽約規模，TTM 倍數偏高；",
+    "(2) CRWV 用租約取得機房，加入營業租賃負債後倍數升至約 12x，同業加與不加差別很小；(3) 客戶集中（前三大 72%）與五期外部資金需求。",
+    "前瞻：NBIS 前瞻 EV/Sales 約 9.3x（由 9/18 forward PS 推算 [Derived]），CRWV 模型 FY27E 約 3x。此表為市場比較用，不進入目標價（DCF 45%＋EV/EBITDA 55%）。"
+   ]
+  }
  }
 }

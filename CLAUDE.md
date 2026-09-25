@@ -26,8 +26,26 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 - 每次修改後必跑 `scripts/verify.sh`，全數通過才可提交。改到數字的修改，要在回報中列出受影響的關鍵數字（三情境目標價等）前後對照。
 - 版本號：**只有 `dist/` 成品（HTML 或 Excel）改變時才升版**；純工具修改（建置／核對腳本、文件、setup script 等，`dist/` 不變）不升版、不新增 VLOG。升版時 `vlog.py`（Excel 唯一來源）與 `tail.js` 的 VLOG（HTML）**兩處都要**新增一列；成品命名 `更新日_CoreWeave收支模型_v版本號`，放 `dist/`，並移除舊版成品。
 - 同時更新交接檔（`docs/`）與 README。
-- 一個任務一個分支、一個 PR；PR 說明寫：改了什麼、驗收結果、需 Andy 決定的事項。
-- 任務回報存檔：每個任務結束時，把完整回報寫成 `docs/reports/YYYYMMDD_任務名稱.md`（日期為完成日），隨 PR 一起提交。內容與 PR 說明相同，至少包含：改了什麼、`scripts/verify.sh` 完整輸出、關鍵數字前後對照（三情境目標價等；未改數字時註明「無變動」並列出現值）、需 Andy 決定的事項。同一任務在 PR 中有後續修改時，同步更新該檔與 PR 說明。
+- 一個任務一個分支、一個 PR；PR 說明寫：改了什麼、驗收結果、需 Andy 決定的事項（任務完成時與報告檔「目前狀態」同步更新）。
+- 任務回報：依下節「每輪回報規則」。報告檔另須保存 `scripts/verify.sh` 完整輸出、關鍵數字前後對照（三情境目標價等；未改數字時註明「無變動」並列出現值）。
+
+## 每輪回報規則
+Andy 不熟程式，他透過 Claude 聊天端（讀 Gmail 裡的 GitHub 通知）掌握進度，所以每一輪都必須留下書面回報。
+1. 任務一開始就開 draft PR（不必等完成），之後每輪的回報都掛在這個 PR 上。
+2. 每一輪回覆 Andy 之前，都要做完以下三件事：
+   a. 更新 `docs/reports/YYYYMMDD_任務名稱.md`：
+      - 檔案最上方是「目前狀態」：完成到哪裡、下一步、需要 Andy 做的事；每輪覆寫。
+      - 下方是「輪次紀錄」：依時間追加，寫本輪做了什麼、驗證結果、提交編號。
+   b. 在 PR 留一則留言，內容就是本輪紀錄。第一行固定為：
+      `[CRWV 回報] 任務名稱｜第 N 輪｜YYYY-MM-DD`
+   c. commit 並 push。
+3. 寫法：用非工程師看得懂的中文，先寫結論，技術細節放後面。
+   PR 留言只貼 verify.sh 的結果摘要（例如「12 項全部通過」），完整輸出放在報告檔。
+4. 每則回報的最後必須有兩段：
+   - 「下一步」
+   - 「需要 Andy 做的事」：逐項列出、可以直接照做；沒有就寫「無」。
+5. 計畫階段（還沒改任何檔案）也算一輪，同樣要回報。
+6. PR 留言必須完整列出「需要 Andy 決定的事項」：逐項寫出問題與你的建議，不可只寫「見回報檔」。Andy 的聊天端透過 Gmail 讀留言，看不到 PR 分支上的檔案。
 
 ## 勿改（踩過的坑）
 1. 模板函式庫在 segA、segB 的插入點前是**未結束的 var 宣告鏈**：注入的第一句必須是 `COMPANY_DATA = {…};`，segB 第一行必須是 `PERIOD_LABELS = …,`，兩者都**不可加 var**。
@@ -37,10 +55,13 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 5. 總結頁列印依賴 segD 的 `sumQ-np`、`sumQ-main` class。
 6. Excel 情境區間是模擬運算表（「輸入與假設」H 區）：Excel 規定輸入格（情境選擇）與運算表須在同一工作表；LibreOffice 重算後會改寫成 `TABLE()`，必須接著執行 `fix_datatable.py`（`verify_ooxml.py` 會檢查）。
 
+7. Excel 同一工作表、同一區段內的 A 欄列名稱不可重複：`xl_diff.py --by-label`（`verify.sh --vs-dist` 使用）以「區段＋列名稱」配對新增列造成的位移，重複時直接報錯、不自行配對。
+8. 同業 Comps 與評等門檻只放在 `company.json`（`peers`、`methodology.rating`）；segB／segC／build_xlsx 不再寫任何同業數字或門檻數字。含門檻的畫面文字以門檻值組字（HTML `pctQ`／`multTxt`，Excel `_PC`／`_MT`），cmp31 以標籤為鍵的列（例如「賣出門檻價（現價 × (1 − 15%)）」）標籤也由門檻值產生。
+
 ## 待辦（依序；每項一個 PR）
 1. 環境移植（上節）。
 2. ~~目標價改為區間呈現（取代單點 45/55 加權）~~（v4.1 完成）。
-3. 一頁摘要＋市場共識對照；同時把同業 Comps（segB 的 lM、build_xlsx 的 peers）移入 company.json。共識數據由 Andy 在聊天中查證後提供資料檔，逐筆含來源、日期與標記（[Verified]／[Interested-party]…）；**不要自行杜撰或補數字**。
+3. ~~同業 Comps 與評等門檻移入 company.json、README 欄位說明~~（v4.2 完成）；一頁摘要＋市場共識對照（含既有 Street 參考欄位 `callFacts.streetTarget／streetN／bernstein` 的整理）。共識數據由 Andy 在聊天中查證後提供資料檔，逐筆含來源、日期與標記（[Verified]／[Interested-party]…）；**不要自行杜撰或補數字**。
 4. 季度層（Q3 財報 11/9 前完成）。
 5. Excel 規範與精簡（色彩慣例、具名範圍、分頁合併、說明文字精簡）。
 6. 其餘短名稱輔助函式改名（讀懂用途後才改）。
@@ -48,6 +69,8 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 ## 已決定事項（不再列為待決）
 1. LibreOffice Calc 維持在工作階段內補裝（`apt-get install -y --no-install-recommends libreoffice-calc-nogui`），不改由環境預裝。
 2. playwright 固定 1.56.0；只在雲端環境更新預裝 Chromium 時才調整，現在不需處理。
+3. 技術容忍值（現價下限 0.01、股權需求 ≤0.01bn 視為不需新股）不是評等口徑，不移入 company.json（v4.2）。
+4. 同業名稱與備註暫時保留 HTML、Excel 兩種寫法（`peers.list` 的 `labelHtml／labelXlsx`、`noteHtml／noteXlsx`），統一另開任務（v4.2）。
 
 ## 溝通
 以繁體中文回報；專業、客觀、以事實為準。遇到需要判斷口徑（評價方法、預設值、評等門檻）的事項，停下來列出選項與影響，由 Andy 決定。

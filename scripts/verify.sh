@@ -2,7 +2,8 @@
 # 一次跑完建置與核對：建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 三情境 xlx＋cmp31 → FY27 錨定 cmp31。
 # 任何一項失敗即以非零代碼結束。產物放在 repo 根目錄的 out/（不納入版控）。
 # 用法：scripts/verify.sh [--vs-dist]
-#   --vs-dist  另與 dist/ 內現行成品比對：crawl.py 畫面文字與 xl_diff.py --values 皆須 0 差異（純結構修改的驗收）。
+#   --vs-dist  另與 dist/ 內現行成品比對：crawl.py 畫面文字與 xl_diff.py --by-label（值與公式）皆須 0 差異（純結構修改的驗收）。
+#              新增列、常數改為引用輸入格、文字改為活公式會另列清單，不計為差異（規則見 xl_diff.py 開頭）。
 # 版本號與更新日：預設取 vlog.py 最後一列與 dist/ 成品檔名的日期；可用環境變數 VER、DATE 覆寫。
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -92,10 +93,11 @@ for k in diff[:5]:
 sys.exit(1 if diff or b['errors'] or not pa else 0)
 EOF
   then ok "crawl 畫面文字 0 差異"; else bad "crawl 畫面文字"; fi
-  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX" --values); echo "$r"
-  if [[ "$(head -1 <<<"$r")" == "0 differences" ]]; then ok "xl_diff --values 0 差異"; else bad "xl_diff --values"; fi
-  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX"); echo "$r"
-  if [[ "$(head -1 <<<"$r")" == "0 differences" ]]; then ok "xl_diff 公式 0 差異"; else bad "xl_diff 公式"; fi
+  # v4.2：--by-label——列數或 A 欄不同的工作表以「區段＋列名稱」配對（新增列另列清單；列名稱重複即報錯），其餘逐格
+  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX" --values --by-label || true); echo "$r"
+  if [[ "$(head -1 <<<"$r")" == "0 differences" ]]; then ok "xl_diff --values --by-label 0 差異"; else bad "xl_diff --values --by-label"; fi
+  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX" --by-label || true); echo "$r"
+  if [[ "$(head -1 <<<"$r")" == "0 differences" ]]; then ok "xl_diff 公式 --by-label 0 差異"; else bad "xl_diff 公式 --by-label"; fi
 fi
 
 finish
