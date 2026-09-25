@@ -1,0 +1,760 @@
+{
+ "meta": {
+  "company": "CoreWeave",
+  "ticker": "CRWV",
+  "updateDate": "2026-09-24",
+  "priceDate": "2026-09-21",
+  "sourceOrderNote": "時序先法說（8/11）、後 10-Q（8/12）、再 8-K（9/17 可轉債＋ATM）。入帳數字聽 10-Q；全年指引聽法說；事實打架聽 10-Q。Q2 新增 500 MW（6 月單月 300 MW）當觀察，不年化進基準。"
+ },
+ "periods": [
+  "FY26",
+  "FY27",
+  "FY28",
+  "FY29",
+  "FY30"
+ ],
+ "periodYears": [
+  0.5,
+  1,
+  1,
+  1,
+  1
+ ],
+ "actual1H": {
+  "label": "1H26 實際（10-Q）",
+  "cash1231": 3.127,
+  "revenue": 4.653,
+  "capex": 16.139,
+  "cashCapex": 14.117,
+  "interest": 1.176,
+  "leasePaid": 0.748,
+  "debtRepaid": 5.219,
+  "borrow": 16.747,
+  "equity": 2.982,
+  "cappedCall": 0.492,
+  "jv": 0.688,
+  "cfo": 3.663,
+  "prepay": 1.365,
+  "da": 2.54,
+  "sbc": 0.318,
+  "opInc": -0.193,
+  "ni": -1.366,
+  "eps": -2.53,
+  "ngEps": -1.94
+ },
+ "historicalPL": [
+  {
+   "year": "FY23",
+   "revenue": 0.229,
+   "opInc": -0.014,
+   "ni": -0.594,
+   "eps": -3.09,
+   "ngEps": -3.02,
+   "shares": 0.192,
+   "tag": "Verified"
+  },
+  {
+   "year": "FY24",
+   "revenue": 1.915,
+   "opInc": 0.324,
+   "ni": -0.863,
+   "eps": -4.3,
+   "ngEps": -3.82,
+   "shares": 0.218,
+   "tag": "Verified"
+  },
+  {
+   "year": "FY25",
+   "revenue": 5.131,
+   "opInc": -0.046,
+   "ni": -1.167,
+   "eps": -2.81,
+   "ngEps": -1.23,
+   "shares": 0.435,
+   "tag": "Verified"
+  },
+  {
+   "year": "1H26",
+   "revenue": 4.653,
+   "opInc": -0.193,
+   "ni": -1.366,
+   "eps": -2.53,
+   "ngEps": -1.94,
+   "shares": 0.539,
+   "tag": "Verified"
+  }
+ ],
+ "rpo": {
+  "scheduledShare": 0.84,
+  "bucketWeights": [
+   0.1025,
+   0.205,
+   0.2,
+   0.195,
+   0.1375
+  ]
+ },
+ "leases": {
+  "onBalanceCash": [
+   1.04,
+   2.339,
+   2.306,
+   2.373,
+   2.289
+  ],
+  "afterFY30": 19.023,
+  "facts": {
+   "onBal": 29.37,
+   "notCommenced": 35.5,
+   "singleCap": 14.7,
+   "share": 0.85
+  },
+  "operatingPayments": [
+   1.028,
+   2.116,
+   2.306,
+   2.373,
+   2.289,
+   19.023
+  ],
+  "financePayments": [
+   0.012,
+   0.223,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ "debt": {
+  "amortization": [
+   4.413,
+   6.184,
+   4.416,
+   2.421,
+   3.221
+  ],
+  "amortAfterFY30": 14.896,
+  "instruments": [
+   [
+    "DDTL 1.0",
+    "追索",
+    "2028-03",
+    0.15,
+    1.3,
+    "資產層、隨客戶付款攤還"
+   ],
+   [
+    "DDTL 2.0",
+    "追索",
+    "2030-08",
+    0.11,
+    3.19,
+    ""
+   ],
+   [
+    "DDTL 2.1",
+    "追索",
+    "2031-03",
+    0.09,
+    3,
+    ""
+   ],
+   [
+    "DDTL 3.0",
+    "追索",
+    "2030-08",
+    0.09,
+    2.215,
+    ""
+   ],
+   [
+    "DDTL 5.0",
+    "追索",
+    "2031-11",
+    0.09,
+    1.101,
+    "SOFR+4.50%；額度 3.1"
+   ],
+   [
+    "2030 Senior Notes",
+    "追索",
+    "2030-06",
+    0.1,
+    2,
+    "到期一次還本"
+   ],
+   [
+    "2031 9.00% Senior Notes",
+    "追索",
+    "2031-02",
+    0.1,
+    1.75,
+    ""
+   ],
+   [
+    "2031 9.75% Senior Notes",
+    "追索",
+    "2031-10",
+    0.1,
+    2.75,
+    "2026-04 發行"
+   ],
+   [
+    "2032 9.625% Senior Notes",
+    "追索",
+    "2032-07",
+    0.1,
+    1.25,
+    "2026-06 發行"
+   ],
+   [
+    "2032 EUR Senior Notes（€2.0bn）",
+    "追索",
+    "2032-07",
+    0.09,
+    2.279,
+    "票面 8.50%；已換匯換利避險"
+   ],
+   [
+    "2031 可轉債",
+    "追索",
+    "2031-12",
+    0.02,
+    2.588,
+    ""
+   ],
+   [
+    "2032 可轉債",
+    "追索",
+    "2032-10",
+    0.02,
+    4,
+    "票面 1.75%"
+   ],
+   [
+    "OEM 與軟體授權融資",
+    "追索",
+    "2026-12～2030-07",
+    0.11,
+    4.22,
+    "短期部分加權 9%"
+   ],
+   [
+    "Magnetar Loan",
+    "追索",
+    "2029-01",
+    0.12,
+    0.189,
+    ""
+   ],
+   [
+    "DDTL 4.0",
+    "非追索",
+    "2032-03",
+    0.07,
+    2.837,
+    "SOFR+2.25%；額度 8.5，可動用至 2027-06"
+   ],
+   [
+    "OEM 融資（非追索）",
+    "非追索",
+    "2026-08～2028-08",
+    0.09,
+    0.882,
+    ""
+   ]
+  ],
+  "convertible": {
+   "principal": 3.7,
+   "coupon": 0.02875
+  }
+ },
+ "latestQuarter": {
+  "filed": "2026-08-12",
+  "periodEnd": "2026-06-30",
+  "revenue": 2.575,
+  "yoy": 1.12,
+  "h1Revenue": 4.653,
+  "costRev": 0.879,
+  "techInfra": 1.507,
+  "opInc": -0.049,
+  "interest": 0.64,
+  "h1Interest": 1.176,
+  "ni": -0.626,
+  "h1Ni": -1.366,
+  "epsDiluted": -1.14,
+  "sbc": 0.165,
+  "da": 1.393,
+  "adjEbitda": 1.51,
+  "adjOpInc": 0.128,
+  "rpo": 103.7,
+  "backlog": 104.2,
+  "rpo24m": 0.41,
+  "rpo25to48": 0.39,
+  "rpo49to78": 0.2,
+  "cash": 5.524,
+  "restricted": 1.38,
+  "marketable": 0.015,
+  "availability": 10.014,
+  "debtPrincipal": 35.551,
+  "recourseNet": 31.405,
+  "nonRecourseNet": 3.663,
+  "ddtlOut": 13.6,
+  "notesOut": 16.6,
+  "sharesA": 0.45887169,
+  "sharesB": 0.092664912,
+  "sharesOut": 0.551536602,
+  "basicWaso": 0.551,
+  "capexQ2": 9.352,
+  "capexH1": 16.139,
+  "cashCapexH1": 14.117,
+  "cfoH1": 3.663,
+  "cashInterestH1": 0.806,
+  "capInterestH1": 0.176,
+  "deferredTotal": 9.692,
+  "deferredIn": 1.365,
+  "ppe": 46.736,
+  "cip": 11.9,
+  "rouOp": 16.595,
+  "opLeaseLiab": 16.319,
+  "finLeaseLiab": 0.221,
+  "onBalanceUndiscounted": 29.37,
+  "offBalanceLease": 35.5,
+  "singleSiteCap": 14.7,
+  "singleSiteMw": 393,
+  "constructionCostMw": 355,
+  "equipCommitLo": 0.5,
+  "equipCommitHi": 1.2,
+  "jvCommit": 1.7,
+  "jvPaidH1": 0.55,
+  "vieExposure": 0.108,
+  "rouObtainedH1": 8.359,
+  "leaseCashH1": 0.748,
+  "custA": 0.36,
+  "custB": 0.26,
+  "custC": 0.1,
+  "debtIssuedH1": 16.747,
+  "debtRepaidH1": 5.219,
+  "equityH1": 2.982
+ },
+ "callFacts": {
+  "activeGw": 1.5,
+  "activeAddQ2": 500,
+  "juneAddMw": 300,
+  "contractedGw": 4.2,
+  "contractedGwQ2": 3.7,
+  "poweredLandGw": 1.5,
+  "yeActiveGw": 1.85,
+  "gw2030": 8,
+  "dataCenters": 51,
+  "capexLo": 35,
+  "capexHi": 39,
+  "q3CapexLo": 11.5,
+  "q3CapexHi": 13.5,
+  "q3IntLo": 0.86,
+  "q3IntHi": 0.94,
+  "revLo": 12.4,
+  "revHi": 13.2,
+  "q3RevLo": 3.45,
+  "q3RevHi": 3.6,
+  "adjOpLo": 0.96,
+  "adjOpHi": 1.15,
+  "q3AdjOpLo": 0.2,
+  "q3AdjOpHi": 0.26,
+  "arrLo": 18.5,
+  "arrHi": 19.5,
+  "q3NewCommit": 25,
+  "priceUp": 0.25,
+  "marginStep": "5–10 pt",
+  "backlogStarted": 0.5,
+  "inferenceArr": 0.25,
+  "otherArr": 0.4,
+  "convert": 3.7,
+  "convertNet": 3.6,
+  "convertCoupon": 0.02875,
+  "convertPx": 97.85,
+  "atmShares": 35,
+  "price0917": 79.88,
+  "streetTarget": 144.46,
+  "streetN": 38,
+  "bernstein": 74,
+  "tier34Active": 0.25,
+  "tier34Contracted": 0.74,
+  "cdsMid": 720,
+  "cdsBidAsk": "690 / 750",
+  "cdsRange": "680–855",
+  "cdsPeak": 855,
+  "cdsPeakDate": "2026-07-28",
+  "cdsLow": 452,
+  "cdsLowDate": "2026-06",
+  "availability": 10.014,
+  "price0918": 80.2,
+  "priceLast": 85.43,
+  "priceDate": "2026-09-21",
+  "q3ShortDated": "2026-09-16 公告：6/30 後持續以更高價格簽約，Q3 已簽短天期客戶合約",
+  "ttmRev": 7.59,
+  "ttmOpInc": -0.231,
+  "ttmDa": 3.991,
+  "ttmOpLease": 1.377,
+  "mktCapLast": 47.12,
+  "nextEarn": "2026-11 (10-Q 期限 11/16)"
+ },
+ "scenarios": {
+  "labels": {
+   "low": "保守 4.2 GW",
+   "base": "基準 5.6 GW",
+   "high": "積極 8 GW"
+  },
+  "accepted": {
+   "low": [
+    1850,
+    3100,
+    3800,
+    4200,
+    4200
+   ],
+   "base": [
+    1850,
+    3100,
+    4000,
+    4800,
+    5600
+   ],
+   "high": [
+    1850,
+    3100,
+    4600,
+    6300,
+    8000
+   ]
+  },
+  "billableRatio": {
+   "billable": [
+    1700,
+    2900,
+    4300,
+    5900,
+    7500
+   ],
+   "accepted": [
+    1850,
+    3100,
+    4600,
+    6300,
+    8000
+   ]
+  },
+  "leaseHighPath": [
+   0.3,
+   1.6,
+   3,
+   4,
+   4.6
+  ],
+  "leaseRampFloorMw": 1500,
+  "mw31": {
+   "low": 0,
+   "base": 500,
+   "high": 1000
+  },
+  "capexTemplate": {
+   "costMW": [
+    34,
+    34,
+    34,
+    34,
+    34
+   ],
+   "customerFund": [
+    0.08,
+    0.08,
+    0.08,
+    0.08,
+    0.08
+   ],
+   "div": [
+    0.1,
+    0.4,
+    0.3,
+    0.2,
+    0.2
+   ]
+  }
+ },
+ "legacy": {
+  "capexV14": [
+   21,
+   45,
+   50,
+   50,
+   45
+  ],
+  "interestV14": [
+   1.8,
+   2.7,
+   2.3,
+   2,
+   1.8
+  ]
+ },
+ "defaults": {
+  "scenario": "base",
+  "lambda": 0.35,
+  "mwYE25": 850,
+  "mw31": 500,
+  "capexFloor26": 35,
+  "gpuLife": 6,
+  "revScale": 1,
+  "capexScale": 1,
+  "ebStart": 0.59,
+  "ebSteady": 0.65,
+  "services": [
+   0.3,
+   1,
+   1.8,
+   2.8,
+   3.8
+  ],
+  "debtBacklog": 1,
+  "ctrTerm": 5,
+  "minCash": 2,
+  "eqPx": 85.43,
+  "eqDisc": 0.1,
+  "eqCapPct": 0.2,
+  "junkRate": 0.12,
+  "mwYE23": 100,
+  "mwYE24": 360,
+  "ppe630": 46.736,
+  "jvCommit": [
+   1.15,
+   0,
+   0,
+   0,
+   0
+  ],
+  "intCal": 0.35,
+  "rpoFy26": 103.7,
+  "rpoQ1Add": 25,
+  "rp": 84,
+  "cash": 5.5,
+  "includeDebt": true,
+  "includeAtm": true,
+  "atm": 6.2,
+  "overlay": false,
+  "cdsLink": false,
+  "linkSites": true,
+  "linkLeaseTail": true,
+  "useAvgMw": true,
+  "billableOpen": 1350,
+  "cds": 720,
+  "cdsBid": 690,
+  "cdsAsk": 750,
+  "cdsLo": 680,
+  "cdsHi": 855,
+  "cdsDate": "2026-09（User-provided 報價）",
+  "useFacility": true,
+  "facility": 10,
+  "m": {
+   "accepted": [
+    1850,
+    3100,
+    4000,
+    4800,
+    5600
+   ],
+   "billable": [
+    1700,
+    2900,
+    3739,
+    4495,
+    5250
+   ],
+   "util": [
+    95,
+    95,
+    94,
+    93,
+    92
+   ],
+   "revMW": [
+    0.0112,
+    0.0115,
+    0.0115,
+    0.011,
+    0.0105
+   ],
+   "aiShare": [
+    100,
+    100,
+    100,
+    100,
+    100
+   ],
+   "fill": [
+    100,
+    100,
+    90,
+    85,
+    80
+   ],
+   "power": [
+    60,
+    62,
+    64,
+    66,
+    68
+   ],
+   "pue": [
+    1.25,
+    1.24,
+    1.22,
+    1.2,
+    1.2
+   ],
+   "maint": [
+    0.15,
+    0.15,
+    0.16,
+    0.16,
+    0.17
+   ],
+   "defaultP": [
+    0.5,
+    1,
+    1.5,
+    2,
+    2.5
+   ],
+   "recovery": [
+    50,
+    50,
+    50,
+    50,
+    50
+   ],
+   "rate": [
+    9,
+    9,
+    9,
+    9,
+    9
+   ]
+  },
+  "terminal": {
+   "residual": 25,
+   "rerent": 75,
+   "margin": 40,
+   "residualLeaseYears": 12
+  },
+  "sites": [
+   {
+    "id": "helios",
+    "name": "Helios, Dickens County, Texas",
+    "operator": "Galaxy Digital（15 年租約）",
+    "planned": 526,
+    "contract": 15,
+    "years": 15,
+    "energized": 133,
+    "accepted": 133,
+    "billable": 133,
+    "status": "Phase I 133 MW critical IT 於 Q2 起租（Galaxy 2026-07-06 公告，$1.4bn 專案融資、80% LTC）；Phase II 260 MW 施工中。10-Q「單一站點 393 MW 未交付、租金上限 $14.7bn／16 年」推定為此站；133（已交付）＋393（10-Q 未交付）＝526 MW critical IT 為目前可對帳的契約規模；場址潛能 1.6 GW 不列入",
+    "next": "Phase II 首批資料廳",
+    "date": "2026 下半年起分期",
+    "confidence": "中"
+   },
+   {
+    "id": "polaris",
+    "name": "Polaris Forge 1, Ellendale, ND",
+    "operator": "Applied Digital（15 年租約）",
+    "planned": 400,
+    "energized": 150,
+    "accepted": 150,
+    "billable": 150,
+    "status": "三份租約合計 400 MW（初始 250＋第三棟 150），約 $11bn／15 年（APLD 2025-08-29）。100 MW 2025Q4 起租、150 MW 2026 年中、150 MW 2027。v1.4 誤植為 550 MW，已更正",
+    "contract": 11,
+    "years": 15,
+    "next": "第二／三棟交付",
+    "date": "2026–2027",
+    "confidence": "中"
+   },
+   {
+    "id": "core-scientific",
+    "name": "Core Scientific 多站（Denton／Muskogee／Dalton 等）",
+    "operator": "Core Scientific（收購案 2025-10 終止，租約續存）",
+    "planned": 590,
+    "contract": 10.2,
+    "years": 12,
+    "energized": 420,
+    "accepted": 420,
+    "billable": 400,
+    "status": "約 590 MW 契約容量分多站交付（已交付比例為估計）。CORZ 2026-07 與 AMD 簽 530 MW→2.5 GW 合作，房東產能開始分流給其他客戶",
+    "next": "餘量交付",
+    "date": "2026–2027",
+    "confidence": "中"
+   },
+   {
+    "id": "kenilworth",
+    "name": "Kenilworth (NEST), New Jersey",
+    "operator": "CoreWeave 自建（改建 NEST11）",
+    "planned": 100,
+    "energized": 0,
+    "accepted": 0,
+    "billable": 0,
+    "status": "法說：首座自建站預計今年稍晚上線；規模未揭露",
+    "next": "首期通電",
+    "date": "2026 年底",
+    "confidence": "低"
+   },
+   {
+    "id": "lancaster",
+    "name": "Lancaster, Pennsylvania",
+    "operator": "CoreWeave 自建／Blue Owl JV（$4bn）",
+    "planned": 300,
+    "energized": 0,
+    "accepted": 0,
+    "billable": 0,
+    "status": "公告投資最高 $6bn、100 MW 起可擴至 300 MW。10-Q 已承諾 JV 出資 $1.7bn（兩案）",
+    "next": "一期完工",
+    "date": "2027 起",
+    "confidence": "低"
+   },
+   {
+    "id": "indonesia",
+    "name": "Indonesia（三站）",
+    "operator": "合作開發",
+    "planned": 360,
+    "energized": 0,
+    "accepted": 0,
+    "billable": 0,
+    "status": "法說：APAC 首站 360 MW，約 18 個月後開始上線",
+    "next": "首站上線",
+    "date": "2028",
+    "confidence": "低"
+   }
+  ]
+ },
+ "valuation": {
+  "price": 85.43,
+  "shares": 0.587,
+  "netDebt": 30,
+  "tax": 0.21,
+  "nol": 4,
+  "wacc": 0.11,
+  "g": 0.03,
+  "sbc": 0.7,
+  "maintRatio": 0.8,
+  "evEbitda": 6,
+  "evYear": 3,
+  "dcfMode": "zero",
+  "sigma": 0.5,
+  "rf": 0.04,
+  "optT": 4.5
+ },
+ "methodology": {
+  "blendWeights": {
+   "dcf": 0.45,
+   "pe": 0.55
+  }
+ }
+}
