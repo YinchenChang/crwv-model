@@ -65,7 +65,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - **判斷句**：情境區間上緣與現價比較，並依三情境實際評等說明賣出是否在三個情境下都成立；任一情境與賣出門檻（現價 × 85%）的距離小於現價 5% 時揭露該距離。
 - **DCF 權重說明**：只在 DCF 被 0 截斷時顯示；DCF 失效時改為一句；DCF 為正或選擇權模式時不顯示。
 - 字串在 `targetRange()` 產生，HTML 各頁共用；Excel 以文字公式（`TEXT(x,"0.0")` 等）產生同一字串，cmp31 逐字比對。
-- 模擬運算表的建置鏈：build_xlsx 以 openpyxl 寫入 `t="dataTable"` → LibreOffice 能正確計算，但存檔時改寫成 `TABLE(公式列,輸入格,輸入值)` → `fix_datatable.py` 還原為單一 `dataTable` 公式（只放在區塊左上格）。本環境沒有 Microsoft Excel，結構依 ECMA-376；Excel 實機開檔確認由 Andy 於合併前進行。
+- 模擬運算表的建置鏈：build_xlsx 以 openpyxl 寫入 `t="dataTable"` → LibreOffice 能正確計算，但存檔時改寫成 `TABLE(公式列,輸入格,輸入值)` → `fix_datatable.py` 還原為單一 `dataTable` 公式（只放在區塊左上格）。本環境沒有 Microsoft Excel，結構依 ECMA-376；Excel 實機開檔由 Andy 於合併前確認（v4.2：2026-09-25 確認正常）。
 
 ## v4.2 設定集中（同業 Comps、評等門檻）
 - **同業 Comps**：數字、名稱、備註與 Comps 分頁的說明文字都在 `company.json` → `peers`；segB 的 `lM` 由 `peers.list` 產生（EV＝市值＋淨負債、EBITDA＝營業損益＋D&A 現算），build_xlsx「可比公司」頁讀同一份。名稱與備註暫時保留 HTML、Excel 兩種寫法（`labelHtml／labelXlsx`、`noteHtml／noteXlsx`），統一另開任務。Excel CRWV 列改讀 `callFacts`／`latestQuarter`。
