@@ -191,7 +191,7 @@ CF = {
  'availability': ('未動用信用額度', 'US$bn'), 'price0918': ('9/18 收盤價', 'US$'), 'priceLast': ('最新收盤價', 'US$'),
  'priceDate': ('最新收盤價日期', '日期'), 'q3ShortDated': ('期後公告摘要', '文字'), 'ttmRev': ('近十二個月營收', 'US$bn'),
  'ttmOpInc': ('近十二個月 GAAP 營業損益', 'US$bn'), 'ttmDa': ('近十二個月折舊攤銷', 'US$bn'),
- 'ttmOpLease': ('近十二個月營業租賃成本', 'US$bn'), 'mktCapLast': ('最新市值', 'US$bn'), 'nextEarn': ('下次財報時間', '文字'),
+ 'ttmOpLease': ('近十二個月營業租賃成本', 'US$bn'), 'mktCapLast': ('CRWV 市值（Comps 用；與同業同一收盤日 peers.priceDate，v4.3 起不隨現價更新）', 'US$bn'), 'nextEarn': ('下次財報時間', '文字'),
 }
 
 
@@ -206,6 +206,7 @@ def fmt(v):
     if isinstance(v, list):
         if v and isinstance(v[0], (dict, list)): return f'{len(v)} 筆'
         return '、'.join(fmt(x) for x in v)
+    if isinstance(v, dict): return '物件（' + '、'.join(v) + '）'
     if isinstance(v, str): return v if len(v) <= 28 else v[:26] + '…'
     return f'{v:g}' if isinstance(v, float) else str(v)
 

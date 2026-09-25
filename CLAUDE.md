@@ -61,7 +61,7 @@ Andy 不熟程式，他透過 Claude 聊天端（讀 Gmail 裡的 GitHub 通知�
 ## 待辦（依序；每項一個 PR）
 1. 環境移植（上節）。
 2. ~~目標價改為區間呈現（取代單點 45/55 加權）~~（v4.1 完成）。
-3. ~~同業 Comps 與評等門檻移入 company.json、README 欄位說明~~（v4.2 完成）；一頁摘要＋市場共識對照（含既有 Street 參考欄位 `callFacts.streetTarget／streetN／bernstein` 的整理）。共識數據由 Andy 在聊天中查證後提供資料檔，逐筆含來源、日期與標記（[Verified]／[Interested-party]…）；**不要自行杜撰或補數字**。
+3. ~~同業 Comps 與評等門檻移入 company.json、README 欄位說明~~（v4.2 完成）；~~一頁摘要＋市場共識對照~~（v4.3 完成）。共識數據一律由 Andy 在聊天中查證後提供資料檔（`data/`，路徑寫在 `meta.consensusFile`），逐筆含來源、日期與標記（[Verified]／[Interested-party]…）；**不要自行杜撰或補數字**。
 4. 季度層（Q3 財報 11/9 前完成）。
 5. Excel 規範與精簡（色彩慣例、具名範圍、分頁合併、說明文字精簡）。
 6. 其餘短名稱輔助函式改名（讀懂用途後才改）。

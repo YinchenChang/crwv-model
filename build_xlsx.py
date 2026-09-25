@@ -133,7 +133,7 @@ ws = wb.active
 ws.title = "導覽"
 ws.column_dimensions["A"].width = 118
 r = 1
-ws["A1"] = "CoreWeave 收支與評價模型 — Excel 版 v4.0（更新 2026-09-24；與 HTML v4.0 同步；市價截至 2026-09-21 收盤）"
+ws["A1"] = f"CoreWeave 收支與評價模型 — Excel 版 {VLOG_X[-1][0]}（更新 {CO['meta']['updateDate']}；與 HTML {VLOG_X[-1][0]} 同步；市價截至 {CO['meta']['priceDate']} 收盤）"  # v4.3：版本、日期改讀 vlog.py 與 company.json
 ws["A1"].font = TITLE
 r = 3
 guide = [
@@ -142,7 +142,8 @@ guide = [
     ("差額就是必須向外籌措的金額。所有分頁用同一組數字，改任何一個輸入，後面全部會跟著動。", None),
     ("", None),
     ("分頁結構（依模組分組，分頁標籤顏色相同者為同一模組）", None),
-    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G 1H 實際）。", None),
+    ("摘要            一頁摘要：結論、與市場共識的差異、現價隱含什麼、驗證點（v4.3；全部活公式）。", None),
+    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G 1H 實際 → H 情境區間運算表 → I 市場共識）。", None),
     ("各期收支        類現金流量：來源、用途、融資前缺口、期前融資瀑布。", None),
     ("運營_產能與收入  合約排程 vs 機房產能 → 收入 → 現金；運營_站點：房東揭露與租金檢驗。", None),
     ("資產負債_既有債務／新債與新股／租賃承諾  類資產負債表：10-Q 債務明細、每期現金與總債務與股數、租賃承諾。", None),
@@ -237,7 +238,7 @@ ws.column_dimensions["I"].width = 92
 ws.column_dimensions["J"].width = 60
 ws["A1"] = "輸入（依類別排序；點左側 ＋／− 展開或收合。藍字可改；黃底為最關鍵假設）"
 ws["A1"].font = TITLE
-ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：1H26 實際。灰底『▸』為明細子區，預設收合"
+ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：1H26 實際 → H 情境區間運算表 → I 市場共識。灰底『▸』為明細子區，預設收合"
 ws["A2"].font = SMALL
 IN = {}
 
@@ -411,7 +412,7 @@ r += 1
 # ---------------- E 融資 ----------------
 r = section(ws, r, "E｜融資（期初現金、既有債務、瀑布參數）")
 CASH0 = gi(r, "期初現金（2026-06-30）", "US$bn", D['cash'], "10-Q：現金 5.524＋有價證券 0.015；受限現金 1.38 不計 [Verified]"); r += 1
-ATM = gi(r, "股權／可轉債金額", "US$bn", D['atm'], "9/17 可轉債淨現金約 3.2＋ATM 上限 35m 股 × $85.43 ≈ 3.0 [Verified]"); r += 1
+ATM = gi(r, "股權／可轉債金額", "US$bn", D['atm'], "9/17 可轉債淨現金約 3.2＋ATM 上限 35m 股 × $85.43（9/21 收盤；v4.3 現價更新後維持）≈ 3.0 [Verified]"); r += 1
 ATMON = gi(r, "計入股權／可轉債（1=是）", "", int(D['includeAtm']), "關閉則 FY26 少 6.2bn 來源", NUM0); r += 1
 FAC = gi(r, "未動用信用額度", "US$bn", D['facility'], "10-Q 可用額度 10.014（RCF＋DDTL 未動用）[Verified]"); r += 1
 FACON = gi(r, "瀑布可動用未動用額度（1=是）", "", int(D['useFacility']), "瀑布第一順位；已承諾額度，不受 債務／backlog 上限限制", NUM0); r += 1
@@ -419,7 +420,7 @@ DEBTON = gi(r, "債務排程攤還（1=開）", "", int(D['includeDebt']), "10-Q
 KBL = gi(r, "債務／backlog 上限", "x", D['debtBacklog'], "預設 1.0x：依 2026 年實際融資組合（債務約 77%、股權約 23%）校準；公司簡報當前約 0.4x（敏感度）[Derived]", '0.00', True); r += 1
 TERM = gi(r, "新簽合約年期", "年", D['ctrTerm'], "Q4 法說：加權平均合約約 5 年；決定 backlog 補入量 [Interested-party]", NUM0); r += 1
 MINC = gi(r, "最低現金", "US$bn", D['minCash'], "期前融資的現金底線 [Assumed]"); r += 1
-EQPX = gi(r, "股權發行價", "US$", D['eqPx'], "預設 2026-09-21 收盤 [Verified]", USD); r += 1
+EQPX = gi(r, "股權發行價", "US$", D['eqPx'], f"預設＝現價（{CO['meta']['priceDate']} 收盤）[Verified]", USD); r += 1
 EQDISC = gi(r, "股權發行折價", "%", D['eqDisc'], "大額增資的折讓 [Assumed]", PCT); r += 1
 EQCAP = gi(r, "每年股權吸收上限（占現市值）", "%", D['eqCapPct'], "2026 年實際約 13%；輸入 ≥900% 視為無上限 [Assumed]", PCT); r += 1
 JRATE = gi(r, "高息債利率（股權上限溢出）", "%", D['junkRate'], "高於 2031 票據 9.75%；CDS 中價 720bps [Assumed]", PCT); r += 1
@@ -434,7 +435,7 @@ r += 1
 
 # ---------------- F 評價 ----------------
 r = section(ws, r, "F｜評價（價格、股數、折現、倍數、權重）")
-PX = gi(r, "現價（2026-09-21 收盤）", "US$", V['price'], "S&P Global via stockanalysis.com；9/17 收盤 79.88 [Verified]", USD); r += 1
+PX = gi(r, f"現價（{CO['meta']['priceDate']} 收盤）", "US$", V['price'], f"{CONS['priceReference']['source']}（{CONS['priceReference']['url']}）；9/17 收盤 79.88 [Verified]", USD); r += 1
 SH = gi(r, "股數（含 ATM 上限）", "bn", V['shares'], "7/31 流通 0.5515＋ATM 35m [Verified]", '0.000'); r += 1
 ND = gi(r, "淨負債（6/30）", "US$bn", V['netDebt'], "本金 35.551 − 現金 5.524 [Verified]"); r += 1
 WACC = gi(r, "WACC", "%", V['wacc'], "[Assumed]", PCT); r += 1
@@ -2372,7 +2373,7 @@ import json as _json
 # 輸出位置相對於 repo 根目錄：預設 out/；可用第 1 個參數指定 xlsx 路徑（outline.json 一律寫在 out/）
 _OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "out")
 _osrv.makedirs(_OUT_DIR, exist_ok=True)
-_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_2.xlsx")
+_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_3.xlsx")
 _json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
 wb.save(_xlsx)
 print("saved", _xlsx)
