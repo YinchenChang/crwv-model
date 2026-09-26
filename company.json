@@ -7,21 +7,17 @@
   "sourceOrderNote": "時序先法說（8/11）、後 10-Q（8/12）、再 8-K（9/17 可轉債＋ATM）。入帳數字聽 10-Q；全年指引聽法說；事實打架聽 10-Q。Q2 新增 500 MW（6 月單月 300 MW）當觀察，不年化進基準。",
   "consensusFile": "data/consensus_crwv_20260925.json"
  },
- "periods": [
-  "FY26",
-  "FY27",
-  "FY28",
-  "FY29",
-  "FY30"
- ],
- "periodYears": [
-  0.5,
-  1,
-  1,
-  1,
-  1
- ],
- "actual1H": {
+ "calendar": {
+  "fiscalYearEndMonth": 12,
+  "latestQuarterFiled": "FY26Q2",
+  "latestQuarterReported": "FY26Q2",
+  "firstModelFY": null,
+  "modelYears": 4,
+  "targetHorizon": "valuationPlus12m"
+ },
+ "ytdActual": {
+  "throughQuarter": "FY26Q2",
+  "months": 6,
   "label": "1H26 實際（10-Q）",
   "cash1231": 3.127,
   "revenue": 4.653,
@@ -62,6 +58,31 @@
    "crossCheck": "MarketScreener 季度表同列 1,157／1,510，一致",
    "note": "公司公布之實際數，引用自財報報導轉述，非公司新聞稿原文",
    "usage": "只用於「與市場的差異」的 FY26 調整後 EBITDA 比較；模型 GAAP 損益與評價不使用"
+  },
+  "jvSplit": {
+   "jv": 0.55,
+   "strategic": 0.138
+  },
+  "notes": {
+   "cash1231": "10-Q 比較期資產負債表 [Verified]",
+   "cfo": "已含已付利息 0.806 與租賃付款 0.748 [Verified]",
+   "cashCapex": "現金流量表投資活動 [Verified]",
+   "capex": "PP&E 增加＋融資租賃−CIP 變動；與全年指引同口徑 [Verified]",
+   "jv": "JV 0.550＋策略投資 0.138 [Verified]",
+   "borrow": "融資活動流入 [Verified]",
+   "debtRepaid": "融資活動流出 [Verified]",
+   "cappedCall": "Q2 4.0bn 可轉債的 capped call [Verified]",
+   "equity": "NVIDIA 2.0 @$87.20、4 月 1.0 @$109 [Verified]",
+   "interest": "損益表；現金 0.806、資本化 0.176 [Verified]",
+   "leasePaid": "已含在 CFO 內，僅供對照 [Verified]",
+   "revenue": "Q1 2.078＋Q2 2.575 [Verified]",
+   "opInc": "[Verified]",
+   "ni": "[Verified]",
+   "prepay": "已含在 CFO 內，僅供對照 [Verified]",
+   "da": "現金流量表 [Verified]",
+   "sbc": "現金流量表 [Verified]",
+   "eps": "淨損 −1.366 ÷ 加權股數約 0.539 [Verified]",
+   "ngEps": "(−1.366＋0.318)÷0.539 [Derived]"
   }
  },
  "historicalPL": [
@@ -767,8 +788,7 @@
   "evYear": 3,
   "dcfMode": "zero",
   "sigma": 0.5,
-  "rf": 0.04,
-  "optT": 4.5
+  "rf": 0.04
  },
  "methodology": {
   "blendWeights": {
@@ -1053,7 +1073,7 @@
    ],
    [
     "quarterly.periodGuidance.0.revenue.less",
-    "actual1H.revenue"
+    "ytdActual.revenue"
    ],
    [
     "quarterly.periodGuidance.0.capex.range.0",
@@ -1065,7 +1085,7 @@
    ],
    [
     "quarterly.periodGuidance.0.capex.less",
-    "actual1H.capex"
+    "ytdActual.capex"
    ],
    [
     "quarterly.revenueAnchor.value",
@@ -1210,5 +1230,10 @@
     "text": "淨負債隨 CapEx 與融資需求而定（模型 CapEx 差距 {gap.capex:gap}）；共識淨負債不含租賃、口徑未揭露"
    }
   ]
+ },
+ "texts": {
+  "fy0EquityNote": "«P0»＝«YTD» 私募股權 2.982＋«STUB» 可轉債淨現金 3.2＋ATM 上限 3.0",
+  "cashTaxNote": "H1 現金稅約 0.1bn",
+  "sourceLine": "Q2 2026 10-Q + 法說 + 9/17 8-K · 口徑分層"
  }
 }

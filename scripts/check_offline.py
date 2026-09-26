@@ -11,6 +11,8 @@ from pathlib import Path
 from urllib.parse import unquote
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from first_screen import JS_VIEWPORT_TEXT
 
 # （畫面分頁路徑, Excel 工作表, A 欄列名稱, 欄號, 格式）；格式：usd1＝$47.9、usd2＝$90.13、n1＝151.7、n2＝3.66、text＝原字串
 CHECKS = [
@@ -19,34 +21,55 @@ CHECKS = [
     ('總結', '摘要', '結論｜現價', 3, 'usd2'),
     ('總結', '摘要', '結論｜情境區間（下緣／上緣）', 3, 'usd1'),
     ('總結', '摘要', '結論｜情境區間（下緣／上緣）', 4, 'usd1'),
-    ('資金模型', '檢查_連動', '模型期毛 CapEx（6/30 起）', 2, 'n1'),
-    ('資金模型', '檢查_連動', '模型期營運缺口（6/30 起）', 2, 'n1'),
+    ('資金模型', '檢查_連動', '模型期毛 CapEx（«VMD» 起）', 2, 'n1'),
+    ('資金模型', '檢查_連動', '模型期營運缺口（«VMD» 起）', 2, 'n1'),
     ('損益與評價', '摘要', '差異｜營收｜模型', 4, 'n1'),              # FY27 營收（損益簡表）
     ('損益與評價/市場共識', '輸入與假設', '共識｜目標價｜平均', 3, 'usd2'),
     ('資金模型/各期收支/季度追蹤', '季度追蹤', '焦點｜營收', 3, 'n2'),
+]
+# v4.5（5a-1）：第一屏的日期與期間文字（只比對 1440×900 視窗內、捲動到頂端時可見的文字；已決定事項 9 第 3、4 輪）
+# 格式：text＝原字串；md＝2026-06-30 → 6/30
+CHECKS_FIRST = [
+    ('總結', '輸入與假設', '資料更新日', 3, 'text'),
+    ('總結', '輸入與假設', '模型期間', 3, 'text'),
+    ('資金模型', '輸入與假設', '模型期間', 3, 'text'),
+    ('損益與評價', '輸入與假設', '現價日（收盤）', 3, 'text'),
+    ('損益與評價', '輸入與假設', '評價日（已申報季度的季末）', 3, 'md'),
 ]
 BAD_TEXT = ('NaN', 'undefined', 'Infinity')
 
 
 def xl_value(wb, sheet, label, col):
+    # 列名稱中的期間佔位符（«VMD» 等，v4.5）以任意文字比對，新舊兩版的 Excel 都能找到
+    parts = re.split(r'(«[A-Z0-9]+»)', label)   # 偶數位置為原文、奇數位置為佔位符
+    pat = re.compile('^' + ''.join('.+?' if i % 2 else re.escape(x) for i, x in enumerate(parts)) + '$') if len(parts) > 1 else None
     ws = wb[sheet]
     for r in range(1, ws.max_row + 1):
-        if ws.cell(r, 1).value == label and ws.cell(r, col).value is not None:
+        a = ws.cell(r, 1).value
+        if (a == label or (pat and isinstance(a, str) and pat.match(a))) and ws.cell(r, col).value is not None:
             return ws.cell(r, col).value
     raise KeyError(f'Excel 找不到：{sheet}｜{label}（第 {col} 欄）')
 
 
 def fmt(v, how):
     if how == 'text': return str(v)
+    if how == 'md': y, m, d = str(v)[:10].split('-'); return f'{int(m)}/{int(d)}'
     s = {'usd1': f'${v:,.1f}', 'usd2': f'${v:,.2f}', 'n1': f'{v:,.1f}', 'n2': f'{v:,.2f}'}[how]
     return s
 
 
 def main(html, xlsx):
     wb = load_workbook(xlsx, data_only=True)
-    expect = {}
+    expect, first = {}, {}
     for tab, sh, lab, col, how in CHECKS:
         expect.setdefault(tab, []).append((f'{sh}｜{lab}', fmt(xl_value(wb, sh, lab, col), how)))
+    for tab, sh, lab, col, how in CHECKS_FIRST:
+        try: v = xl_value(wb, sh, lab, col)
+        except KeyError:
+            if sh == '輸入與假設': continue  # v4.4 以前的 Excel 沒有「期間與日期」列（v4.5 新增）：略過
+            raise
+        first.setdefault(tab, []).append((f'{sh}｜{lab}', fmt(v, how)))
+        expect.setdefault(tab, [])
     tmp = tempfile.mkdtemp(prefix='offline_')
     page_path = Path(tmp) / Path(html).name          # 單獨一個檔案，旁邊沒有任何其他檔案
     shutil.copy(html, page_path)
@@ -76,6 +99,10 @@ def main(html, xlsx):
                     else: click(t)
             except Exception as e:
                 fails.append(f'{tab}：無法切換到此分頁（{str(e).splitlines()[0]}）'); continue
+            pg.evaluate('window.scrollTo(0, 0)'); pg.wait_for_timeout(150)
+            vp = pg.evaluate(JS_VIEWPORT_TEXT)  # 第一屏（視窗內）文字
+            for key, s in first.get(tab, []):
+                if s not in vp: fails.append(f'{tab}：第一屏找不到 {key}＝{s}')
             text = pg.inner_text('body')
             if len(text) < 500: fails.append(f'{tab}：畫面文字只有 {len(text)} 字（未正常顯示）')
             for w in BAD_TEXT:
@@ -84,7 +111,7 @@ def main(html, xlsx):
                 if s not in text: fails.append(f'{tab}：找不到 {key}＝{s}')
         b.close()
     shutil.rmtree(tmp, ignore_errors=True)
-    n = sum(len(v) for v in expect.values())
+    n = sum(len(v) for v in expect.values()) + sum(len(v) for v in first.values())
     print(f'(a) 網路請求：{len(reqs)} 個' + ('' if not reqs else '：' + '、'.join(reqs[:5])))
     print(f'(b) console 錯誤與例外：{len(errs)} 個' + ('' if not errs else '：' + '；'.join(e[:120] for e in errs[:5])))
     print(f'(c) 關鍵數字：{len(expect)} 個分頁、{n} 項，失敗 {len(fails)} 項' + ('' if not fails else '\n   ' + '\n   '.join(fails)))

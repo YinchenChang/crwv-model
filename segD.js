@@ -67,7 +67,7 @@ function zM() {
         children: [(0, $.jsxs)(`div`, {
           className: `flex flex-wrap items-center gap-2 text-xs tracking-wide text-accent-soft`,
           children: [(0, $.jsx)(`span`, {
-            children: `CRWV FY26–FY30`
+            children: `${COMPANY_DATA.meta.ticker} ${PERIODS[0]}–${PERIODS[PERIODS.length - 1]}` // v4.5：期間由日曆推算
           }), (0, $.jsx)(`span`, {
             className: `text-subtle`,
             children: `/`
@@ -82,7 +82,7 @@ function zM() {
             className: `text-subtle`,
             children: `/`
           }), (0, $.jsx)(`span`, {
-            children: `Q2 2026 10-Q + 法說 + 9/17 8-K · 口徑分層`
+            children: COMPANY_DATA.texts.sourceLine // v4.5：資料來源一行（company.json → texts，隨每季資料更新）
           })]
         }), (0, $.jsx)(`h1`, {
           className: `max-w-3xl font-display text-3xl font-semibold leading-tight tracking-tight md:text-4xl`,
@@ -92,7 +92,7 @@ function zM() {
           children: `每 MW 賺的錢付不起 GPU 的資本成本——蓋得愈多，愈要靠外部資金`
         }), (0, $.jsxs)(`p`, {
           className: `max-w-3xl text-sm leading-relaxed text-pretty text-accent-soft`,
-          children: [e.scenario === `custom` ? `自訂情境` : SCENARIOS[e.scenario]?.label, `：FY26–30 融資前缺口 `, (0, $.jsxs)(`span`, {
+          children: [e.scenario === `custom` ? `自訂情境` : SCENARIOS[e.scenario]?.label, `：${PERIODS[0]}–${PERIODS[PERIODS.length - 1].slice(2)} 融資前缺口 `, (0, $.jsxs)(`span`, {
             className: `font-medium text-accent-fg`,
             children: [mA(Math.max(0, -d.totals.preFinEnd)), `bn`]
           }), `，加上新融資本身的利息 `, mA(d.years.reduce((e, t) => e + t.newDebtInt, 0)), `bn，由新債 `, mA(d.totals.newDebt), `bn、股權 `, mA(d.totals.equity), `bn（新股 `, Y(d.totals.newShares, 2), `bn 股）`, d.totals.junk > .05 ? `、高息債 ${mA(d.totals.junk)}bn` : ``, ` 補足。每 MW 年 EBITDA 約 `, (0, $.jsxs)(`span`, {

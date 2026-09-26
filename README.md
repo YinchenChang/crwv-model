@@ -1,4 +1,4 @@
-# CoreWeave 收支模型 v4.4 原始碼包
+# CoreWeave 收支模型 v4.5 原始碼包
 
 HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo 根目錄；建置產物寫到 `out/`（不納入版控），交付成品放 `dist/`。HTML 的函式庫模板為 `docs/template_v3_3.html`。
 
@@ -24,15 +24,19 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | fix_outline.py | LibreOffice 重算後，補回 Excel 群組按鈕位置與收合狀態：`python3 fix_outline.py 檔案.xlsx [outline.json]`（預設讀 `out/outline.json`；v3.4 修正：outlinePr 依 schema 放在 tabColor 之後） |
 | fix_datatable.py | v4.1：LibreOffice 重算後，把模擬運算表（情境區間）由 `TABLE()` 一般公式還原為 Excel 的 `dataTable` 公式，保留算出的值：`python3 fix_datatable.py 檔案.xlsx` |
 | verify_ooxml.py | Excel 嚴格結構檢查（XML 格式、工作表與 sheetPr 子元素順序；v4.1 起另檢查模擬運算表存在且無殘留 `TABLE()`）；v3.4 新增 |
-| vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
-| rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」與「摘要」頁使用）；現價或預設輸入改變後以 `node scripts/rv_snap.js` 重新產生（v4.3） |
+| calendar_q.py | v4.5（5a-1）：期間滾動。由 `company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、模型年數、目標價時點）推算期間標籤、期間長度、評價日、各期期末日與折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整；`build_xlsx.py`、`build_html_portable.py`、`load_engine.js` 都讀同一份推算結果（`COMPANY_DATA.cal`；Excel「輸入與假設」F 區「期間與日期」）。`periods`、`periodYears`、`valuation.optT` 不再存於 company.json。`python3 calendar_q.py` 印出推算結果 | 說明文字中的期間字樣以佔位符書寫（«YTD»、«STUB»、«VMD»、«P0»…，`tokens`），build_xlsx 存檔前、cmp31 查列名稱時換成目前日曆的字樣；目前日曆下換出的文字與 v4.4 相同。期間特有的敘述句與數字放 `company.json` → `texts`、`ytdActual.notes`，隨每季資料更新 || vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
+| rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」與「摘要」頁使用）。v4.5 起由 `scripts/rv_solve.py` 以 Excel 求解產生（verify.sh 步驟 3b；有變動時自動重建 Excel），不再用 JS 引擎（`scripts/rv_snap.js` 已移除） |
+| scripts/rv_solve.py | v4.5：反向 DCF 求解。以 LibreOffice（UNO，`scripts/uno_q.py`）開啟建好的 Excel，改「每 MW 年收入倍數」「每 MW 建置成本倍數」「穩態 EBITDA 率」並重算，依與 HTML `reverseDcf` 相同的規則（同一上下界、22 次對半）二分法反解，寫入 rv_snap.json；結果有變動時代碼 3 |
+| scripts/uno_q.py | v4.5：以 LibreOffice UNO 驅動 Excel 的共用模組（依 A 欄列名稱找格、改值、讀重算後的值；不存檔） |
 | data/consensus_crwv_20260925.json | 市場共識資料檔（v4.3；Andy 查證後提供，只讀，不得增補或修改數字）；路徑寫在 `company.json` → `meta.consensusFile`，HTML 建置時併入 `COMPANY_DATA.consensus`，Excel 直接讀取 |
-| xl_diff.py | Excel 比對：`python3 xl_diff.py 舊.xlsx 新.xlsx [--values] [--by-label] [--ignore=工作表,…]`（v4.2 `--by-label`：新增列造成位移時以「區段＋列名稱」配對，見「v4.2 核對方式」；v4.3 `--ignore`：兩檔都略過指定工作表） |
+| xl_diff.py | Excel 比對：`python3 xl_diff.py 舊.xlsx 新.xlsx [--values] [--by-label] [--ignore=工作表,…] [--expect=清單檔]`（v4.5 `--expect`：預期差異清單，每行「工作表!儲存格 原因」，列出但不計入差異數）；（v4.2 `--by-label`：新增列造成位移時以「區段＋列名稱」配對，見「v4.2 核對方式」；v4.3 `--ignore`：兩檔都略過指定工作表） |
 | scripts/fields_doc.py | v4.2：產生下方「company.json 欄位說明」的表格（`python3 scripts/fields_doc.py > out/fields.md`）；company.json 有欄位沒寫說明即報錯 |
 | xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值（暫存檔在 `out/`，以 `scripts/recalc.py` 重算）；cmp31.js 以 HTML 引擎逐列比對（三情境各 313 項，含 v4.1 目標價區間與判斷句、v4.3 市場共識逐筆與一頁摘要的差距、隱含倍數與句子逐字比對、v4.4 季度層 6 季數字／差距／差異原因／驗證點句與年度差異原因；讀取目前目錄的 `xl17_*.json`） |
 | scripts/recalc.py | LibreOffice headless 重算：`python3 scripts/recalc.py 檔案.xlsx [逾時秒數]`＝開啟、全部重算、原地存檔，輸出 JSON 並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）；有錯誤或失敗時代碼 1 |
 | scripts/verify.sh | 一次跑完建置與核對（見下節） |
-| scripts/check_offline.py | 離線開啟檢查（已決定事項 11）：`python3 scripts/check_offline.py 檔案.html 同版.xlsx`。HTML 單獨複製到空資料夾，Playwright 阻斷網路、以 file:// 開啟；(a) 除 HTML 本身外的請求數＝0（網路與旁邊的本機檔案都算）、(b) console 無錯誤與例外、(c) 5 個分頁 10 項關鍵數字（依 A 欄列名稱取自同版 Excel）出現在畫面且無 NaN／undefined／Infinity。verify.sh 步驟 5c 對新建 HTML 與 dist/ 成品各跑一次 |
+| scripts/first_screen.py | v4.5：擷取「第一屏」文字——HTML 各頁面／分頁在 1440×900 視窗、捲動到頂端時可見的文字；Excel 各工作表前 40 個可見列（A–J 欄，重算後的值）。`python3 scripts/first_screen.py 檔案.html｜檔案.xlsx [輸出.json]` |
+| scripts/test_rolling.py | v4.5：期間滾動測試（暫存副本）。B：日曆推算 6 種情況（12 月財年 Q1–Q4 已申報、5 月財年、無已申報季度）× 2 種目標價時點；A：把副本滾動到下一個已申報季度（只改日曆與標籤、不改數字），建 HTML 與 Excel，第一屏不得出現舊日曆特有的字樣（評價日、年初至今／首期標籤、已申報季度）。例外：版本紀錄與來源頁、整段落在 company.json／共識檔資料字串內的字樣。verify.sh 步驟 8b |
+| scripts/check_offline.py | 離線開啟檢查（已決定事項 11）：`python3 scripts/check_offline.py 檔案.html 同版.xlsx`。HTML 單獨複製到空資料夾，Playwright 阻斷網路、以 file:// 開啟；(a) 除 HTML 本身外的請求數＝0（網路與旁邊的本機檔案都算）、(b) console 無錯誤與例外、(c) 5 個分頁 10 項關鍵數字（依 A 欄列名稱取自同版 Excel）出現在畫面且無 NaN／undefined／Infinity；v4.5 另比對第一屏（視窗內）的資料更新日、模型期間、現價日與評價日（`CHECKS_FIRST`；列名稱中的期間佔位符以任意文字比對，新舊版 Excel 皆可）。verify.sh 步驟 5c 對新建 HTML 與 dist/ 成品各跑一次 |
 | scripts/check_quarterly.js | v4.4：季度加總＝年度（三情境）、`quarterly.consistency` 一致性、超過門檻的差距都有原因；`build_html_portable.py` 建置時呼叫，verify.sh 步驟 0 |
 | scripts/test_quarterly.py | v4.4：暫存副本測試——(A) 假設 Q3 實際數，Python 獨立計算差距並與 HTML、Excel 比對；(B) 可移植性（無 MW、無季度指引與共識）。verify.sh 步驟 8 |
 | scripts/cloud_setup.sh | 雲端環境 setup script（只裝 Python 套件；LibreOffice Calc 於工作階段內補裝，見 CLAUDE.md） |
@@ -105,6 +109,18 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - **一頁摘要**：驗證點改為焦點季 3 個指標（`quarterly.keyMetrics`：營收、調整後營業利益、CapEx）；「與市場的差異」加一句差異原因摘要。依精簡原則，方法註腳與最新分析師動作移出一頁摘要（仍在「市場共識」分頁與 Excel I 區）。
 - **核對**：`check_quarterly.js`（季度加總＝年度，誤差 ≤1e-9）；cmp31 每次 313 項；`test_quarterly.py` 以暫存副本測試假設實際數與可移植性，repo 內實際數維持空白。
 
+## v4.5 期間滾動＋反向 DCF（5a-1）
+- **日曆**：`company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、`modelYears`＝4、`targetHorizon`）；`calendar_q.py` 推算期間標籤、期間長度、評價日、各期期末日、折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整（`evOffset`）。Excel「輸入與假設」F 區「期間與日期」列出推算結果；HTML 讀 `COMPANY_DATA.cal`（`CALQ`）。首期長度支援 0.25／0.5／0.75／1 年；5 月財年（Oracle 型）與沒有已申報季度（OpenAI 型）皆可推算（`scripts/test_rolling.py` B）。
+- **折現**：DCF 的 UFCF 折到評價日至各期期末（首期 0.5、FY27 1.5…）、終值與選擇權期限＝評價日至模型期末、新股 PV＝評價日至各期期初；EV/EBITDA 腿自錨定期期末以 WACC 折回目標價時點（錨定期 k 的年數＝k − `evOffset`）。
+- **評價日**（Andy 決定）：最新**已申報**（10-Q／10-K）季度的季末（目前 2026-06-30）。DCF 現值、淨負債與股數的基準日。
+- **目標價時點**（2026-09-26 Andy 決定）：`valuationPlus12m`＝評價日＋12 個月（目前 2027-06-30）；`firstFullYearEnd`＝首期之後第一個完整財年末，即 v4.4 的「FY27 末」。EV/EBITDA 腿自錨定期期末以 WACC 折回此時點；DCF 腿（0 截斷與選擇權皆同）以 WACC 自評價日推到此時點（`perShareT`；Excel「DCF 每股（推到目標價時點）」），兩條腿同一時點。「DCF 每股」仍是評價日現值，反向 DCF 以它對現價求解。依設計，任何日曆下錨定期的折回年數都不為負，不需內插。
+- **與賣方 12 個月目標價的差異**：賣方以股價日起算（2026-09-24 → 2027-09-24），本模型以評價日起算，目前早約 2.8 個月。若以股價日起算，兩條腿約 × 1.025：基準 $45.5 → 約 $46.6（[Derived]）。差距在 10-Q 申報後最小（約 1.5–3 個月）、下一次申報前最大（約 4–5 個月）。
+- **升版驗收**：對前一版成品做 `EXPECT=scripts/expect/v4_5_vs_v4_4.txt scripts/verify.sh --vs-dist`。清單列出預期變動的格（每格附原因），以及「區段 舊 => 新」「列 舊 => 新」改名對照；Excel 其餘須 0 差異。畫面文字差異另外分類說明。
+- **期間字樣**：說明文字以佔位符書寫，建置時換成目前日曆的字樣；期間特有的敘述與數字放 `texts`、`ytdActual.notes`。滾動後第一屏不得出現舊日曆字樣（`test_rolling.py` A；離線檢查另比對第一屏的資料更新日、模型期間、現價日與評價日）。
+- **反向 DCF**：`scripts/rv_solve.py` 以 Excel（LibreOffice UNO）求解，取代 JS 快照（verify.sh 步驟 3b）。
+- **目標價變動拆解**（已決定事項 12）：每次升版把目標價變動拆成 (a) 時間推移、(b) 實際數更新、(c) 假設變更、(d) 方法變更，依序重算，四項相加＝總變動，並列於版本紀錄。v4.5 全部屬 (d)。
+- **每季滾動流程**（已決定事項 10）：(1) 財報當天（新聞稿）：填 `quarterly.actuals`、`calendar.latestQuarterReported` 加一季、焦點季改為下一季；年度首期不動。(2) 10-Q／10-K 申報後：`calendar.latestQuarterFiled` 加一季；更新 `ytdActual`（含 `throughQuarter`、`months`、`label`、`notes`、`jvSplit`）、`historicalPL` 最後一格、`latestQuarter`、RPO 桶、債務與租賃到期表、`texts`（頁首來源一行、現金稅、首期股權組成）與各期清單（首期縮短一季）；建置時 `calendar_q.py` 檢查截止季與月數、`historicalPL` 與 `ytdActual.label` 的標籤是否一致。(3) 財年最後一季（10-K）後：首期為下一財年全年模型，模型期延長一年，需補新一年的假設（Andy 決定）。
+
 ## company.json 欄位說明（換公司填表指引）
 換成 Nebius、Oracle、OpenAI 等公司時，照這一節逐欄填寫 `company.json`；HTML 與 Excel 都從這個檔讀資料，改完執行 `scripts/verify.sh`。
 
@@ -126,39 +142,47 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `meta.consensusFile` | 市場共識資料檔路徑（v4.3；只讀，由使用者查證後提供；建置時併入 HTML、Excel 讀同一檔） | 路徑 | data/consensus_crwv_202609… | 必改 |
 | `meta.sourceOrderNote` | 資料來源的先後與衝突時的取捨原則（畫面說明文字） | 文字 | 時序先法說（8/11）、後 10-Q（8/12）、再… | 必改 |
 
-### `periods`：模型期
+### `calendar`：期間與日期（v4.5）
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `periods` | 模型期的名稱，共 5 期 | 文字清單 | FY26、FY27、FY28、FY29、FY30 | 檢查 |
-| `periodYears` | 每一期的長度；第一期是半年，所以是 0.5 | 年 | 0.5、1、1、1、1 | 檢查 |
+| `calendar.fiscalYearEndMonth` | 財年結束月份（v4.5；CoreWeave 12、Oracle 5） | 月 | 12 | 必改 |
+| `calendar.latestQuarterFiled` | 最新已申報（10-Q／10-K）的財季，格式 FYyyQn；驅動年度首期滾動與評價日（v4.5） | 文字 | FY26Q2 | 必改 |
+| `calendar.latestQuarterReported` | 最新已公布（財報新聞稿）的財季；驅動季度層，年度首期不受影響（v4.5） | 文字 | FY26Q2 | 必改 |
+| `calendar.firstModelFY` | 沒有已申報季度時（例如未上市公司）的首個模型財年，例如 FY26；有已申報季度時填 null（v4.5） | 文字 | None | 檢查 |
+| `calendar.modelYears` | 首期之後的完整財年數（固定期數滾動；Excel 欄位固定 5 期，所以為 4）（v4.5） | 年 | 4 | 可沿用 |
+| `calendar.targetHorizon` | 目標價時點：firstFullYearEnd＝首期之後第一個完整財年末；valuationPlus12m＝評價日＋12 個月（v4.5） | 代碼 | firstFullYearEnd | 可沿用 |
 
-### `actual1H`：上半年實際數（10-Q）
+### `ytdActual`：年初至今實際數（10-Q；v4.5 前為 actual1H）
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `actual1H.label` | 「上半年實際數」的標題 | 文字 | 1H26 實際（10-Q） | 必改 |
-| `actual1H.cash1231` | 上一年底現金 | US$bn | 3.127 | 必改 |
-| `actual1H.revenue` | 上半年營收 | US$bn | 4.653 | 必改 |
-| `actual1H.capex` | 上半年資本支出（認列口徑，含設備商融資） | US$bn | 16.139 | 必改 |
-| `actual1H.cashCapex` | 上半年現金購置固定資產 | US$bn | 14.117 | 必改 |
-| `actual1H.interest` | 上半年利息費用 | US$bn | 1.176 | 必改 |
-| `actual1H.leasePaid` | 上半年租賃現金支付 | US$bn | 0.748 | 必改 |
-| `actual1H.debtRepaid` | 上半年還款 | US$bn | 5.219 | 必改 |
-| `actual1H.borrow` | 上半年借款 | US$bn | 16.747 | 必改 |
-| `actual1H.equity` | 上半年股權募資 | US$bn | 2.982 | 必改 |
-| `actual1H.cappedCall` | 上半年 capped call（可轉債配套避險）支出 | US$bn | 0.492 | 必改 |
-| `actual1H.jv` | 上半年合資（JV）與策略投資出資 | US$bn | 0.688 | 必改 |
-| `actual1H.cfo` | 上半年營運現金流 | US$bn | 3.663 | 必改 |
-| `actual1H.prepay` | 上半年客戶預付（遞延收入淨流入） | US$bn | 1.365 | 必改 |
-| `actual1H.da` | 上半年折舊攤銷 | US$bn | 2.54 | 必改 |
-| `actual1H.sbc` | 上半年股份基礎薪酬 | US$bn | 0.318 | 必改 |
-| `actual1H.opInc` | 上半年 GAAP 營業損益 | US$bn | -0.193 | 必改 |
-| `actual1H.ni` | 上半年淨損益 | US$bn | -1.366 | 必改 |
-| `actual1H.eps` | 上半年 GAAP 每股盈餘 | US$ | -2.53 | 必改 |
-| `actual1H.ngEps` | 上半年每股盈餘（加回股份基礎薪酬） | US$ | -1.94 | 必改 |
-| `actual1H.adjEbitda` | 上半年調整後 EBITDA（v4.3；只用於與市場共識比較 FY26，不進模型損益與評價） | US$bn | 2.667 | 必改 |
-| `actual1H.adjEbitdaMeta` | 上述數字的 Q1／Q2 拆分、來源、標記與備註（建置時檢查 Q1＋Q2＝合計） | 物件 | 物件（q1、q2、tag、sources、crossCheck、note、usage） | 必改 |
+| `ytdActual.throughQuarter` | 年初至今實際數的截止財季，須等於 calendar.latestQuarterFiled（v4.5，原 actual1H） | 文字 | FY26Q2 | 必改 |
+| `ytdActual.months` | 年初至今的月數，須等於日曆推算值（v4.5） | 月 | 6 | 必改 |
+| `ytdActual.label` | 「年初至今實際數」的標題 | 文字 | 1H26 實際（10-Q） | 必改 |
+| `ytdActual.jvSplit` | JV 出資與策略投資的拆分（v4.5；說明文字與「JV 已付」讀此） | 物件（US$bn） | 物件（jv、strategic） | 必改 |
+| `ytdActual.notes` | 各欄位的逐列說明（來源、口徑、拆分；Excel「輸入與假設」G 區；v4.5 起隨資料一起更新） | 物件（文字） | 物件（cash1231、cfo、cashCapex、capex、jv、borrow、debtRepaid、cappedCall、equity、interest、leasePaid、revenue、opInc、ni、prepay、da、sbc、eps、ngEps） | 必改 |
+| `ytdActual.cash1231` | 上一年底現金 | US$bn | 3.127 | 必改 |
+| `ytdActual.revenue` | 上半年營收 | US$bn | 4.653 | 必改 |
+| `ytdActual.capex` | 上半年資本支出（認列口徑，含設備商融資） | US$bn | 16.139 | 必改 |
+| `ytdActual.cashCapex` | 上半年現金購置固定資產 | US$bn | 14.117 | 必改 |
+| `ytdActual.interest` | 上半年利息費用 | US$bn | 1.176 | 必改 |
+| `ytdActual.leasePaid` | 上半年租賃現金支付 | US$bn | 0.748 | 必改 |
+| `ytdActual.debtRepaid` | 上半年還款 | US$bn | 5.219 | 必改 |
+| `ytdActual.borrow` | 上半年借款 | US$bn | 16.747 | 必改 |
+| `ytdActual.equity` | 上半年股權募資 | US$bn | 2.982 | 必改 |
+| `ytdActual.cappedCall` | 上半年 capped call（可轉債配套避險）支出 | US$bn | 0.492 | 必改 |
+| `ytdActual.jv` | 上半年合資（JV）與策略投資出資 | US$bn | 0.688 | 必改 |
+| `ytdActual.cfo` | 上半年營運現金流 | US$bn | 3.663 | 必改 |
+| `ytdActual.prepay` | 上半年客戶預付（遞延收入淨流入） | US$bn | 1.365 | 必改 |
+| `ytdActual.da` | 上半年折舊攤銷 | US$bn | 2.54 | 必改 |
+| `ytdActual.sbc` | 上半年股份基礎薪酬 | US$bn | 0.318 | 必改 |
+| `ytdActual.opInc` | 上半年 GAAP 營業損益 | US$bn | -0.193 | 必改 |
+| `ytdActual.ni` | 上半年淨損益 | US$bn | -1.366 | 必改 |
+| `ytdActual.eps` | 上半年 GAAP 每股盈餘 | US$ | -2.53 | 必改 |
+| `ytdActual.ngEps` | 上半年每股盈餘（加回股份基礎薪酬） | US$ | -1.94 | 必改 |
+| `ytdActual.adjEbitda` | 上半年調整後 EBITDA（v4.3；只用於與市場共識比較 FY26，不進模型損益與評價） | US$bn | 2.667 | 必改 |
+| `ytdActual.adjEbitdaMeta` | 上述數字的 Q1／Q2 拆分、來源、標記與備註（建置時檢查 Q1＋Q2＝合計） | 物件 | 物件（q1、q2、tag、sources、crossCheck、note、usage） | 必改 |
 
 ### `historicalPL`：歷年損益
 
@@ -171,13 +195,13 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
 | `rpo.scheduledShare` | 剩餘履約義務（RPO，已簽約未認列的營收）預計在模型期內認列的比例 | 比例 | 0.84 | 必改 |
-| `rpo.bucketWeights` | RPO 在五期（FY26 下半年、FY27、FY28、FY29、FY30）各期認列的比例，合計等於上一欄 | 比例清單 | 0.1025、0.205、0.2、0.195、0.1375 | 必改 |
+| `rpo.bucketWeights` | RPO 在五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期認列的比例，合計等於上一欄 | 比例清單 | 0.1025、0.205、0.2、0.195、0.1375 | 必改 |
 
 ### `leases`：租約
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `leases.onBalanceCash` | 已入帳租約在五期（FY26 下半年、FY27、FY28、FY29、FY30）各期的現金租金 | US$bn 清單 | 1.04、2.339、2.306、2.373、2.289 | 必改 |
+| `leases.onBalanceCash` | 已入帳租約在五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期的現金租金 | US$bn 清單 | 1.04、2.339、2.306、2.373、2.289 | 必改 |
 | `leases.afterFY30` | 已入帳租約在模型期之後還要付的租金合計 | US$bn | 19.023 | 必改 |
 | `leases.facts.onBal` | 已入帳租約未折現付款合計 | US$bn | 29.37 | 必改 |
 | `leases.facts.notCommenced` | 已簽約但尚未起租的租約（表外） | US$bn | 35.5 | 必改 |
@@ -190,7 +214,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `debt.amortization` | 既有債務在五期（FY26 下半年、FY27、FY28、FY29、FY30）各期的排程還本 | US$bn 清單 | 4.413、6.184、4.416、2.421、3.221 | 必改 |
+| `debt.amortization` | 既有債務在五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期的排程還本 | US$bn 清單 | 4.413、6.184、4.416、2.421、3.221 | 必改 |
 | `debt.amortAfterFY30` | 模型期之後的還本合計 | US$bn | 14.896 | 必改 |
 | `debt.instruments` | 既有債務逐筆明細，一筆一列：[名稱, 追索／非追索, 到期, 有效利率（比例）, 本金（US$bn）, 備註]。加總本金須等於 10-Q 本金合計 | 清單 | 16 筆 | 必改 |
 | `debt.convertible.principal` | 期後新發行可轉債本金（不在五期還本表內，只計利息） | US$bn | 3.7 | 必改 |
@@ -224,9 +248,9 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `rpo24m` | RPO 於 24 個月內認列比例 | 比例 | 0.41 | 否 |
 | `rpo25to48` | RPO 於 25–48 個月認列比例 | 比例 | 0.39 | 否 |
 | `rpo49to78` | RPO 於 49–78 個月認列比例 | 比例 | 0.2 | 否 |
-| `cash` | 季末現金 | US$bn | 5.524 | 否 |
+| `cash` | 季末現金 | US$bn | 5.524 | 是 |
 | `restricted` | 受限現金 | US$bn | 1.38 | 否 |
-| `marketable` | 有價證券 | US$bn | 0.015 | 否 |
+| `marketable` | 有價證券 | US$bn | 0.015 | 是 |
 | `availability` | 未動用信用額度 | US$bn | 10.014 | 是 |
 | `debtPrincipal` | 債務本金合計 | US$bn | 35.551 | 是 |
 | `recourseNet` | 追索債務淨額 | US$bn | 31.405 | 否 |
@@ -340,7 +364,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `scenarios.labels.low` | 保守情境名稱（空格前的文字會當作情境簡稱） | 文字 | 保守 4.2 GW | 必改 |
 | `scenarios.labels.base` | 基準情境名稱 | 文字 | 基準 5.6 GW | 必改 |
 | `scenarios.labels.high` | 積極情境名稱 | 文字 | 積極 8 GW | 必改 |
-| `scenarios.accepted.low` | 保守情境：五期（FY26 下半年、FY27、FY28、FY29、FY30）各期末已驗收的主動電力 | MW 清單 | 1850、3100、3800、4200、4200 | 必改 |
+| `scenarios.accepted.low` | 保守情境：五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期末已驗收的主動電力 | MW 清單 | 1850、3100、3800、4200、4200 | 必改 |
 | `scenarios.accepted.base` | 基準情境：同上 | MW 清單 | 1850、3100、4000、4800、5600 | 必改 |
 | `scenarios.accepted.high` | 積極情境：同上 | MW 清單 | 1850、3100、4600、6300、8000 | 必改 |
 | `scenarios.billableRatio.billable` | 計算「可計費 ÷ 已驗收」爬坡比例用的可計費 MW（與下一欄逐期相除） | MW 清單 | 1700、2900、4300、5900、7500 | 檢查 |
@@ -445,7 +469,6 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `valuation.dcfMode` | DCF 股權為負時的處理：zero＝0 截斷、option＝選擇權法 | 文字 | zero | 可沿用 |
 | `valuation.sigma` | 企業價值波動率（選擇權法用） | 比例 | 0.5 | 檢查 |
 | `valuation.rf` | 無風險利率（選擇權法用） | 比例 | 0.04 | 檢查 |
-| `valuation.optT` | 選擇權期間（至模型期末） | 年 | 4.5 | 檢查 |
 
 ### `methodology`：評價方法與評等門檻
 
@@ -505,6 +528,13 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 |---|---|---|---|---|
 | `varianceReasons._note` | 差異原因的說明文字（不進程式） | 文字 | 差異原因（已決定事項 2）：差距超過 methodo… | 可沿用 |
 | `varianceReasons.list` | 差異原因（已決定事項 2），一筆一列：scope（annual 年度共識對照／quarter 季度）、period（FY27、2026Q3 或 *）、metric（年度：rev、ebitda、capex、nd；季度：metrics 的 key）、vs（consensus、guidance、actual 或 *）、type（觀點／已知限制）、text 一句原因，{路徑:格式} 由模型數字帶入。「拆法」由程式判定，不需填。差距超過 methodology.consensusGapTol 卻沒有原因時建置失敗 | 清單 | 7 筆 | 檢查 |
+
+### `texts`：公司特有的說明文字（v4.5；隨資料更新）
+
+| 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
+|---|---|---|---|---|
+| `texts.fy0EquityNote` | 首期股權／可轉債的組成說明（含年初至今與首期模型的金額；v4.5；可用期間佔位符 «P0»、«YTD»、«STUB»） | 文字 | «P0»＝«YTD» 私募股權 2.982＋«STU… | 必改 |
+| `texts.cashTaxNote` | 年初至今現金稅的說明（損益與評價頁；v4.5） | 文字 | H1 現金稅約 0.1bn | 必改 |
 
 ## v4.0 架構：公司資料單一來源
 - **company.json**：所有公司原始輸入（HTML 引擎與 Excel 共用）。換公司時先改這個檔；衍生值（情境 Billable 比率、Q3 新增 RPO 權重、債務合計與平均利率）留在 segA 開頭由程式推導。
