@@ -7,21 +7,17 @@
   "sourceOrderNote": "時序先法說（8/11）、後 10-Q（8/12）、再 8-K（9/17 可轉債＋ATM）。入帳數字聽 10-Q；全年指引聽法說；事實打架聽 10-Q。Q2 新增 500 MW（6 月單月 300 MW）當觀察，不年化進基準。",
   "consensusFile": "data/consensus_crwv_20260925.json"
  },
- "periods": [
-  "FY26",
-  "FY27",
-  "FY28",
-  "FY29",
-  "FY30"
- ],
- "periodYears": [
-  0.5,
-  1,
-  1,
-  1,
-  1
- ],
- "actual1H": {
+ "calendar": {
+  "fiscalYearEndMonth": 12,
+  "latestQuarterFiled": "FY26Q2",
+  "latestQuarterReported": "FY26Q2",
+  "firstModelFY": null,
+  "modelYears": 4,
+  "targetHorizon": "firstFullYearEnd"
+ },
+ "ytdActual": {
+  "throughQuarter": "FY26Q2",
+  "months": 6,
   "label": "1H26 實際（10-Q）",
   "cash1231": 3.127,
   "revenue": 4.653,
@@ -767,8 +763,7 @@
   "evYear": 3,
   "dcfMode": "zero",
   "sigma": 0.5,
-  "rf": 0.04,
-  "optT": 4.5
+  "rf": 0.04
  },
  "methodology": {
   "blendWeights": {
@@ -1053,7 +1048,7 @@
    ],
    [
     "quarterly.periodGuidance.0.revenue.less",
-    "actual1H.revenue"
+    "ytdActual.revenue"
    ],
    [
     "quarterly.periodGuidance.0.capex.range.0",
@@ -1065,7 +1060,7 @@
    ],
    [
     "quarterly.periodGuidance.0.capex.less",
-    "actual1H.capex"
+    "ytdActual.capex"
    ],
    [
     "quarterly.revenueAnchor.value",

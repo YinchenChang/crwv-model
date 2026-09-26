@@ -108,16 +108,16 @@ function bsCallQ(S, K, T, r, s) {
 
 function dcfValue(e, t) {
   let n = e.map(e => e.ufcf),
-    r = n.map((e, n) => e / (1 + t.wacc) ** (n + .5)),
+    r = n.map((e, n) => e / (1 + t.wacc) ** CALQ.tEnd[n]), // v4.5：評價日至各期期末（月數 ÷ 12）
     i = r.reduce((e, t) => e + t, 0),
     c = e[e.length - 1],
     l = c.opInc * (1 - t.tax) + c.da - c.da * t.maintRatio,
     bad = t.wacc <= t.g ? `WACC ≤ 永續成長率，Gordon 終值無定義` : l <= 0 ? `常態化 FCF ≤ 0，終值無經濟意義` : ``,
     a = bad ? 0 : l * (1 + t.g) / (t.wacc - t.g),
-    o = a / (1 + t.wacc) ** 4.5,
+    o = a / (1 + t.wacc) ** CALQ.tEnd[CALQ.tEnd.length - 1],
     s = i + o,
     u = s - t.netDebt,
-    q = t.fund ? t.fund.eq.reduce((e, n, r) => e + n / (1 + t.wacc) ** Math.max(0, r - .5), 0) : 0,
+    q = t.fund ? t.fund.eq.reduce((e, n, r) => e + n / (1 + t.wacc) ** CALQ.tStart[r], 0) : 0,
     z = t.shares + (t.fund ? t.fund.sh : 0),
     zr = Math.max(0, (u + q) / z),
     op = bsCallQ(s + q, t.netDebt, t.optT ?? 4.5, t.rf ?? .04, t.sigma ?? .5) / z,
@@ -148,7 +148,7 @@ function evEbitdaLeg(e, t) {
   let k = Math.min(4, Math.max(1, Math.round(t.evYear ?? 1))),
     n = t.fund ? t.fund.ndY[k] : t.netDebt,
     r = t.fund ? e[k].shares : t.shares; // 損益股數：SBC 逐年複利稀釋＋瀑布新股（FY27 與 v3.4 相同）
-  return (e[k].ebitda * t.evEbitda - n) / r / Math.pow(1 + t.wacc, k - 1)
+  return (e[k].ebitda * t.evEbitda - n) / r / Math.pow(1 + t.wacc, k - CALQ.evOffset) // v4.5：錨定期末折回目標價時點（calendar.targetHorizon）
 }
 // v3.5：錨定年度 × 倍數矩陣（加權目標價與 EV/EBITDA 腿，均為每股）
 var EVG_MULTS = [3.4, 4.5, 5, 6, 7];
@@ -156,7 +156,7 @@ function evAnchorGrid(d, st, o) {
   let base = runValuation(d, st, o);
   let leg = EVG_MULTS.map(m => [1, 2, 3, 4].map(k => {
     let y = d.years[k];
-    return Math.max(0, (base.fwd[k].ebitda * m - (y.totalDebtEnd - y.cum)) / base.fwd[k].shares / Math.pow(1 + o.wacc, k - 1))
+    return Math.max(0, (base.fwd[k].ebitda * m - (y.totalDebtEnd - y.cum)) / base.fwd[k].shares / Math.pow(1 + o.wacc, k - CALQ.evOffset))
   }));
   let DI = base.d.invalid, wd = DI ? 0 : BLEND_W.dcf, dcf = DI ? 0 : base.d.perShare;
   return {

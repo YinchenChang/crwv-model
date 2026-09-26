@@ -13,11 +13,12 @@ k = mid3.index('function RM('); ke = mid3.find('\nfunction ', k + 10); ke = len(
 mid3 = mid3[:k] + open(os.path.join(H, 'rm_andy.js'), encoding='utf-8').read().rstrip('\n') + mid3[ke:]
 seg = lambda n: open(os.path.join(H, n), encoding='utf-8').read()
 import json as _json
-_co = _json.load(open(os.path.join(H, 'company.json'), encoding='utf-8'))  # 公司資料單一來源
+sys.path.insert(0, H); import calendar_q  # v4.5：期間與日期由 company.json → calendar 推算（與 Excel 共用）
+_co = calendar_q.load(H)  # 公司資料單一來源
 _co['consensus'] = _json.load(open(os.path.join(H, _co['meta']['consensusFile']), encoding='utf-8'))  # v4.3：市場共識資料檔（只讀）併入注入資料，不另設全域變數
 _g = _co['consensus']['companyGuidance']['2026Q3']  # Q3 營收指引以 company.json 為準；與共識檔不一致即停止建置（Excel 建置同一檢查）
 assert (_g['revenueLow'], _g['revenueHigh']) == (_co['callFacts']['q3RevLo'], _co['callFacts']['q3RevHi']), 'Q3 營收指引：company.json 與共識檔不一致'
-assert abs(_co['actual1H']['adjEbitda'] - _co['actual1H']['adjEbitdaMeta']['q1'] - _co['actual1H']['adjEbitdaMeta']['q2']) < 1e-9, '1H 調整後 EBITDA ≠ Q1＋Q2'
+assert abs(_co['ytdActual']['adjEbitda'] - _co['ytdActual']['adjEbitdaMeta']['q1'] - _co['ytdActual']['adjEbitdaMeta']['q2']) < 1e-9, '1H 調整後 EBITDA ≠ Q1＋Q2'
 import subprocess as _sp  # v4.4：季度加總＝年度、指引一致性、超過門檻的差距都有原因；不符即停止建置
 _ck = _sp.run(['node', os.path.join(H, 'scripts', 'check_quarterly.js'), H], capture_output=True, text=True)
 if _ck.returncode: sys.exit('check_quarterly 失敗：\n' + _ck.stdout + _ck.stderr)

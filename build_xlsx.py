@@ -5,11 +5,13 @@ import sys as _sysv; _sysv.path.insert(0, _osrv.path.dirname(_osrv.path.abspath(
 from vlog import VLOG as _VL
 VLOG_X = [list(r) for r in _VL]
 import json as _jco
-CO = _jco.load(open(_osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), 'company.json'), encoding='utf-8'))  # 公司資料單一來源（與 HTML 共用）
+import calendar_q as _calq  # v4.5：期間與日期由 company.json → calendar 推算（與 HTML 共用）
+CO = _calq.load(_osrv.path.dirname(_osrv.path.abspath(__file__)))  # 公司資料單一來源（與 HTML 共用）
+CAL = CO['cal']
 # v4.3：市場共識資料檔（只讀；路徑在 company.json → meta.consensusFile）。與 HTML 相同的一致性檢查見 build_html_portable.py
 CONS = _jco.load(open(_osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), CO['meta']['consensusFile']), encoding='utf-8'))
 assert (CONS['companyGuidance']['2026Q3']['revenueLow'], CONS['companyGuidance']['2026Q3']['revenueHigh']) == (CO['callFacts']['q3RevLo'], CO['callFacts']['q3RevHi']), 'Q3 營收指引：company.json 與共識檔不一致'
-assert abs(CO['actual1H']['adjEbitda'] - CO['actual1H']['adjEbitdaMeta']['q1'] - CO['actual1H']['adjEbitdaMeta']['q2']) < 1e-9, '1H 調整後 EBITDA ≠ Q1＋Q2'
+assert abs(CO['ytdActual']['adjEbitda'] - CO['ytdActual']['adjEbitdaMeta']['q1'] - CO['ytdActual']['adjEbitdaMeta']['q2']) < 1e-9, '1H 調整後 EBITDA ≠ Q1＋Q2'
 D, V, M = CO['defaults'], CO['valuation'], CO['defaults']['m']
 PCT_ = lambda xs: [x / 100 for x in xs]  # HTML 以百分點存、Excel 以比例存
   # 版本紀錄單一來源：vlog.py（HTML 端為 tail.js 的 VLOG）
@@ -41,7 +43,7 @@ PCT = '0.0%'
 MULT = '0.0x'
 USD = '$#,##0.00;($#,##0.00);-'
 
-PERIODS = ["FY26", "FY27", "FY28", "FY29", "FY30"]
+PERIODS = CO['periods']  # v4.5：由 calendar 推算
 COLS = ["C", "D", "E", "F", "G"]
 
 wb = Workbook()
@@ -460,6 +462,23 @@ DMODE = gi(r, "DCF 下限方式（1＝0 截斷、2＝選擇權）", "", (1 if V[
 SIGMA = gi(r, "企業價值波動率 σ", "%", V['sigma'], "選擇權法用 [Assumed]", PCT); r += 1
 RF = gi(r, "無風險利率", "%", V['rf'], "選擇權法用 [Assumed]", PCT); r += 1
 OPTT = gi(r, "選擇權期間（年）", "年", V['optT'], "至 FY30 末", NUM1); r += 1
+# v4.5（5a-1）：期間與日期——由 company.json → calendar 推算（calendar_q.py，HTML 共用同一份結果）；折現年數以月計
+r = section(ws, r, "期間與日期（company.json → calendar 推算；勿手改）", level=2)
+_calc = lambda row, name, unit, v, note, fmt=NUM0: gi(row, name, unit, v, note, fmt, font=BLACK)
+CAL_FYE = _calc(r, "財年結束月份", "月", CAL['fiscalYearEndMonth'], "calendar.fiscalYearEndMonth"); r += 1
+CAL_Q = _calc(r, "最新已申報季度（年度首期依此滾動）", "", CAL['latestQuarterFiled'] or "無", "calendar.latestQuarterFiled；財報新聞稿只更新季度層，10-Q／10-K 申報後年度首期才滾動", "@"); r += 1
+CAL_VD = _calc(r, "評價日（已申報季度的季末）", "", CAL['valuationDate'], "DCF 折現、淨負債與股數的基準日", "@"); r += 1
+CAL_TD = _calc(r, "目標價時點", "", CAL['targetDate'],
+               "首期之後第一個完整財年末" if CAL['targetHorizon'] == 'firstFullYearEnd' else "評價日＋12 個月", "@"); r += 1
+CAL_TT = _calc(r, "目標價時點距評價日", "年", CAL['targetT'], "", NUM); r += 1
+OFF = _calc(r, "錨定期折回年數調整（目標價時點 − 首期長度）", "年", CAL['evOffset'],
+            "EV/EBITDA 腿：錨定期 k 的期末折回目標價時點的年數＝k − 此值", NUM); r += 1
+r = phdr(r, first="期間與日期")
+CAL_R = {}
+for key, nm, fmt in [('periodEnd', "期末日", "@"), ('tEnd', "折現年數：評價日 → 期末", NUM), ('tStart', "折現年數：評價日 → 期初", NUM)]:
+    r = prow(r, nm, "" if key == 'periodEnd' else "年", CAL[key], fmt, "月數 ÷ 12", font=BLACK, key='cal_' + key)
+    CAL_R[key] = IN['cal_' + key]
+assert len(PERIODS) == len(COLS), 'Excel 欄位固定為 5 期（首期＋4 個完整財年）'
 # v4.2：評等門檻（company.json → methodology.rating）；評價頁的評等代碼、賣出門檻價、判斷句與「檢查」頁都引用這裡
 RT = CO['methodology']['rating']
 RT_PCT = lambda x: (lambda v: f"{v:.0f}%" if v == int(v) else f"{v:.1f}%")(round(abs(x) * 100, 4))
@@ -498,10 +517,10 @@ h1_rows = [
     ("GAAP EPS", "US$", -2.53, "淨損 −1.366 ÷ 加權股數約 0.539 [Verified]"),
     ("EPS（加回 SBC）", "US$", -1.94, "(−1.366＋0.318)÷0.539 [Derived]"),
     # v4.3：只用於「摘要」頁與市場共識的 FY26 調整後 EBITDA 比較；模型 GAAP 損益與評價不使用
-    ("調整後 EBITDA（Q1＋Q2）", "US$bn", CO['actual1H']['adjEbitda'],
-     f"Q1 {CO['actual1H']['adjEbitdaMeta']['q1']:.3f}＋Q2 {CO['actual1H']['adjEbitdaMeta']['q2']:.3f}；"
-     + "；".join(f"{x['quarter']} {x['name']}" for x in CO['actual1H']['adjEbitdaMeta']['sources'])
-     + f"；{CO['actual1H']['adjEbitdaMeta']['crossCheck']}。{CO['actual1H']['adjEbitdaMeta']['note']} [{CO['actual1H']['adjEbitdaMeta']['tag']}]"),
+    ("調整後 EBITDA（Q1＋Q2）", "US$bn", CO['ytdActual']['adjEbitda'],
+     f"Q1 {CO['ytdActual']['adjEbitdaMeta']['q1']:.3f}＋Q2 {CO['ytdActual']['adjEbitdaMeta']['q2']:.3f}；"
+     + "；".join(f"{x['quarter']} {x['name']}" for x in CO['ytdActual']['adjEbitdaMeta']['sources'])
+     + f"；{CO['ytdActual']['adjEbitdaMeta']['crossCheck']}。{CO['ytdActual']['adjEbitdaMeta']['note']} [{CO['ytdActual']['adjEbitdaMeta']['tag']}]"),
 ]
 start_h1 = r
 for nm, un, v, nt in h1_rows:
@@ -1475,7 +1494,7 @@ vrow("UFCF", "US$bn",
      lambda i: f"={PL}{COLS[i]}{ebit_v}-{COLS[i]}{utax_v}+{PL}{COLS[i]}{da_v}-{COLS[i]}{capex_v}-{COLS[i]}{wc_v}",
      NUM, BLACK, "＝EBIT−無槓桿稅＋D&A−現金 CapEx−營運資金。建置期全為負是正常的", bold=True)
 ufcf_v = VR["UFCF"]
-vrow("折現期數", "年", lambda i: f"={0.5 + i}", '0.0', BLACK,
+vrow("折現期數", "年", lambda i: f"='輸入與假設'!${COLS[i]}${CAL_R['tEnd']}", '0.0', BLACK,
      "自 2026-06-30 起算；FY26 模型期（下半年）的現金流平均落在 0.5 年")
 t_v = VR["折現期數"]
 vrow("折現因子", "", lambda i: f"=1/(1+{WACC})^{COLS[i]}{t_v}", '0.000', BLACK)
@@ -1519,7 +1538,7 @@ ws.cell(row=d0 + 3, column=3, value=f"=C{d0+2}*G{df_v}").number_format = NUM
 ws.cell(row=d0 + 4, column=3, value=f"=C{d0}+C{d0+3}").number_format = NUM
 ws.cell(row=d0 + 6, column=3, value=f"=C{d0+4}+C{d0+5}").number_format = NUM
 ws.cell(row=d0 + 9, column=3, value="=" + "+".join(
-    f"'各期收支'!{COLS[i]}{FRR['eq']}/(1+{WACC})^{max(0, i - 0.5)}" for i in range(5))).number_format = NUM
+    f"'各期收支'!{COLS[i]}{FRR['eq']}/(1+{WACC})^'輸入與假設'!${COLS[i]}${CAL_R['tStart']}" for i in range(5))).number_format = NUM
 ws.cell(row=d0 + 10, column=3, value=f"={SH}+'各期收支'!G{FRR['cns']}").number_format = '0.000'
 ws.cell(row=d0 + 12, column=3, value=f"=MAX(0,(C{d0+6}+C{d0+9})/C{d0+10})").number_format = USD
 _S = f"(C{d0+4}+C{d0+9})"
@@ -1546,7 +1565,7 @@ mult_lines = [
     ("錨定年度企業價值（倍數 × EBITDA）", None, NUM, None),
     ("錨定年度末淨負債（總債務 − 現金）", f"=INDEX({_TD},1,{EVY})-INDEX({_CU},1,{EVY})", NUM, "含瀑布新債"),
     ("錨定年度末股數（含瀑布新股）", f"=INDEX({_SHR},1,{EVY})", '0.000', "損益股數：SBC 逐年稀釋＋瀑布新股"),
-    ("折回 FY27 末的折現因子", f"=1/(1+{WACC})^({EVY}-1)", '0.000', "以 WACC 折現 [Assumed]"),
+    ("折回 FY27 末的折現因子", f"=1/(1+{WACC})^({EVY}-{OFF})", '0.000', "以 WACC 折現 [Assumed]"),
     ("EV/EBITDA 每股（融資後）", None, USD, "以 0 為下限"),
 ]
 for nm, f, fmt, nt in mult_lines:
@@ -1691,7 +1710,7 @@ for kind in ("EV/EBITDA 腿", "加權目標價"):
             col = 2 + k
             if kind == "EV/EBITDA 腿":
                 f = (f"=MAX(0,(INDEX({_EB},1,{k})*$B{r}-(INDEX({_TD},1,{k})-INDEX({_CU},1,{k})))"
-                     f"/INDEX({_SHR},1,{k}))/(1+{WACC})^({k}-1)")
+                     f"/INDEX({_SHR},1,{k}))/(1+{WACC})^({k}-{OFF})")
             else:
                 leg_row = LEG0 + (r - g0)
                 f = f"={DCF_PS}*IF({DCF_BAD}=1,0,{WDCF})+{get_column_letter(col)}{leg_row}*IF({DCF_BAD}=1,1,1-{WDCF})"

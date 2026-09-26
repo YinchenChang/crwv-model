@@ -7,7 +7,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CO = json.load(open(os.path.join(REPO, 'company.json'), encoding='utf-8'))
 CODE = ''.join(open(f'{REPO}/{f}', encoding='utf-8').read() for f in
                ['segA.js', 'segB.js', 'segC.js', 'segD.js', 'segE.js', 'tail.js', 'build_xlsx.py', 'cmp31.js'])
-P5 = '五期（FY26 下半年、FY27、FY28、FY29、FY30）'
+P5 = '五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）'
 M, C, K = '必改', '檢查', '可沿用'   # 換公司：必改＝公司特有資料；檢查＝判斷值，依新公司重新評估；可沿用＝口徑或方法，通常不必改
 
 # (路徑, 意義, 單位, 換公司)
@@ -16,22 +16,28 @@ F = [
  ('meta.updateDate', '資料更新日', '日期', M), ('meta.priceDate', '股價日期（現價的收盤日；畫面與 Excel 的現價日期都讀這格）', '日期', M),
  ('meta.consensusFile', '市場共識資料檔路徑（v4.3；只讀，由使用者查證後提供；建置時併入 HTML、Excel 讀同一檔）', '路徑', M),
  ('meta.sourceOrderNote', '資料來源的先後與衝突時的取捨原則（畫面說明文字）', '文字', M),
- ('periods', '模型期的名稱，共 5 期', '文字清單', C),
- ('periodYears', '每一期的長度；第一期是半年，所以是 0.5', '年', C),
- ('actual1H.label', '「上半年實際數」的標題', '文字', M),
- ('actual1H.cash1231', '上一年底現金', 'US$bn', M), ('actual1H.revenue', '上半年營收', 'US$bn', M),
- ('actual1H.capex', '上半年資本支出（認列口徑，含設備商融資）', 'US$bn', M),
- ('actual1H.cashCapex', '上半年現金購置固定資產', 'US$bn', M), ('actual1H.interest', '上半年利息費用', 'US$bn', M),
- ('actual1H.leasePaid', '上半年租賃現金支付', 'US$bn', M), ('actual1H.debtRepaid', '上半年還款', 'US$bn', M),
- ('actual1H.borrow', '上半年借款', 'US$bn', M), ('actual1H.equity', '上半年股權募資', 'US$bn', M),
- ('actual1H.cappedCall', '上半年 capped call（可轉債配套避險）支出', 'US$bn', M),
- ('actual1H.jv', '上半年合資（JV）與策略投資出資', 'US$bn', M), ('actual1H.cfo', '上半年營運現金流', 'US$bn', M),
- ('actual1H.prepay', '上半年客戶預付（遞延收入淨流入）', 'US$bn', M), ('actual1H.da', '上半年折舊攤銷', 'US$bn', M),
- ('actual1H.sbc', '上半年股份基礎薪酬', 'US$bn', M), ('actual1H.opInc', '上半年 GAAP 營業損益', 'US$bn', M),
- ('actual1H.ni', '上半年淨損益', 'US$bn', M), ('actual1H.eps', '上半年 GAAP 每股盈餘', 'US$', M),
- ('actual1H.ngEps', '上半年每股盈餘（加回股份基礎薪酬）', 'US$', M),
- ('actual1H.adjEbitda', '上半年調整後 EBITDA（v4.3；只用於與市場共識比較 FY26，不進模型損益與評價）', 'US$bn', M),
- ('actual1H.adjEbitdaMeta', '上述數字的 Q1／Q2 拆分、來源、標記與備註（建置時檢查 Q1＋Q2＝合計）', '物件', M),
+ ('calendar.fiscalYearEndMonth', '財年結束月份（v4.5；CoreWeave 12、Oracle 5）', '月', M),
+ ('calendar.latestQuarterFiled', '最新已申報（10-Q／10-K）的財季，格式 FYyyQn；驅動年度首期滾動與評價日（v4.5）', '文字', M),
+ ('calendar.latestQuarterReported', '最新已公布（財報新聞稿）的財季；驅動季度層，年度首期不受影響（v4.5）', '文字', M),
+ ('calendar.firstModelFY', '沒有已申報季度時（例如未上市公司）的首個模型財年，例如 FY26；有已申報季度時填 null（v4.5）', '文字', C),
+ ('calendar.modelYears', '首期之後的完整財年數（固定期數滾動；Excel 欄位固定 5 期，所以為 4）（v4.5）', '年', K),
+ ('calendar.targetHorizon', '目標價時點：firstFullYearEnd＝首期之後第一個完整財年末；valuationPlus12m＝評價日＋12 個月（v4.5）', '代碼', K),
+ ('ytdActual.throughQuarter', '年初至今實際數的截止財季，須等於 calendar.latestQuarterFiled（v4.5，原 actual1H）', '文字', M),
+ ('ytdActual.months', '年初至今的月數，須等於日曆推算值（v4.5）', '月', M),
+ ('ytdActual.label', '「年初至今實際數」的標題', '文字', M),
+ ('ytdActual.cash1231', '上一年底現金', 'US$bn', M), ('ytdActual.revenue', '上半年營收', 'US$bn', M),
+ ('ytdActual.capex', '上半年資本支出（認列口徑，含設備商融資）', 'US$bn', M),
+ ('ytdActual.cashCapex', '上半年現金購置固定資產', 'US$bn', M), ('ytdActual.interest', '上半年利息費用', 'US$bn', M),
+ ('ytdActual.leasePaid', '上半年租賃現金支付', 'US$bn', M), ('ytdActual.debtRepaid', '上半年還款', 'US$bn', M),
+ ('ytdActual.borrow', '上半年借款', 'US$bn', M), ('ytdActual.equity', '上半年股權募資', 'US$bn', M),
+ ('ytdActual.cappedCall', '上半年 capped call（可轉債配套避險）支出', 'US$bn', M),
+ ('ytdActual.jv', '上半年合資（JV）與策略投資出資', 'US$bn', M), ('ytdActual.cfo', '上半年營運現金流', 'US$bn', M),
+ ('ytdActual.prepay', '上半年客戶預付（遞延收入淨流入）', 'US$bn', M), ('ytdActual.da', '上半年折舊攤銷', 'US$bn', M),
+ ('ytdActual.sbc', '上半年股份基礎薪酬', 'US$bn', M), ('ytdActual.opInc', '上半年 GAAP 營業損益', 'US$bn', M),
+ ('ytdActual.ni', '上半年淨損益', 'US$bn', M), ('ytdActual.eps', '上半年 GAAP 每股盈餘', 'US$', M),
+ ('ytdActual.ngEps', '上半年每股盈餘（加回股份基礎薪酬）', 'US$', M),
+ ('ytdActual.adjEbitda', '上半年調整後 EBITDA（v4.3；只用於與市場共識比較 FY26，不進模型損益與評價）', 'US$bn', M),
+ ('ytdActual.adjEbitdaMeta', '上述數字的 Q1／Q2 拆分、來源、標記與備註（建置時檢查 Q1＋Q2＝合計）', '物件', M),
  ('historicalPL', '歷年損益，一年一列（損益頁的歷史欄）。每列欄位：year 年度、revenue 營收、opInc GAAP 營業損益、ni 淨損益（以上 US$bn）、eps GAAP 每股盈餘、ngEps 加回股份基礎薪酬的每股盈餘（US$）、shares 加權流通股數（bn）、tag 來源標記', '清單', M),
  ('rpo.scheduledShare', '剩餘履約義務（RPO，已簽約未認列的營收）預計在模型期內認列的比例', '比例', M),
  ('rpo.bucketWeights', f'RPO 在{P5}各期認列的比例，合計等於上一欄', '比例清單', M),
@@ -124,7 +130,6 @@ F = [
  ('valuation.evEbitda', 'EV/EBITDA 倍數', '倍', C), ('valuation.evYear', 'EV/EBITDA 錨定年度（1＝FY27 … 4＝FY30）', '年度代碼', C),
  ('valuation.dcfMode', 'DCF 股權為負時的處理：zero＝0 截斷、option＝選擇權法', '文字', K),
  ('valuation.sigma', '企業價值波動率（選擇權法用）', '比例', C), ('valuation.rf', '無風險利率（選擇權法用）', '比例', C),
- ('valuation.optT', '選擇權期間（至模型期末）', '年', C),
  ('methodology.blendWeights.dcf', '加權目標價中 DCF 的權重', '比例', K),
  ('methodology.blendWeights.pe', '加權目標價中 EV/EBITDA 的權重（兩者合計 1）', '比例', K),
  ('methodology.rangeMultiples', '方法區間的 EV/EBITDA 倍數下端與上端', '倍 清單', C),
@@ -245,7 +250,7 @@ missing = [q for q in leaves(CO) if q not in doc]
 assert not missing, f'未說明的欄位：{missing}'
 for q in doc: get(q)  # 說明了不存在的欄位會在此報錯
 
-SECT = [('meta', '基本資料'), ('periods', '模型期'), ('actual1H', '上半年實際數（10-Q）'), ('historicalPL', '歷年損益'),
+SECT = [('meta', '基本資料'), ('calendar', '期間與日期（v4.5）'), ('ytdActual', '年初至今實際數（10-Q；v4.5 前為 actual1H）'), ('historicalPL', '歷年損益'),
         ('rpo', '已簽約未認列營收（RPO）'), ('leases', '租約'), ('debt', '既有債務'), ('latestQuarter', '最新一季財報數字（10-Q）'),
         ('callFacts', '法說會與期後事項'), ('scenarios', '三個擴張情境'), ('legacy', '舊版對照值'),
         ('defaults', '預設假設（畫面上可調的輸入）'), ('valuation', '評價參數'), ('methodology', '評價方法與評等門檻'), ('peers', '同業比較（Comps）'),
@@ -264,7 +269,7 @@ for top, title in SECT:
         continue
     out.append('| 欄位 | 意義 | 單位 | 目前數值 | 換公司 |\n|---|---|---|---|---|')
     for p, m, u, c in F:
-        if p == top or p.startswith(top + '.') or (top == 'periods' and p == 'periodYears'):
+        if p == top or p.startswith(top + '.'):
             shown.add(p)
             out.append(f'| `{p}` | {m} | {u} | {fmt(get(p))} | {c} |')
 assert shown == {p for p, *_ in F}, set(p for p, *_ in F) - shown

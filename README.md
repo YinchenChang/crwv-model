@@ -24,6 +24,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | fix_outline.py | LibreOffice 重算後，補回 Excel 群組按鈕位置與收合狀態：`python3 fix_outline.py 檔案.xlsx [outline.json]`（預設讀 `out/outline.json`；v3.4 修正：outlinePr 依 schema 放在 tabColor 之後） |
 | fix_datatable.py | v4.1：LibreOffice 重算後，把模擬運算表（情境區間）由 `TABLE()` 一般公式還原為 Excel 的 `dataTable` 公式，保留算出的值：`python3 fix_datatable.py 檔案.xlsx` |
 | verify_ooxml.py | Excel 嚴格結構檢查（XML 格式、工作表與 sheetPr 子元素順序；v4.1 起另檢查模擬運算表存在且無殘留 `TABLE()`）；v3.4 新增 |
+| calendar_q.py | v4.5（5a-1）：期間滾動。由 `company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、模型年數、目標價時點）推算期間標籤、期間長度、評價日、各期期末日與折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整；`build_xlsx.py`、`build_html_portable.py`、`load_engine.js` 都讀同一份推算結果（`COMPANY_DATA.cal`；Excel「輸入與假設」F 區「期間與日期」）。`periods`、`periodYears`、`valuation.optT` 不再存於 company.json。`python3 calendar_q.py` 印出推算結果 |
 | vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
 | rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」與「摘要」頁使用）；現價或預設輸入改變後以 `node scripts/rv_snap.js` 重新產生（v4.3） |
 | data/consensus_crwv_20260925.json | 市場共識資料檔（v4.3；Andy 查證後提供，只讀，不得增補或修改數字）；路徑寫在 `company.json` → `meta.consensusFile`，HTML 建置時併入 `COMPANY_DATA.consensus`，Excel 直接讀取 |
@@ -126,39 +127,45 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `meta.consensusFile` | 市場共識資料檔路徑（v4.3；只讀，由使用者查證後提供；建置時併入 HTML、Excel 讀同一檔） | 路徑 | data/consensus_crwv_202609… | 必改 |
 | `meta.sourceOrderNote` | 資料來源的先後與衝突時的取捨原則（畫面說明文字） | 文字 | 時序先法說（8/11）、後 10-Q（8/12）、再… | 必改 |
 
-### `periods`：模型期
+### `calendar`：期間與日期（v4.5）
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `periods` | 模型期的名稱，共 5 期 | 文字清單 | FY26、FY27、FY28、FY29、FY30 | 檢查 |
-| `periodYears` | 每一期的長度；第一期是半年，所以是 0.5 | 年 | 0.5、1、1、1、1 | 檢查 |
+| `calendar.fiscalYearEndMonth` | 財年結束月份（v4.5；CoreWeave 12、Oracle 5） | 月 | 12 | 必改 |
+| `calendar.latestQuarterFiled` | 最新已申報（10-Q／10-K）的財季，格式 FYyyQn；驅動年度首期滾動與評價日（v4.5） | 文字 | FY26Q2 | 必改 |
+| `calendar.latestQuarterReported` | 最新已公布（財報新聞稿）的財季；驅動季度層，年度首期不受影響（v4.5） | 文字 | FY26Q2 | 必改 |
+| `calendar.firstModelFY` | 沒有已申報季度時（例如未上市公司）的首個模型財年，例如 FY26；有已申報季度時填 null（v4.5） | 文字 | None | 檢查 |
+| `calendar.modelYears` | 首期之後的完整財年數（固定期數滾動；Excel 欄位固定 5 期，所以為 4）（v4.5） | 年 | 4 | 可沿用 |
+| `calendar.targetHorizon` | 目標價時點：firstFullYearEnd＝首期之後第一個完整財年末；valuationPlus12m＝評價日＋12 個月（v4.5） | 代碼 | firstFullYearEnd | 可沿用 |
 
-### `actual1H`：上半年實際數（10-Q）
+### `ytdActual`：年初至今實際數（10-Q；v4.5 前為 actual1H）
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `actual1H.label` | 「上半年實際數」的標題 | 文字 | 1H26 實際（10-Q） | 必改 |
-| `actual1H.cash1231` | 上一年底現金 | US$bn | 3.127 | 必改 |
-| `actual1H.revenue` | 上半年營收 | US$bn | 4.653 | 必改 |
-| `actual1H.capex` | 上半年資本支出（認列口徑，含設備商融資） | US$bn | 16.139 | 必改 |
-| `actual1H.cashCapex` | 上半年現金購置固定資產 | US$bn | 14.117 | 必改 |
-| `actual1H.interest` | 上半年利息費用 | US$bn | 1.176 | 必改 |
-| `actual1H.leasePaid` | 上半年租賃現金支付 | US$bn | 0.748 | 必改 |
-| `actual1H.debtRepaid` | 上半年還款 | US$bn | 5.219 | 必改 |
-| `actual1H.borrow` | 上半年借款 | US$bn | 16.747 | 必改 |
-| `actual1H.equity` | 上半年股權募資 | US$bn | 2.982 | 必改 |
-| `actual1H.cappedCall` | 上半年 capped call（可轉債配套避險）支出 | US$bn | 0.492 | 必改 |
-| `actual1H.jv` | 上半年合資（JV）與策略投資出資 | US$bn | 0.688 | 必改 |
-| `actual1H.cfo` | 上半年營運現金流 | US$bn | 3.663 | 必改 |
-| `actual1H.prepay` | 上半年客戶預付（遞延收入淨流入） | US$bn | 1.365 | 必改 |
-| `actual1H.da` | 上半年折舊攤銷 | US$bn | 2.54 | 必改 |
-| `actual1H.sbc` | 上半年股份基礎薪酬 | US$bn | 0.318 | 必改 |
-| `actual1H.opInc` | 上半年 GAAP 營業損益 | US$bn | -0.193 | 必改 |
-| `actual1H.ni` | 上半年淨損益 | US$bn | -1.366 | 必改 |
-| `actual1H.eps` | 上半年 GAAP 每股盈餘 | US$ | -2.53 | 必改 |
-| `actual1H.ngEps` | 上半年每股盈餘（加回股份基礎薪酬） | US$ | -1.94 | 必改 |
-| `actual1H.adjEbitda` | 上半年調整後 EBITDA（v4.3；只用於與市場共識比較 FY26，不進模型損益與評價） | US$bn | 2.667 | 必改 |
-| `actual1H.adjEbitdaMeta` | 上述數字的 Q1／Q2 拆分、來源、標記與備註（建置時檢查 Q1＋Q2＝合計） | 物件 | 物件（q1、q2、tag、sources、crossCheck、note、usage） | 必改 |
+| `ytdActual.throughQuarter` | 年初至今實際數的截止財季，須等於 calendar.latestQuarterFiled（v4.5，原 actual1H） | 文字 | FY26Q2 | 必改 |
+| `ytdActual.months` | 年初至今的月數，須等於日曆推算值（v4.5） | 月 | 6 | 必改 |
+| `ytdActual.label` | 「年初至今實際數」的標題 | 文字 | 1H26 實際（10-Q） | 必改 |
+| `ytdActual.cash1231` | 上一年底現金 | US$bn | 3.127 | 必改 |
+| `ytdActual.revenue` | 上半年營收 | US$bn | 4.653 | 必改 |
+| `ytdActual.capex` | 上半年資本支出（認列口徑，含設備商融資） | US$bn | 16.139 | 必改 |
+| `ytdActual.cashCapex` | 上半年現金購置固定資產 | US$bn | 14.117 | 必改 |
+| `ytdActual.interest` | 上半年利息費用 | US$bn | 1.176 | 必改 |
+| `ytdActual.leasePaid` | 上半年租賃現金支付 | US$bn | 0.748 | 必改 |
+| `ytdActual.debtRepaid` | 上半年還款 | US$bn | 5.219 | 必改 |
+| `ytdActual.borrow` | 上半年借款 | US$bn | 16.747 | 必改 |
+| `ytdActual.equity` | 上半年股權募資 | US$bn | 2.982 | 必改 |
+| `ytdActual.cappedCall` | 上半年 capped call（可轉債配套避險）支出 | US$bn | 0.492 | 必改 |
+| `ytdActual.jv` | 上半年合資（JV）與策略投資出資 | US$bn | 0.688 | 必改 |
+| `ytdActual.cfo` | 上半年營運現金流 | US$bn | 3.663 | 必改 |
+| `ytdActual.prepay` | 上半年客戶預付（遞延收入淨流入） | US$bn | 1.365 | 必改 |
+| `ytdActual.da` | 上半年折舊攤銷 | US$bn | 2.54 | 必改 |
+| `ytdActual.sbc` | 上半年股份基礎薪酬 | US$bn | 0.318 | 必改 |
+| `ytdActual.opInc` | 上半年 GAAP 營業損益 | US$bn | -0.193 | 必改 |
+| `ytdActual.ni` | 上半年淨損益 | US$bn | -1.366 | 必改 |
+| `ytdActual.eps` | 上半年 GAAP 每股盈餘 | US$ | -2.53 | 必改 |
+| `ytdActual.ngEps` | 上半年每股盈餘（加回股份基礎薪酬） | US$ | -1.94 | 必改 |
+| `ytdActual.adjEbitda` | 上半年調整後 EBITDA（v4.3；只用於與市場共識比較 FY26，不進模型損益與評價） | US$bn | 2.667 | 必改 |
+| `ytdActual.adjEbitdaMeta` | 上述數字的 Q1／Q2 拆分、來源、標記與備註（建置時檢查 Q1＋Q2＝合計） | 物件 | 物件（q1、q2、tag、sources、crossCheck、note、usage） | 必改 |
 
 ### `historicalPL`：歷年損益
 
@@ -171,13 +178,13 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
 | `rpo.scheduledShare` | 剩餘履約義務（RPO，已簽約未認列的營收）預計在模型期內認列的比例 | 比例 | 0.84 | 必改 |
-| `rpo.bucketWeights` | RPO 在五期（FY26 下半年、FY27、FY28、FY29、FY30）各期認列的比例，合計等於上一欄 | 比例清單 | 0.1025、0.205、0.2、0.195、0.1375 | 必改 |
+| `rpo.bucketWeights` | RPO 在五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期認列的比例，合計等於上一欄 | 比例清單 | 0.1025、0.205、0.2、0.195、0.1375 | 必改 |
 
 ### `leases`：租約
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `leases.onBalanceCash` | 已入帳租約在五期（FY26 下半年、FY27、FY28、FY29、FY30）各期的現金租金 | US$bn 清單 | 1.04、2.339、2.306、2.373、2.289 | 必改 |
+| `leases.onBalanceCash` | 已入帳租約在五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期的現金租金 | US$bn 清單 | 1.04、2.339、2.306、2.373、2.289 | 必改 |
 | `leases.afterFY30` | 已入帳租約在模型期之後還要付的租金合計 | US$bn | 19.023 | 必改 |
 | `leases.facts.onBal` | 已入帳租約未折現付款合計 | US$bn | 29.37 | 必改 |
 | `leases.facts.notCommenced` | 已簽約但尚未起租的租約（表外） | US$bn | 35.5 | 必改 |
@@ -190,7 +197,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `debt.amortization` | 既有債務在五期（FY26 下半年、FY27、FY28、FY29、FY30）各期的排程還本 | US$bn 清單 | 4.413、6.184、4.416、2.421、3.221 | 必改 |
+| `debt.amortization` | 既有債務在五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期的排程還本 | US$bn 清單 | 4.413、6.184、4.416、2.421、3.221 | 必改 |
 | `debt.amortAfterFY30` | 模型期之後的還本合計 | US$bn | 14.896 | 必改 |
 | `debt.instruments` | 既有債務逐筆明細，一筆一列：[名稱, 追索／非追索, 到期, 有效利率（比例）, 本金（US$bn）, 備註]。加總本金須等於 10-Q 本金合計 | 清單 | 16 筆 | 必改 |
 | `debt.convertible.principal` | 期後新發行可轉債本金（不在五期還本表內，只計利息） | US$bn | 3.7 | 必改 |
@@ -340,7 +347,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `scenarios.labels.low` | 保守情境名稱（空格前的文字會當作情境簡稱） | 文字 | 保守 4.2 GW | 必改 |
 | `scenarios.labels.base` | 基準情境名稱 | 文字 | 基準 5.6 GW | 必改 |
 | `scenarios.labels.high` | 積極情境名稱 | 文字 | 積極 8 GW | 必改 |
-| `scenarios.accepted.low` | 保守情境：五期（FY26 下半年、FY27、FY28、FY29、FY30）各期末已驗收的主動電力 | MW 清單 | 1850、3100、3800、4200、4200 | 必改 |
+| `scenarios.accepted.low` | 保守情境：五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）各期末已驗收的主動電力 | MW 清單 | 1850、3100、3800、4200、4200 | 必改 |
 | `scenarios.accepted.base` | 基準情境：同上 | MW 清單 | 1850、3100、4000、4800、5600 | 必改 |
 | `scenarios.accepted.high` | 積極情境：同上 | MW 清單 | 1850、3100、4600、6300、8000 | 必改 |
 | `scenarios.billableRatio.billable` | 計算「可計費 ÷ 已驗收」爬坡比例用的可計費 MW（與下一欄逐期相除） | MW 清單 | 1700、2900、4300、5900、7500 | 檢查 |
@@ -445,7 +452,6 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `valuation.dcfMode` | DCF 股權為負時的處理：zero＝0 截斷、option＝選擇權法 | 文字 | zero | 可沿用 |
 | `valuation.sigma` | 企業價值波動率（選擇權法用） | 比例 | 0.5 | 檢查 |
 | `valuation.rf` | 無風險利率（選擇權法用） | 比例 | 0.04 | 檢查 |
-| `valuation.optT` | 選擇權期間（至模型期末） | 年 | 4.5 | 檢查 |
 
 ### `methodology`：評價方法與評等門檻
 

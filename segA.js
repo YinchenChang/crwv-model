@@ -5,7 +5,8 @@ var PERIODS = COMPANY_DATA.periods,
   PERIOD_YEARS = COMPANY_DATA.periodYears,
   UPDATE_DATE = COMPANY_DATA.meta.updateDate,
   SOURCE_ORDER_NOTE = COMPANY_DATA.meta.sourceOrderNote,
-  ACTUAL_1H = COMPANY_DATA.actual1H,
+  ACTUAL_1H = COMPANY_DATA.ytdActual, // v4.5：年初至今實際（原 actual1H）
+  CALQ = COMPANY_DATA.cal, // v4.5：期間與日期（calendar_q.py 推算）
   RPO_SCHEDULED_SHARE = COMPANY_DATA.rpo.scheduledShare,
   RPO_BUCKET_W = COMPANY_DATA.rpo.bucketWeights,
   RPO_Q3ADD_W = RPO_BUCKET_W.map(e => e / RPO_SCHEDULED_SHARE),
