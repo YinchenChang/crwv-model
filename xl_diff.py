@@ -10,6 +10,15 @@
 import sys, re, openpyxl
 a, b = sys.argv[1], sys.argv[2]; vals = '--values' in sys.argv; by_label = '--by-label' in sys.argv
 IGN = [x for o in sys.argv if o.startswith('--ignore=') for x in o.split('=', 1)[1].split(',') if x]
+# --expect=檔案（v4.5）：預期差異清單，每行「工作表!儲存格  原因」（# 開頭為註解）。清單內的格有差異時另列「預期差異」、不計入差異數；
+# 清單內的格若沒有差異也會列出（提醒清單過期）。每個任務只列經說明的格，升版後清空。
+EXP = {}
+for o in sys.argv:
+    if o.startswith('--expect='):
+        for ln in open(o.split('=', 1)[1], encoding='utf-8'):
+            ln = ln.strip()
+            if ln and not ln.startswith('#'):
+                k, _, why = ln.partition(' '); EXP[k] = why.strip()
 SEC = 'FFD9E2F3'  # build_xlsx.py FILL_SEC（第一層區段標題）
 
 
@@ -129,7 +138,12 @@ for n in wa.sheetnames:
             if by_label and not vals and isinstance(y, str) and norm(inline(B.cell(rb, c).value, n)) == x:
                 inl.append((n, B.cell(rb, c).coordinate)); continue
             diffs.append((n, B.cell(rb, c).coordinate, str(x)[:70], str(y)[:70]))
+hit = [d for d in diffs if f'{d[0]}!{d[1]}' in EXP]; diffs = [d for d in diffs if f'{d[0]}!{d[1]}' not in EXP]
 print(len(diffs), 'differences'); [print(*d) for d in diffs[:15]]
+if EXP:
+    print(f'預期差異 {len(hit)}（--expect 清單，不計入）：'); [print(f'  {n}!{c}：{x} → {y}（{EXP[n + "!" + c]}）') for n, c, x, y in hit]
+    miss = sorted(set(EXP) - {f'{n}!{c}' for n, c, *_ in hit})
+    if miss: print(f'清單中沒有差異的格 {len(miss)}：' + '、'.join(miss))
 if IGN: print(f'略過的工作表（未比對）：{"、".join(IGN)}')
 if by_label:
     lab = [n for n, m in mode.items() if m == 'label']

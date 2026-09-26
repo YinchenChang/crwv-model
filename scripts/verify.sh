@@ -60,6 +60,15 @@ if python3 build_xlsx.py "$XLSX"; then ok "建 Excel"; else bad "建 Excel"; fin
 step "3. 重算（LibreOffice headless）"
 if python3 scripts/recalc.py "$XLSX" 120; then ok "重算：0 公式錯誤"; else bad "重算"; finish; fi
 
+step "3b. 反向 DCF：以 Excel 求解（scripts/rv_solve.py；v4.5 取代 JS 快照）"
+set +e; python3 scripts/rv_solve.py "$XLSX"; rc=$?; set -e
+if (( rc == 3 )); then  # 反解結果有變動：rv_snap.json 已更新，重建 Excel 後再解一次須無變動
+  echo "rv_snap.json 已更新：重建 Excel"
+  python3 build_xlsx.py "$XLSX" && python3 scripts/recalc.py "$XLSX" 120 >/dev/null || { bad "重建 Excel（反向 DCF 更新後）"; finish; }
+  set +e; python3 scripts/rv_solve.py "$XLSX"; rc=$?; set -e
+fi
+if (( rc == 0 )); then ok "反向 DCF：Excel 求解，rv_snap.json 與 Excel 一致"; else bad "反向 DCF 求解（代碼 $rc）"; finish; fi
+
 step "4. fix_outline"
 if python3 fix_outline.py "$XLSX"; then ok "fix_outline"; else bad "fix_outline"; finish; fi
 
