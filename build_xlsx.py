@@ -1556,7 +1556,7 @@ mult_lines = [
     ("錨定年度企業價值（倍數 × EBITDA）", None, NUM, None),
     ("錨定年度末淨負債（總債務 − 現金）", f"=INDEX({_TD},1,{EVY})-INDEX({_CU},1,{EVY})", NUM, "含瀑布新債"),
     ("錨定年度末股數（含瀑布新股）", f"=INDEX({_SHR},1,{EVY})", '0.000', "損益股數：SBC 逐年稀釋＋瀑布新股"),
-    ("折回 «TGT»的折現因子", f"=1/(1+{WACC})^({EVY}-{OFF})", '0.000', "以 WACC 折現 [Assumed]"),
+    ("折回 «TGT» 的折現因子", f"=1/(1+{WACC})^({EVY}-{OFF})", '0.000', "以 WACC 折現 [Assumed]"),
     ("EV/EBITDA 每股（融資後）", None, USD, "以 0 為下限"),
 ]
 for nm, f, fmt, nt in mult_lines:
@@ -1574,9 +1574,14 @@ EVE_ADJ = f"C{m0+6}"
 
 r += 1
 r = section(ws, r, "加權目標價")
+# v4.5：DCF 腿以 WACC 推到目標價時點（0 截斷與選擇權皆同），與 EV/EBITDA 腿同一時點；「DCF 每股」仍為評價日現值（反向 DCF 用）
+ws.cell(row=r, column=1, value="DCF 每股（推到目標價時點）").font = BLACK
+c = ws.cell(row=r, column=3, value=f"={DCF_PS}*(1+{WACC})^{CAL_TT}"); c.number_format = USD; c.font = BLACK
+ws.cell(row=r, column=9, value="＝DCF 每股 ×（1＋WACC）^（評價日至目標價時點的年數）").font = SMALL
+DCF_T = f"C{r}"; r += 1
 t0 = r
 tgt = [
-    ("DCF 每股 × 有效權重", f"={DCF_PS}*IF({DCF_BAD}=1,0,{WDCF})", USD),
+    ("DCF 每股 × 有效權重", f"={DCF_T}*IF({DCF_BAD}=1,0,{WDCF})", USD),
     ("EV/EBITDA（融資後）× 有效權重", f"={EVE_ADJ}*IF({DCF_BAD}=1,1,1-{WDCF})", USD),
     ("加權目標價", None, USD),
     ("現價", f"={PX}", USD),
@@ -1622,7 +1627,7 @@ def _code(px):  # 評等代碼：1＝買進、0＝中立、−1＝賣出（與 H
             f"IF(OR({c}<={RT_SELL},AND($C${R0+2}>{RT_EQ},{c}<={RT_SELL2})),-1,0))")
 _CALL = lambda cell: f'CHOOSE({cell}+2,"賣出","中立","買進")'
 _T1 = lambda x: f'TEXT({x},"0.0")'
-_EVM = lambda m: (f"{DCF_PS}*IF({DCF_BAD}=1,0,{WDCF})+MAX(0,(C{m0+1}*{m}-C{m0+3})/C{m0+4})*C{m0+5}*IF({DCF_BAD}=1,1,1-{WDCF})")
+_EVM = lambda m: (f"{DCF_T}*IF({DCF_BAD}=1,0,{WDCF})+MAX(0,(C{m0+1}*{m}-C{m0+3})/C{m0+4})*C{m0+5}*IF({DCF_BAD}=1,1,1-{WDCF})")
 rows_rg = [
     ("目標價區間｜點位（目前輸入的加權目標價）", [f"={TGT}"], USD),
     ("目標價區間｜終值占 EV（評等用）", [f"=C{d0+3}/MAX(ABS(C{d0+4}),1)*IF(C{d0+4}=0,1,SIGN(C{d0+4}))"], PCT),
@@ -1704,7 +1709,7 @@ for kind in ("EV/EBITDA 腿", "加權目標價"):
                      f"/INDEX({_SHR},1,{k}))/(1+{WACC})^({k}-{OFF})")
             else:
                 leg_row = LEG0 + (r - g0)
-                f = f"={DCF_PS}*IF({DCF_BAD}=1,0,{WDCF})+{get_column_letter(col)}{leg_row}*IF({DCF_BAD}=1,1,1-{WDCF})"
+                f = f"={DCF_T}*IF({DCF_BAD}=1,0,{WDCF})+{get_column_letter(col)}{leg_row}*IF({DCF_BAD}=1,1,1-{WDCF})"
             c = ws.cell(row=r, column=col, value=f); c.number_format = USD; c.font = BLACK
         r += 1
     rng = f"C{g0}:F{r-1}"
@@ -2960,7 +2965,7 @@ import json as _json
 # 輸出位置相對於 repo 根目錄：預設 out/；可用第 1 個參數指定 xlsx 路徑（outline.json 一律寫在 out/）
 _OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "out")
 _osrv.makedirs(_OUT_DIR, exist_ok=True)
-_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260926_CoreWeave收支模型_v4_4.xlsx")
+_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, f"{CO['meta']['updateDate'].replace('-', '')}_CoreWeave收支模型_v{VLOG_X[-1][0][1:].replace('.', '_')}.xlsx")
 _json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
 # v4.5（5a-1）：說明文字中的期間佔位符（«YTD»、«VMD»…）換成目前日曆的字樣（calendar_q.tokens；目前日曆下與 v4.4 文字相同）
 for _ws in wb:

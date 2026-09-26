@@ -1,4 +1,4 @@
-# CoreWeave 收支模型 v4.4 原始碼包
+# CoreWeave 收支模型 v4.5 原始碼包
 
 HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo 根目錄；建置產物寫到 `out/`（不納入版控），交付成品放 `dist/`。HTML 的函式庫模板為 `docs/template_v3_3.html`。
 
@@ -112,7 +112,10 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 ## v4.5 期間滾動＋反向 DCF（5a-1）
 - **日曆**：`company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、`modelYears`＝4、`targetHorizon`）；`calendar_q.py` 推算期間標籤、期間長度、評價日、各期期末日、折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整（`evOffset`）。Excel「輸入與假設」F 區「期間與日期」列出推算結果；HTML 讀 `COMPANY_DATA.cal`（`CALQ`）。首期長度支援 0.25／0.5／0.75／1 年；5 月財年（Oracle 型）與沒有已申報季度（OpenAI 型）皆可推算（`scripts/test_rolling.py` B）。
 - **折現**：DCF 的 UFCF 折到評價日至各期期末（首期 0.5、FY27 1.5…）、終值與選擇權期限＝評價日至模型期末、新股 PV＝評價日至各期期初；EV/EBITDA 腿自錨定期期末以 WACC 折回目標價時點（錨定期 k 的年數＝k − `evOffset`）。
-- **目標價時點**（2026-09-26 Andy 決定）：`valuationPlus12m`＝評價日＋12 個月（目前 2027-06-30；`firstFullYearEnd`＝首期之後第一個完整財年末，即 v4.4 的「FY27 末」）。依設計，任何日曆下錨定期的折回年數都不為負，不需內插。
+- **評價日**（Andy 決定）：最新**已申報**（10-Q／10-K）季度的季末（目前 2026-06-30）。DCF 現值、淨負債與股數的基準日。
+- **目標價時點**（2026-09-26 Andy 決定）：`valuationPlus12m`＝評價日＋12 個月（目前 2027-06-30）；`firstFullYearEnd`＝首期之後第一個完整財年末，即 v4.4 的「FY27 末」。EV/EBITDA 腿自錨定期期末以 WACC 折回此時點；DCF 腿（0 截斷與選擇權皆同）以 WACC 自評價日推到此時點（`perShareT`；Excel「DCF 每股（推到目標價時點）」），兩條腿同一時點。「DCF 每股」仍是評價日現值，反向 DCF 以它對現價求解。依設計，任何日曆下錨定期的折回年數都不為負，不需內插。
+- **與賣方 12 個月目標價的差異**：賣方以股價日起算（2026-09-24 → 2027-09-24），本模型以評價日起算，目前早約 2.8 個月。若以股價日起算，兩條腿約 × 1.025：基準 $45.5 → 約 $46.6（[Derived]）。差距在 10-Q 申報後最小（約 1.5–3 個月）、下一次申報前最大（約 4–5 個月）。
+- **升版驗收**：對前一版成品做 `EXPECT=scripts/expect/v4_5_vs_v4_4.txt scripts/verify.sh --vs-dist`。清單列出預期變動的格（每格附原因），以及「區段 舊 => 新」「列 舊 => 新」改名對照；Excel 其餘須 0 差異。畫面文字差異另外分類說明。
 - **期間字樣**：說明文字以佔位符書寫，建置時換成目前日曆的字樣；期間特有的敘述與數字放 `texts`、`ytdActual.notes`。滾動後第一屏不得出現舊日曆字樣（`test_rolling.py` A；離線檢查另比對第一屏的資料更新日、模型期間、現價日與評價日）。
 - **反向 DCF**：`scripts/rv_solve.py` 以 Excel（LibreOffice UNO）求解，取代 JS 快照（verify.sh 步驟 3b）。
 - **每季滾動流程**（已決定事項 10）：(1) 財報當天（新聞稿）：填 `quarterly.actuals`、`calendar.latestQuarterReported` 加一季、焦點季改為下一季；年度首期不動。(2) 10-Q／10-K 申報後：`calendar.latestQuarterFiled` 加一季；更新 `ytdActual`（含 `throughQuarter`、`months`、`label`、`notes`、`jvSplit`）、`historicalPL` 最後一格、`latestQuarter`、RPO 桶、債務與租賃到期表、`texts`（頁首來源一行、現金稅、首期股權組成）與各期清單（首期縮短一季）；建置時 `calendar_q.py` 檢查截止季與月數、`historicalPL` 與 `ytdActual.label` 的標籤是否一致。(3) 財年最後一季（10-K）後：首期為下一財年全年模型，模型期延長一年，需補新一年的假設（Andy 決定）。

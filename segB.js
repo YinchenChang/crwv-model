@@ -135,6 +135,8 @@ function dcfValue(e, t) {
     pvEquityRaised: q,
     postShares: z,
     perShare: ps,
+    // v4.5：DCF 腿以 WACC 推到目標價時點（評價日＋12 個月；0 截斷與選擇權兩種模式皆同），與 EV/EBITDA 腿同一時點；perShare 仍為評價日現值（反向 DCF 用）
+    perShareT: ps * (1 + t.wacc) ** CALQ.targetT,
     perShareRaw: (u + q) / z,
     tvShare: o / Math.max(Math.abs(s), 1) * Math.sign(s || 1),
     normFcf: l,
@@ -158,7 +160,7 @@ function evAnchorGrid(d, st, o) {
     let y = d.years[k];
     return Math.max(0, (base.fwd[k].ebitda * m - (y.totalDebtEnd - y.cum)) / base.fwd[k].shares / Math.pow(1 + o.wacc, k - CALQ.evOffset))
   }));
-  let DI = base.d.invalid, wd = DI ? 0 : BLEND_W.dcf, dcf = DI ? 0 : base.d.perShare;
+  let DI = base.d.invalid, wd = DI ? 0 : BLEND_W.dcf, dcf = DI ? 0 : base.d.perShareT;
   return {
     mults: EVG_MULTS,
     years: [1, 2, 3, 4].map(k => d.years[k].year),
@@ -259,7 +261,7 @@ function runValuation(e, t, n) {
     d = Math.max(0, c),
     f = blendCall({
       spot: i.price,
-      dcfPx: o.perShare,
+      dcfPx: o.perShareT,
       pePx: d,
       eqTotal: e.totals.equity || 0,
       newSh: e.totals.newShares || 0,

@@ -634,7 +634,7 @@ function AM({
               v: Y(c.postShares, 3)
             }), (0, $.jsx)(jM, {
               k: `DCF 每股（${c.invalid ? `失效` : n.dcfMode === `option` ? `選擇權` : `0 截斷`}）`,
-              v: c.invalid ? `失效：${c.invalidReason}` : `$${Y(c.perShare,1)}（原始 $${Y(c.perShareRaw,1)}；0 截斷 $${Y(c.zeroPerShare,1)}；選擇權 $${Y(c.optPerShare,1)}）`
+              v: c.invalid ? `失效：${c.invalidReason}` : `$${Y(c.perShare,1)}（原始 $${Y(c.perShareRaw,1)}；0 截斷 $${Y(c.zeroPerShare,1)}；選擇權 $${Y(c.optPerShare,1)}）；推到 ${CALQ.targetDate} $${Y(c.perShareT,1)}`
             })]
           }), (0, $.jsx)(`h3`, {
             className: `mt-5 text-sm font-medium`,
@@ -780,7 +780,7 @@ function AM({
             children: [`加權目標價 `, (0, $.jsxs)(`span`, {
               className: `font-semibold tabular-nums`,
               children: [`$`, Y(m.blended, 0)]
-            }), c.invalid ? `＝ EV/EBITDA（融資後）$${Y(f, 0)} × 100%（DCF 失效已排除）` : `＝ DCF $${Y(c.perShare, 0)}（${n.dcfMode === `option` ? `選擇權` : `0 截斷`}）× ${hA(m.weights.dcf * 100, 0)} ＋ EV/EBITDA（融資後）$${Y(f, 0)} × ${hA(m.weights.pe * 100, 0)}`, `。相對現價 $`, Y(n.price, 2), ` 為`, ` `, (0, $.jsx)(`span`, {
+            }), c.invalid ? `＝ EV/EBITDA（融資後）$${Y(f, 0)} × 100%（DCF 失效已排除）` : `＝ DCF $${Y(c.perShareT, 0)}（${n.dcfMode === `option` ? `選擇權` : `0 截斷`}，推到 ${CALQ.targetDate}）× ${hA(m.weights.dcf * 100, 0)} ＋ EV/EBITDA（融資後）$${Y(f, 0)} × ${hA(m.weights.pe * 100, 0)}`, `。相對現價 $`, Y(n.price, 2), ` 為`, ` `, (0, $.jsx)(`span`, {
               className: m.upside >= 0 ? `text-ok` : `text-bad`,
               children: hA(m.upside * 100, 0)
             }), `。五期需股權 `, Y(p, 0), `bn。`]
@@ -981,7 +981,7 @@ function AM({
             className: `mt-4 w-full text-sm`,
             children: (0, $.jsx)(`tbody`, {
               children: [
-                [`DCF（已含 CapEx）`, c.perShare, `不重複扣缺口`],
+                [`DCF（已含 CapEx）`, c.perShareT, `不重複扣缺口；以 WACC 推到 ${CALQ.targetDate}`],
                 [`EV/EBITDA（融資後）`, f, `${PERIOD_LABELS[r.evK]} 末淨負債 ${Y(r.ndA,1)}bn ／ ${PERIOD_LABELS[r.evK]} 末股數 ${Y(r.shA,3)}bn${r.evK >= CALQ.evDiscFrom ? `；以 WACC 折回 ${CALQ.targetText}` : ``}`],
               ].map(([e, t, n]) => (0, $.jsxs)(`tr`, {
                 className: `border-t border-border`,

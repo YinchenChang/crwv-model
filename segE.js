@@ -305,7 +305,7 @@ function SumQ({ d, f, e, o, m, tr: TR, active }) {
       nd: dd.totals.newDebt, eq: dd.totals.equity, jk: dd.totals.junk,
       debt30: dd.years[4].totalDebtEnd,
       rev30: pp.fwd[4].fyRevenue, eb30: pp.fwd[4].fyEbitda,
-      dcf: pp.d.invalid ? NaN : pp.d.perShare, ev: pp.peAdj,
+      dcf: pp.d.invalid ? NaN : pp.d.perShareT, ev: pp.peAdj,
       tgt: pp.call.blended, opt: po.call.blended, call: pp.call.call
     };
   }), [e, o]);
