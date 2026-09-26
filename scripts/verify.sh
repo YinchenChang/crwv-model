@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 一次跑完建置與核對：建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 三情境 xlx＋cmp31 → FY27 錨定 cmp31。
+# 一次跑完建置與核對：季度層檢查 → 建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 三情境 xlx＋cmp31 → FY27 錨定 cmp31 → 季度層測試（v4.4）。
 # 任何一項失敗即以非零代碼結束。產物放在 repo 根目錄的 out/（不納入版控）。
 # 用法：scripts/verify.sh [--vs-dist]
 #   --vs-dist  另與 dist/ 內現行成品比對：crawl.py 畫面文字與 xl_diff.py --by-label（值與公式）皆須 0 差異（純結構修改的驗收）。
@@ -48,6 +48,9 @@ run_cmp() {  # $1=標籤 $2..=cmp31 參數
   else bad "cmp31 $label：OK $nok、不一致 $nbad（見 $log）"; grep -E '^(XX |MISSING)|MISSING XL KEY' "$log" | head -10; fi
 }
 
+step "0. 季度層檢查（季度加總＝年度、指引一致性、超過門檻的差距都有原因；v4.4）"
+if node scripts/check_quarterly.js "$ROOT"; then ok "check_quarterly：季度加總＝年度、差異原因齊全"; else bad "check_quarterly"; finish; fi
+
 step "1. 建 HTML（v$VER · $DATE）"
 if python3 build_html_portable.py "$VER" "$HTML" "$DATE" docs/template_v3_3.html; then ok "建 HTML"; else bad "建 HTML"; finish; fi
 
@@ -77,8 +80,12 @@ step "7. FY27 錨定 cmp31（基準）"
 if python3 xlx.py "$XLSX" 2 "$OUT/xl17_2_a1.json" 1; then run_cmp "base_FY27" base 1
 else bad "xlx FY27 錨定"; fi
 
+step "8. 季度層測試（暫存副本：假設 Q3 實際數、可移植性；v4.4）"
+if python3 scripts/test_quarterly.py > "$OUT/test_quarterly.log" 2>&1; then ok "test_quarterly：假設實際數與可移植性測試通過"; tail -3 "$OUT/test_quarterly.log"
+else bad "test_quarterly（見 $OUT/test_quarterly.log）"; tail -20 "$OUT/test_quarterly.log"; fi
+
 if (( VS_DIST )); then
-  step "8. 與 dist/ 成品比對"
+  step "9. 與 dist/ 成品比對"
   python3 crawl.py "$DIST_HTML" "$OUT/crawl_dist.json"
   python3 crawl.py "$HTML" "$OUT/crawl_new.json"
   if python3 - "$OUT/crawl_dist.json" "$OUT/crawl_new.json" <<'EOF'

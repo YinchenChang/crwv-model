@@ -18,6 +18,9 @@ _co['consensus'] = _json.load(open(os.path.join(H, _co['meta']['consensusFile'])
 _g = _co['consensus']['companyGuidance']['2026Q3']  # Q3 營收指引以 company.json 為準；與共識檔不一致即停止建置（Excel 建置同一檢查）
 assert (_g['revenueLow'], _g['revenueHigh']) == (_co['callFacts']['q3RevLo'], _co['callFacts']['q3RevHi']), 'Q3 營收指引：company.json 與共識檔不一致'
 assert abs(_co['actual1H']['adjEbitda'] - _co['actual1H']['adjEbitdaMeta']['q1'] - _co['actual1H']['adjEbitdaMeta']['q2']) < 1e-9, '1H 調整後 EBITDA ≠ Q1＋Q2'
+import subprocess as _sp  # v4.4：季度加總＝年度、指引一致性、超過門檻的差距都有原因；不符即停止建置
+_ck = _sp.run(['node', os.path.join(H, 'scripts', 'check_quarterly.js'), H], capture_output=True, text=True)
+if _ck.returncode: sys.exit('check_quarterly 失敗：\n' + _ck.stdout + _ck.stderr)
 # 注意：模板函式庫在插入點前是一個未結束的 var 宣告鏈（…,Rk=…,），所以第一個敘述必須是「名稱 = 值」接續該鏈
 app = '\n'.join(['COMPANY_DATA = ' + _json.dumps(_co, ensure_ascii=False) + ';', seg('segA.js'), mid1, seg('segB.js'), mid2, seg('segC.js'), mid3, seg('segD.js'), seg('tail.js'), seg('segE.js')])
 s = open(tpl, encoding='utf-8').read()

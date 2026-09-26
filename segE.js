@@ -108,7 +108,7 @@ function TagQ({ t }) {
 }
 
 // v4.3：一頁摘要（總結頁第 1 頁）的內容：2 × 2 四塊。所有數字依目前輸入與共識資料檔動態產生
-function onePageQ({ cv, TR, f, o, e, rv, scLabel, callTone }) {
+function onePageQ({ cv, qv, TR, f, o, e, rv, scLabel, callTone }) {
   let C = CONSENSUS, PT = C.priceTarget, RA = C.ratings, AE = C.annualEstimates, QE = C.quarterlyEstimates,
     box = (k, title, kids) => elQ(`div`, { key: k, style: { background: `var(--color-surface)`, borderRadius: 10, padding: `8px 14px`, minHeight: 0, overflow: `hidden`, display: `flex`, flexDirection: `column` } }, [
       elQ(`div`, { key: `h`, style: { fontSize: 14.5, fontWeight: 700, color: `var(--color-accent)`, marginBottom: 4 } }, title), ...kids]),
@@ -137,11 +137,10 @@ function onePageQ({ cv, TR, f, o, e, rv, scLabel, callTone }) {
       elQ(`thead`, { key: `h` }, elQ(`tr`, {}, [td(`US$bn`, { textAlign: `left`, fontWeight: 600, borderBottom: `2px solid var(--color-ink)` }),
         ...CONS_YEARS.map(yr => td(`${yr} 模型／共識／差距`, { fontWeight: 600, borderBottom: `2px solid var(--color-ink)` }))])),
       elQ(`tbody`, { key: `b` }, MET.map(([n, k]) => elQ(`tr`, { key: k }, [td(n, { textAlign: `left` }),
-        ...cv.rows.map(r => td([fmtV(k, r.m[k]), `／`, fmtV(k, r.c[k]), `　`, elQ(`b`, { key: `g`, style: { color: k === `nd` || k === `ebM` ? `var(--color-fg)` : gcol(r.gap[k]) } }, gapTxtQ(r.gap[k], k === `ebM`))]))])))
+        ...cv.rows.map(r => td([fmtV(k, r.m[k]), `／`, fmtV(k, r.c[k]), `　`, elQ(`b`, { key: `g`, style: { color: k === `nd` || k === `ebM` ? `var(--color-fg)` : gcol(r.gap[k]) } }, k === `ebitda` || k === `nd` ? dTxtQ(r.dif[k], `US$bn`) : gapTxtQ(r.gap[k], k === `ebM`))]))])))
     ]),
     elQ(`p`, { key: `j`, style: { fontSize: 13, lineHeight: 1.4, margin: `5px 0 0`, fontWeight: 600 } }, cv.judge),
-    elQ(`p`, { key: `n`, style: { ...sm, margin: `2px 0 0`, fontSize: 10.5, lineHeight: 1.35 } },
-      `判斷只用營收、EBITDA、CapEx（門檻 ${pctQ(CONS_TOL)}）。FY26 模型＝1H 實際＋2H 模型（1H 調整後 EBITDA ${Y(ACTUAL_1H.adjEbitda, 3)}，${ACTUAL_1H.adjEbitdaMeta.tag}）。共識 CapEx 口徑未揭露；淨負債不含租賃，只列不判斷。`)
+    cv.rsnSum ? elQ(`p`, { key: `r`, style: { fontSize: 11.5, lineHeight: 1.35, margin: `2px 0 0` } }, cv.rsnSum) : null
   ]);
   let b3 = box(`b3`, `3｜現價隱含什麼`, [
     elQ(`div`, { key: `g`, style: { display: `grid`, gridTemplateColumns: `repeat(3, 1fr)`, gap: 8 } }, [
@@ -160,25 +159,21 @@ function onePageQ({ cv, TR, f, o, e, rv, scLabel, callTone }) {
   ]);
   let RL = [[`強力買進`, RA.strongBuy], [`買進`, RA.buy], [`持有`, RA.hold], [`賣出`, RA.sell], [`強力賣出`, RA.strongSell]];
   let b4 = box(`b4`, `4｜驗證點與市場看法`, [
-    elQ(`p`, { key: `q`, style: { fontSize: 13, lineHeight: 1.4, margin: 0, fontWeight: 600 } }, [`Q3 財報（預計 11/9）：`, cv.q3, elQ(TagQ, { key: `t`, t: QE.tag })]),
+    ...(qv ? [elQ(`div`, { key: `q`, style: { fontSize: 13, fontWeight: 600 } }, [`${qv.focus.label} 財報${qv.focus.reportNote ? `（${qv.focus.reportNote}）` : ``}：模型｜共識｜指引`, QE ? elQ(TagQ, { key: `t`, t: QE.tag }) : null]),
+      ...qv.keyLines.map((t, i) => elQ(`div`, { key: `k${i}`, style: { fontSize: 12, lineHeight: 1.35, marginTop: 2 } }, t))] : []),
     elQ(`p`, { key: `r`, style: { fontSize: 12.5, lineHeight: 1.4, margin: `4px 0 0` } }, [
-      `評等分布（${RA.month}，${RA.total} 家）：${RL.map(([a, b]) => `${a} ${b}`).join(`／`)}；目標價平均 $${Y(PT.mean, 2)}、中位數 $${Y(PT.median, 2)}、區間 $${Y(PT.low, 0)}–$${Y(PT.high, 0)}（${PT.analysts} 家）`, elQ(TagQ, { key: `t`, t: PT.tag })]),
-    elQ(`div`, { key: `a`, style: { fontSize: 12, marginTop: 4 } }, [
-
-      elQ(`div`, { key: `h`, style: { fontWeight: 600 } }, [`最新分析師動作`, elQ(TagQ, { key: `t`, t: C.recentActionsMeta.tag })]),
-      ...C.recentActions.map((x, i) => elQ(`div`, { key: i, style: { lineHeight: 1.35 } }, `${x.date.slice(5).replace(`-`, `/`)} ${x.firm}：${x.rating}${x.target != null ? `，目標價 $${Y(x.target, 0)}` : `（目標價未列）`}`))
-    ])
+      `評等分布（${RA.month}，${RA.total} 家）：${RL.map(([a, b]) => `${a} ${b}`).join(`／`)}；目標價平均 $${Y(PT.mean, 2)}、中位數 $${Y(PT.median, 2)}、區間 $${Y(PT.low, 0)}–$${Y(PT.high, 0)}（${PT.analysts} 家）`, elQ(TagQ, { key: `t`, t: PT.tag })])
   ]);
   return [
     elQ(`div`, { key: `g`, style: { flex: 1, minHeight: 0, display: `grid`, gridTemplateColumns: `1fr 1.22fr`, gridTemplateRows: `1fr 1fr`, gap: 8 } }, [b1, b2, b3, b4]),
     elQ(`p`, { key: `s`, style: { fontSize: 10.5, color: `var(--color-muted)`, lineHeight: 1.4, margin: `6px 0 0` } },
-      `共識來源：${AE.source}、${PT.source}、${C.recentActionsMeta.source}；擷取 ${AE.retrieved}。來源獨立性：${C.sourceIndependence}`)
+      `共識來源：${AE.source}、${PT.source}；擷取 ${AE.retrieved}。來源獨立性：${C.sourceIndependence}`)
   ];
 }
 
 // v4.3：「損益與評價 → 市場共識」分頁：模型 vs 共識對照、共識資料逐筆（數值、來源、擷取日期、標記）、來源獨立性與未取得清單
-function ConsTabQ({ d, p, o, tr: TR }) {
-  let cv = (0, v.useMemo)(() => consensusView(d, p, o, TR), [d, p, o, TR]), items = (0, v.useMemo)(() => consensusItems(), []),
+function ConsTabQ({ d, p, o, tr: TR, st }) {
+  let cv = (0, v.useMemo)(() => consensusView(d, p, o, TR, st), [d, p, o, TR, st]), items = (0, v.useMemo)(() => consensusItems(), []),
     C = CONSENSUS, secs = [...new Set(items.map(x => x.sec))],
     th = (x, r) => elQ(`th`, { key: x, className: `px-2 py-1.5 text-xs font-semibold text-muted ${r ? `text-right` : `text-left`}` }, x),
     fmtI = x => x.vals.length ? x.vals.map(z => x.unit === `%` ? hA(z * 100, x.dp) : `${x.unit === `US$` ? `$` : ``}${Y(z, x.dp)}`).join(`／`) : x.text,
@@ -198,13 +193,15 @@ function ConsTabQ({ d, p, o, tr: TR }) {
           elQ(`td`, { key: `n`, className: `px-2 py-1.5 font-medium` }, n),
           ...cv.rows.flatMap((r, i) => [r.m[k], r.c[k], r.gap[k]].map((x, j) => elQ(`td`, {
             key: `${i}${j}`, className: `px-2 py-1.5 text-right font-mono tabular-nums ${j === 2 && k !== `ebM` && k !== `nd` && Math.abs(x) > CONS_TOL ? `text-bad font-semibold` : ``}`
-          }, j === 2 ? gapTxtQ(x, k === `ebM`) : k === `ebM` ? hA(x * 100, 1) : Y(x, 2))))
+          }, j === 2 ? (k === `ebitda` || k === `nd` ? dTxtQ(r.dif[k], `US$bn`) : gapTxtQ(x, k === `ebM`)) : k === `ebM` ? hA(x * 100, 1) : Y(x, 2))))
         ])))
       ]),
       elQ(`p`, { key: `j`, className: `mt-2 text-sm font-semibold` }, cv.judge),
+      cv.rsn.length ? elQ(`div`, { key: `r`, className: `mt-1 text-sm` }, [elQ(`div`, { key: `h`, className: `font-semibold` }, cv.rsnSum.replace(/；[^；]*$/, ``)),
+        ...cv.rsn.map((x, i) => elQ(`div`, { key: i, className: `text-xs leading-relaxed` }, `${x.yr} ${x.name} ${x.gtxt}｜${x.type}：${x.text}`))]) : null,
       elQ(`p`, { key: `i`, className: `mt-1 text-sm` }, cv.implied),
       elQ(`p`, { key: `n`, className: `mt-1 text-xs leading-relaxed text-muted` },
-        `判斷只用營收、EBITDA、CapEx，門檻 ${pctQ(CONS_TOL)}（company.json → methodology.consensusGapTol）；EBITDA 率以百分點列差距；淨負債只列不判斷（共識口徑未揭露）。FY26 模型為全年口徑：營收＝1H 實際＋2H 模型；調整後 EBITDA＝1H 實際 ${Y(ACTUAL_1H.adjEbitda, 3)}（Q1 ${Y(ACTUAL_1H.adjEbitdaMeta.q1, 3)}＋Q2 ${Y(ACTUAL_1H.adjEbitdaMeta.q2, 3)}；${ACTUAL_1H.adjEbitdaMeta.tag}：${ACTUAL_1H.adjEbitdaMeta.note}；${ACTUAL_1H.adjEbitdaMeta.sources.map(x => `${x.quarter} ${x.name}`).join(`、`)}；${ACTUAL_1H.adjEbitdaMeta.crossCheck}）＋2H 模型，只用於本對照，不改模型 GAAP 損益與評價；CapEx＝1H 實際毛額 ${Y(ACTUAL_1H.capex, 3)}＋2H 模型毛額（共識口徑未揭露）。隱含倍數＝（價格 × 股數 ${Y(o.shares, 3)}bn＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA。`)
+        `判斷只用營收、EBITDA、CapEx，門檻 ${pctQ(CONS_TOL)}（company.json → methodology.consensusGapTol）；營收、CapEx 以比例列差距，調整後 EBITDA 與淨負債以金額差、EBITDA 率以百分點列示（判斷門檻仍以比例計）；淨負債只列不判斷（共識口徑未揭露）。FY26 模型為全年口徑：營收＝1H 實際＋2H 模型；調整後 EBITDA＝1H 實際 ${Y(ACTUAL_1H.adjEbitda, 3)}（Q1 ${Y(ACTUAL_1H.adjEbitdaMeta.q1, 3)}＋Q2 ${Y(ACTUAL_1H.adjEbitdaMeta.q2, 3)}；${ACTUAL_1H.adjEbitdaMeta.tag}：${ACTUAL_1H.adjEbitdaMeta.note}；${ACTUAL_1H.adjEbitdaMeta.sources.map(x => `${x.quarter} ${x.name}`).join(`、`)}；${ACTUAL_1H.adjEbitdaMeta.crossCheck}）＋2H 模型，只用於本對照，不改模型 GAAP 損益與評價；CapEx＝1H 實際毛額 ${Y(ACTUAL_1H.capex, 3)}＋2H 模型毛額（共識口徑未揭露）。隱含倍數＝（價格 × 股數 ${Y(o.shares, 3)}bn＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA。`)
     ]),
     ...secs.map(sc => elQ(`div`, { key: sc, className: `max-w-full overflow-x-auto` }, [
       elQ(`h3`, { key: `h`, className: `text-sm font-semibold` }, sc),
@@ -220,6 +217,59 @@ function ConsTabQ({ d, p, o, tr: TR }) {
         ])))
       ])
     ]))
+  ]);
+}
+
+// v4.4：「資金模型 → 各期收支 → 季度追蹤」分頁。第一屏：焦點季各指標的模型／共識／指引／實際與差距＋一行差異原因；
+// 6 季路徑、期間合計核對、拆分方法放次層（預設收合）。全部由 quarterlyView 產生，缺資料顯示「不適用」。
+function QuarterTabQ({ d, p, st }) {
+  let qv = (0, v.useMemo)(() => quarterlyView(d, p, st), [d, p, st]), [sel, setSel] = (0, v.useState)(null);
+  if (!qv) return elQ(`p`, { className: `text-sm text-muted` }, `company.json 未設定 quarterly：季度層不適用。`);
+  let i = sel ?? qv.fi, Q = qv.Qs[i], C = QTR_CFG,
+    th = (x, k) => elQ(`th`, { key: k ?? x, style: { ...xstyQ.th, whiteSpace: `nowrap` } }, x),
+    thL = x => elQ(`th`, { key: x, style: xstyQ.thL }, x),
+    td = (x, k, st2) => elQ(`td`, { key: k, style: { ...xstyQ.td, ...(st2 || {}) } }, x),
+    tdL = (x, k) => elQ(`td`, { key: k, style: xstyQ.tdL }, x),
+    gp = (r, k, m) => r[k] == null ? NA : gTxtQ(r[k], m.kind, m.unit, r[k + `P`]),
+    gcol = (r, vs) => r.rsn.some(x => x.vs === vs) ? { color: `#9f1239`, fontWeight: 700 } : {},
+    vt = (x, u, miss) => x == null ? miss : valTxtQ(x, u),
+    NA = `不適用`, TBD = `待公布`,
+    rl = qv.rsnLine(i),
+    tbl = (head, body, minW) => elQ(`div`, { style: xstyQ.wrap }, elQ(`table`, { style: { ...xstyQ.table, minWidth: minW || 760 } }, [
+      elQ(`thead`, { key: `h` }, elQ(`tr`, {}, head)), elQ(`tbody`, { key: `b` }, body)]));
+  let first = tbl([thL(`指標`), ...[`模型`, `共識`, `模型 vs 共識`, `指引`, `模型 vs 指引中點`, `實際`, `實際 vs 模型`, `實際 vs 共識`, `實際 vs 指引`].map(x => th(x))],
+    qv.rows.map(m => { let r = m.q[i], u = m.unit, hasA = r.actual != null;
+      return elQ(`tr`, { key: m.key }, [tdL(m.label, `l`), td(vt(r.model, u, NA), `m`), td(vt(r.cons, u, NA), `c`), td(gp(r, `mc`, m), `mc`, gcol(r, `consensus`)),
+        td(r.guide ? rngTxtQ(r.guide, u) : r.gtext ? `${r.gtext.text}（文字）` : NA, `g`), td(r.guide ? `${gp(r, `mg`, m)}（${r.posM}）` : NA, `mg`, gcol(r, `guidance`)),
+        td(hasA ? valTxtQ(r.actual, u) : TBD, `a`), td(hasA ? gp(r, `am`, m) : `—`, `am`, gcol(r, `actual`)), td(hasA ? gp(r, `ac`, m) : `—`, `ac`),
+        td(hasA ? (r.guide ? `${gp(r, `ag`, m)}（${r.posA}）` : NA) : `—`, `ag`)]) }), 980);
+  let L = qv.Qs.map(q => q.label),
+    path = tbl([thL(`項目`), th(`單位`), ...L.map((x, k) => th(x, k))], [
+      ...qv.rows.map(m => [m.label + `（模型）`, m.unit, m.q.map(r => r.model)]),
+      [`車隊折舊（模型）`, `US$bn`, qv.da], [`平均在役 MW（Billable，拆分依據）`, `MW`, qv.avgBil],
+      ...qv.rows.filter(m => m.consensus).map(m => [`共識｜${m.label}${m.consensus === `derived` ? ` [Derived]` : ``}`, m.unit, m.q.map(r => r.cons)]),
+      ...qv.rows.filter(m => m.consensusSecondary).map(m => [m.consensusSecondaryLabel || `共識｜${m.consensusSecondary}`, m.unit, m.q.map(r => r.consSec)]),
+      ...qv.rows.filter(m => m.q.some(r => r.guide || r.gtext)).map(m => [`指引｜${m.label}`, m.unit, m.q.map(r => r.guide || r.gtext), 1]),
+      ...qv.rows.map(m => [`實際｜${m.actualLabel || m.label}`, m.unit, m.q.map(r => r.actual), 2])
+    ].map(([a, u, xs, kind], k) => elQ(`tr`, { key: k }, [tdL(a, `a`), td(u, `u`, { textAlign: `left`, color: `#6b7280` }),
+      ...xs.map((x, j) => td(kind === 1 ? (!x ? NA : Array.isArray(x) ? rngTxtQ(x, u) : `${x.text}（文字，${x.tag}）`) : x == null ? (kind === 2 ? TBD : NA) : valTxtQ(x, u).replace(/bn$|\sMW$/, ``).replace(`$`, ``), j))])));
+  let sums = tbl([thL(`期間`), th(`指標`), th(`季度加總`), th(`年度模型`), th(`差額`)],
+    qv.sums.flatMap(s => [[`revenue`, `營收`], [`adjEbitda`, `調整後 EBITDA`], [`adjOpInc`, `調整後營業利益`], [`capex`, `CapEx（毛額）`], [`da`, `車隊折舊`]].map(([k, n]) =>
+      elQ(`tr`, { key: s.name + k }, [tdL(s.name, `p`), td(n, `n`, { textAlign: `left` }), td(Y(s[k].q, 3), `q`), td(Y(s[k].a, 3), `a`), td(Y(s[k].q - s[k].a, 6), `d`)]))));
+  let HOW = { anchor: `從${C.revenueAnchor ? ` ${C.revenueAnchor.label} ${valTxtQ(C.revenueAnchor.value, `US$bn`)}` : `最新一季實際`}起逐季線性爬升`, driverAvg: qv.drv ? `依平均在役 MW 分配` : `平分（無 MW 資料）`, equal: `平分` },
+    meth = [`營收：${C.periodNames.map((n, j) => `${n} ${HOW[(C.revenueSplit || [])[j] || `equal`]}`).join(`；`)}。`,
+      `EBITDA 率：跨季一條直線，同時符合各期年度 EBITDA。調整後營業利益＝調整後 EBITDA − 車隊折舊（依期內平均 PP&E）。`,
+      `CapEx：${C.capexSplit === `guidanceAnchor` ? `有季度指引的季取指引中點，其餘季分配期間餘數（` : ``}${qv.drv ? `依季內新增 Accepted MW` : `期內平分`}${C.capexSplit === `guidanceAnchor` ? `）` : ``}。${qv.drv && C.driver.endStartNote ? `MW 起點：${C.driver.endStartNote}。` : ``}`,
+      `差距：營收、CapEx 為比例；利潤類為金額差／利潤率百分點；EBITDA 率為百分點；MW 為差額。需附原因：營收、CapEx、MW 差距超過比較基準的 ${pctQ(qv.tol)}，利潤類利潤率差超過 ${PM_TOL != null ? `${Y(PM_TOL * 100, 1)}pt` : pctQ(qv.tol)}，或模型落在指引區間外。有期間合計時拆解為水準與分配：分配較大為「拆法」、水準較大為「觀點」；其餘讀 company.json → varianceReasons。季度層只用於追蹤，不影響年度數字與目標價。`];
+  return elQ(`div`, { className: `space-y-3` }, [
+    elQ(hdrQ, { key: `h`, title: `季度追蹤（${Q.label}${Q.reportNote ? `，財報${Q.reportNote}` : ``}）`, tip: `由年度模型拆分（目前情境），季度加總＝年度；只用於追蹤，不影響目標價。實際數讀 company.json → quarterly.actuals。` }),
+    elQ(`div`, { key: `s`, className: `flex flex-wrap gap-1` }, qv.Qs.map((q, k) => elQ(`button`, { key: q.key, onClick: () => setSel(k),
+      className: `h-8 rounded-md px-3 text-xs font-medium ${k === i ? `bg-ink text-accent-fg` : `bg-surface text-muted hover:text-fg`}` }, q.label))),
+    elQ(`div`, { key: `t` }, first),
+    elQ(`p`, { key: `r`, className: `text-sm leading-relaxed` }, [elQ(`b`, { key: `b` }, `差異原因：`), rl || `無（差距皆在 ${pctQ(qv.tol)} 以內）`]),
+    elQ(accQ, { key: `a1`, title: `6 季路徑（模型、共識、指引、實際）`, sum: `${L[0]}–${L[L.length - 1]}` }, path),
+    elQ(accQ, { key: `a2`, title: `期間合計核對（季度加總＝年度模型）`, sum: qv.sums.map(s => s.name).join(`／`) }, sums),
+    elQ(accQ, { key: `a3`, title: `拆分方法`, sum: `` }, meth.map((t, k) => elQ(`p`, { key: k, className: `text-sm leading-relaxed` }, t)))
   ]);
 }
 
@@ -261,7 +311,7 @@ function SumQ({ d, f, e, o, m, tr: TR, active }) {
   }), [e, o]);
   // --- 反向 DCF（約 0.4 秒，只在本頁顯示時計算）---
   let rv = (0, v.useMemo)(() => active ? reverseDcf(e, o) : null, [e, o, active]);
-  let cv = (0, v.useMemo)(() => consensusView(d, f, o, TR), [d, f, o, TR]);
+  let cv = (0, v.useMemo)(() => consensusView(d, f, o, TR, e), [d, f, o, TR, e]), qv = (0, v.useMemo)(() => quarterlyView(d, f, e), [d, f, e]);
   let eg = (0, v.useMemo)(() => evAnchorGrid(d, e, o), [d, e, o]);
   let [pres, sp] = (0, v.useState)(!1), [ix, si] = (0, v.useState)(0), pr = (0, v.useRef)(null);
 
@@ -286,7 +336,7 @@ function SumQ({ d, f, e, o, m, tr: TR, active }) {
   let S = (kicker, title, body, tsize) => slides.push({ kicker: slides.length ? `附錄｜${kicker}` : kicker, title, body, tsize });
 
   // 0｜一頁摘要（v4.3）：結論、與市場的差異、現價隱含什麼、驗證點；原 9 頁順延為附錄
-  S(`一頁摘要`, `${f.call.call}：點位 $${Y(TR.pt, 1)}（情境區間 $${Y(TR.A[0], 1)}–$${Y(TR.A[1], 1)}）；${cv.first < 0 ? `與市場共識差距在 ${pctQ(CONS_TOL)} 以內` : `與市場共識的分歧始於 ${CONS_YEARS[cv.first]}`}`, onePageQ({ cv, TR, f, o, e, rv, scLabel, callTone }), 28);
+  S(`一頁摘要`, `${f.call.call}：點位 $${Y(TR.pt, 1)}（情境區間 $${Y(TR.A[0], 1)}–$${Y(TR.A[1], 1)}）；${cv.first < 0 ? `與市場共識差距在 ${pctQ(CONS_TOL)} 以內` : `與市場共識的分歧始於 ${CONS_YEARS[cv.first]}`}`, onePageQ({ cv, qv, TR, f, o, e, rv, scLabel, callTone }), 28);
 
   // 1｜結論
   S(`結論`, `${TR.head}，較現價 $${Y(P, 2)} ${up >= 0 ? `高` : `低`} ${hA(Math.abs(up) * 100, 0)}：${f.call.call}`, [

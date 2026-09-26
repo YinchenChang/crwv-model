@@ -143,8 +143,9 @@ guide = [
     ("", None),
     ("分頁結構（依模組分組，分頁標籤顏色相同者為同一模組）", None),
     ("摘要            一頁摘要：結論、與市場共識的差異、現價隱含什麼、驗證點（v4.3；全部活公式）。", None),
-    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G 1H 實際 → H 情境區間運算表 → I 市場共識）。", None),
+    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G 1H 實際 → H 情境區間運算表 → I 市場共識 → J 季度追蹤輸入）。", None),
     ("各期收支        類現金流量：來源、用途、融資前缺口、期前融資瀑布。", None),
+    ("季度追蹤        焦點季的模型／共識／指引／實際與差距（v4.4；由年度模型拆分，只用於追蹤；實際數填在輸入與假設 J 區）。", None),
     ("運營_產能與收入  合約排程 vs 機房產能 → 收入 → 現金；運營_站點：房東揭露與租金檢驗。", None),
     ("資產負債_既有債務／新債與新股／租賃承諾  類資產負債表：10-Q 債務明細、每期現金與總債務與股數、租賃承諾。", None),
     ("損益            類損益表（FY26＝1H 實際＋下半年模型）。", None),
@@ -238,7 +239,7 @@ ws.column_dimensions["I"].width = 92
 ws.column_dimensions["J"].width = 60
 ws["A1"] = "輸入（依類別排序；點左側 ＋／− 展開或收合。藍字可改；黃底為最關鍵假設）"
 ws["A1"].font = TITLE
-ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：1H26 實際 → H 情境區間運算表 → I 市場共識。灰底『▸』為明細子區，預設收合"
+ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：1H26 實際 → H 情境區間運算表 → I 市場共識 → J 季度追蹤輸入。灰底『▸』為明細子區，預設收合"
 ws["A2"].font = SMALL
 IN = {}
 
@@ -2163,7 +2164,7 @@ def cons_items():
         it.append(dict(sec=sec, label=f"共識｜{label}", vals=vals, unit=unit, src=m.get('source', ''), url=m.get('url', ''),
                        date=m.get('retrieved') or m.get('date') or '未列', tag=m.get('tag', ''), note=ex.get('note', ''), text=ex.get('text', '')))
     PR, PT, RA, AE, AL = C['priceReference'], C['priceTarget'], C['ratings'], C['annualEstimates'], C['annualEstimatesAlt']
-    XC, QE, CG, IC, RM = PT['crossCheck'], C['quarterlyEstimates'], C['companyGuidance'], C['independentCrossCheck'], C['recentActionsMeta']
+    XC, QE, CG, IC, RM = PT['crossCheck'], C.get('quarterlyEstimates', {}), C['companyGuidance'], C['independentCrossCheck'], C['recentActionsMeta']
     S1 = "價格與目標價"
     add(S1, "現價參考（收盤）", [PR['close']], "US$", {**PR, 'retrieved': PR['date']}, note=f"收盤日 {PR['date']}")
     for a, x in [("平均", PT['mean']), ("中位數", PT['median']), ("最低", PT['low']), ("最高", PT['high'])]:
@@ -2188,10 +2189,13 @@ def cons_items():
     add(SB, "S&P 對照｜調整後 EPS", [AL['FY26']['epsAdjusted'], AL['FY27']['epsAdjusted']], "US$", AL)
     add(SB, "S&P 對照｜FY26 調整後 EPS 區間（低／高）", [AL['FY26']['epsAdjustedLow'], AL['FY26']['epsAdjustedHigh']], "US$", AL)
     add(SB, "S&P 對照｜FY26 分析師家數", [AL['FY26']['analysts']], "家", AL, note=AL['note'])
-    SQ = "季度共識（2026Q3／2026Q4）"
-    for a, k in [("營收", 'revenue'), ("EBITDA", 'ebitda'), ("EBIT", 'ebit'), ("淨利", 'netIncome')]:
-        add(SQ, f"季度｜{a}", [QE['2026Q3'][k], QE['2026Q4'][k]], "US$bn", QE)
-    add(SQ, "季度｜說明", [], "", QE, text=QE['note'])
+    import re as _re_c
+    QK = [k for k in (QE or {}) if _re_c.match(r'^\d{4}Q\d$', k)]  # v4.4：季度依共識檔實際列出的季別（沒有季度共識時不列）
+    SQ = f"季度共識（{'／'.join(QK)}）"
+    if QK:
+        for a, k in [("營收", 'revenue'), ("EBITDA", 'ebitda'), ("EBIT", 'ebit'), ("淨利", 'netIncome')]:
+            add(SQ, f"季度｜{a}", [QE[q][k] for q in QK], "US$bn", QE)
+        add(SQ, "季度｜說明", [], "", QE, text=QE['note'])
     SG = "公司指引（管理層預估）"
     add(SG, "公司指引｜FY26 營收（低／高）", [CG['FY26']['revenueLow'], CG['FY26']['revenueHigh']], "US$bn", CG)
     add(SG, "公司指引｜FY26 調整後營業利益（低／高）", [CG['FY26']['adjOpIncomeLow'], CG['FY26']['adjOpIncomeHigh']], "US$bn", CG)
@@ -2239,6 +2243,535 @@ for x in cons_items():
 CIR = lambda label, j=0: f"'輸入與假設'!${'CDE'[j]}${CI['共識｜' + label]}"
 CONS_TOL = gi(r, "判斷句門檻：與共識差距（營收、EBITDA、CapEx）", "%", CO['methodology']['consensusGapTol'],
               "任一項差距絕對值超過此比例即視為分歧（company.json → methodology.consensusGapTol）[Assumed]", PCT); r += 1
+PM_TOL = gi(r, "差異原因門檻：利潤類利潤率差（百分點）", "pt", CO['methodology'].get('profitMarginTolPt'),
+            "利潤類（調整後 EBITDA、調整後營業利益）利潤率差超過此值須附差異原因；營收、CapEx、淨負債、MW 用上一格（company.json → methodology.profitMarginTolPt）[Assumed]", PCT) if CO['methodology'].get('profitMarginTolPt') is not None else None
+if PM_TOL:
+    r += 1
+
+# =====================================================================
+# v4.4：J｜季度追蹤輸入（「輸入與假設」底部，接在 I 區之後，不移動 H 區模擬運算表）＋「季度追蹤」分頁
+# 設定全部讀 company.json → quarterly（季度、所屬期間、拆分方法、指引、實際數、焦點季）與 varianceReasons；共識讀 I 區；年度數字引用模型各頁。
+# 規則與 HTML quarterlyView（segB）相同，cmp31 逐格比對。缺資料以文字「不適用」表示；實際數空白＝待公布。
+# =====================================================================
+import re as _re_q
+QC = CO.get('quarterly')
+VRS = CO.get('varianceReasons', {}).get('list', [])
+QCOL = ["C", "D", "E", "F", "G", "H", "I", "J"]
+_FX = lambda x, dp: f'IF({x}<0,"−","")&TEXT(ABS({x}),"#,##0{"." + "0" * dp if dp else ""}")'  # 與 HTML Y() 同格式（千分位、固定小數）；負號用 −
+_GX = lambda x, pt=False: f'IF({x}<0,"−","+")&TEXT(ABS({x})*100,"#,##0.0")&"{"pt" if pt else "%"}"'  # 與 HTML gapTxtQ 同格式
+
+
+def _VX(x, u, dp=2):  # 與 HTML valTxtQ 同格式（US$bn 預設 2 位小數）
+    if u == "%":
+        return f'IF({x}<0,"−","")&TEXT(ABS({x})*100,"#,##0.0")&"%"'
+    if u == "MW":
+        return f'IF({x}<0,"−","")&TEXT(ABS({x}),"#,##0")&" MW"'
+    return f'IF({x}<0,"−","")&"$"&TEXT(ABS({x}),"#,##0.{"0" * dp}")&"bn"'
+
+
+def _RX(lo, hi, u):  # 與 HTML rngTxtQ 同格式
+    if u == "MW":
+        return f'{_FX(lo, 0)}&"–"&{_FX(hi, 0)}&" MW"'
+    if u == "%":
+        return f'{_FX(lo + "*100", 2)}&"–"&{_FX(hi + "*100", 2)}&"%"'
+    return f'"$"&{_FX(lo, 2)}&"–"&{_FX(hi, 2)}&"bn"'
+
+
+_POS = lambda x, lo, hi: f'IF({x}>{hi},"高於上緣",IF({x}<{lo},"低於下緣",IF({x}>=({lo}+{hi})/2,"區間上半部","區間下半部")))'
+
+
+def _TOKX(text, resolve):  # 原因文字 {路徑:格式} → Excel 文字公式（與 HTML fillTokQ 同格式；路徑可用加減，例如 c.ebitda-g.adjOpInc）
+    parts, pos = [], 0
+    for mt in _re_q.finditer(r'\{([\w.+-]+):([%s]?\w+)\}', text):
+        if mt.start() > pos:
+            parts.append('"' + text[pos:mt.start()].replace('"', '""') + '"')
+        terms = [t for t in _re_q.split(r'(?=[+-])', mt.group(1)) if t]
+        refs = [resolve(t.lstrip("+-")) for t in terms]
+        x = "(" + "".join((t[0] if t[0] in "+-" else ("+" if i else "")) + str(v) for i, (t, v) in enumerate(zip(terms, refs))) + ")"
+        f = mt.group(2)
+        if any(v is None for v in refs):  # 缺值（例如該季沒有共識或指引）：與 HTML 同樣顯示「不適用」
+            parts.append('"不適用"')
+        elif f == 'gap':
+            parts.append(_GX(x))
+        elif f[0] == '%':
+            dp = int(f[1:])
+            parts.append(f'IF({x}<0,"−","")&TEXT(ABS({x})*100,"#,##0{"." + "0" * dp if dp else ""}")&"%"')
+        elif f[0] == 's':
+            dp = int(f[1:])
+            parts.append(f'IF({x}<0,"−","+")&TEXT(ABS({x}),"#,##0{"." + "0" * dp if dp else ""}")')
+        else:
+            parts.append(_FX(x, int(f)))
+        pos = mt.end()
+    if pos < len(text):
+        parts.append('"' + text[pos:].replace('"', '""') + '"')
+    return "&".join(parts) if parts else '""'
+
+
+def _find_rsn(scope, period, metric, vs):
+    for x in VRS:
+        if x['scope'] == scope and x['period'] in ('*', period) and x['metric'] == metric and x['vs'] in ('*', vs):
+            return x
+    return None
+
+
+RSN_TYPES = ["觀點", "拆法", "已知限制", "未歸類"]
+QT = {}
+if QC:
+    ws = wb["輸入與假設"]
+    r += 1
+    r = section(ws, r, "J｜季度追蹤：實際數、指引與拆分設定（company.json → quarterly；實際數預設空白，財報公布後填入藍字格）")
+    QS = QC['quarters']; NQ = len(QS); QCL = QCOL[:NQ]
+    PN = QC['periodNames']; PERS = sorted({q['period'] for q in QS})
+    DRV = (QC.get('driver') or {}).get('type') == 'mw'
+    QMET = QC['metrics']
+    _UF = {"US$bn": '#,##0.000', "MW": NUM0, "%": PCT}
+    for j, h in enumerate(["季度", "單位"] + [q['label'] for q in QS]):
+        c = ws.cell(row=r, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
+    c = ws.cell(row=r, column=3 + max(NQ, 6) + 1, value="說明"); c.font = HEAD; c.fill = FILL_HEAD
+    _JN = 3 + max(NQ, 6) + 1  # 說明欄（6 季時為 J 欄）
+    r += 1
+    JQ = {}
+
+    def jrow(name, unit, vals, fmt=NUM, note=None, font=BLUE, key=False):
+        global r
+        JQ[name] = r
+        ws.cell(row=r, column=1, value=name).font = BLACK
+        if unit:
+            ws.cell(row=r, column=2, value=unit).font = SMALL
+        for j, v in enumerate(vals):
+            c = ws.cell(row=r, column=3 + j, value=v); c.font = font; c.number_format = fmt; c.border = BOX
+            if key:
+                c.fill = FILL_KEY
+        if note:
+            ws.cell(row=r, column=_JN, value=note).font = SMALL
+        r += 1
+
+    _PERL = "季度｜所屬期間（" + "、".join(f"{i + 1}＝{n}" for i, n in enumerate(PN)) + "）"
+    jrow(_PERL, "", [q['period'] + 1 for q in QS], NUM0, "由 company.json 設定；拆分公式依此建置（改動需重建）", BLACK)
+    _FI = next((i for i, q in enumerate(QS) if q['key'] == QC.get('focus')), 0)
+    jrow(f"季度｜焦點季（1–{NQ}）", "", [_FI + 1], NUM0, "「季度追蹤」分頁第一屏與「摘要」驗證點顯示的季度；財報公布後改為下一季", BLUE, key=True)
+    FOCUS = f"'輸入與假設'!$C${JQ[f'季度｜焦點季（1–{NQ}）']}"
+    if QC.get('revenueAnchor'):
+        A_ = QC['revenueAnchor']
+        jrow(f"季度｜營收起點（{A_['label']}）", "US$bn", [A_['value']], '#,##0.000', f"營收拆分 anchor 用：從此值逐季線性爬升 [{A_.get('tag', '')}]")
+    if DRV:
+        jrow("季度｜MW 起點（第 1 期期初 Accepted）", "MW", [QC['driver']['endStart']], NUM0, QC['driver'].get('endStartNote'))
+    for m in QMET:
+        if m['key'] == 'ebitdaMargin':
+            continue
+        jrow(f"季度實際｜{m.get('actualLabel', m['label'])}", m['unit'], [QC['actuals'].get(q['key'], {}).get(m['key']) for q in QS], _UF[m['unit']],
+             "實際數（公司公布）；空白＝待公布" if m is QMET[0] else None)
+    for k, nm in (("source", "來源"), ("date", "日期"), ("tag", "標記")):
+        jrow(f"季度實際｜{nm}", "", [QC['actuals'].get(q['key'], {}).get(k) for q in QS], '@')
+    GM = QC.get('guidanceMeta', {})
+    for m in QMET:
+        g = [QC.get('guidance', {}).get(q['key'], {}).get(m['key']) for q in QS]
+        if any(g):
+            jrow(f"季度指引｜{m['label']}（低）", m['unit'], [x[0] if x else None for x in g], _UF[m['unit']], f"{GM.get('source', '')} [{GM.get('tag', '')}]")
+            jrow(f"季度指引｜{m['label']}（高）", m['unit'], [x[1] if x else None for x in g], _UF[m['unit']])
+    for m in QMET:  # 文字指引（例如「調整後營業利益率 low teens」）：只列不計差距
+        t = [QC.get('guidanceText', {}).get(q['key'], {}).get(m['key']) for q in QS]
+        if any(t):
+            jrow(f"季度文字指引｜{m['label']}", "", [x['text'] if x else None for x in t], '@',
+                 "；".join(f"{q['label']}：{x.get('source', '')} [{x.get('tag', '')}]" for q, x in zip(QS, t) if x))
+    for P, pg in (QC.get('periodGuidance') or {}).items():
+        for mk, g in pg.items():
+            m = next(x for x in QMET if x['key'] == mk)
+            jrow(f"期間指引｜{PN[PERS.index(int(P))]} {m['label']}（全年低／全年高／扣除 1H 實際）", m['unit'], [g['range'][0], g['range'][1], g.get('less', 0)],
+                 _UF[m['unit']], QC.get('periodGuidanceNote'))
+    JR = lambda name, j: f"'輸入與假設'!{QCL[j]}${JQ[name]}"
+
+    # ---------------- 「季度追蹤」分頁 ----------------
+    ws = wb.create_sheet("季度追蹤")
+    ws.column_dimensions["A"].width = 44
+    ws.column_dimensions["B"].width = 8
+    for c in QCOL + ["K", "L"]:
+        ws.column_dimensions[c].width = 14
+    ws.column_dimensions["M"].width = 60
+    ws["A1"] = "季度追蹤 — 焦點季的模型／共識／指引／實際與差距（由年度模型拆分；只用於追蹤，不影響年度數字與目標價）"
+    ws["A1"].font = TITLE
+    ws["A2"] = f"設定與實際數在『輸入與假設』J 區，共識在 I 區；缺資料顯示「不適用」，實際數空白＝待公布。差距超過門檻的項目附差異原因（拆法＝所屬期間合計差距在門檻內）。第 2 區為 6 季路徑與拆分明細（預設收合）。"
+    ws["A2"].font = SMALL
+    NM_ = len(QMET)
+    r = 4 + 1 + 1 + NM_ + 1 + 2  # 第 1 區（標題、表頭、各指標、焦點季、差異原因）之後
+    r = section(ws, r, "2｜6 季路徑、共識、指引、實際與差距（明細；第 1 區以焦點季引用本區）", span=12, collapsed=True)
+    for j, h in enumerate(["項目", "單位"] + [q['label'] for q in QS]):
+        c = ws.cell(row=r, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
+    HDR = r; r += 1
+    _NOTE = 3 + NQ + 1
+
+    def qrow(name, unit, fn, fmt=NUM, note=None, font=BLACK):
+        global r
+        QT[name] = r
+        ws.cell(row=r, column=1, value=name).font = BLACK
+        if unit:
+            ws.cell(row=r, column=2, value=unit).font = SMALL
+        for j in range(NQ):
+            c = ws.cell(row=r, column=3 + j, value=fn(j, QCL[j])); c.font = font; c.number_format = fmt; c.border = BOX
+        if note:
+            ws.cell(row=r, column=_NOTE, value=note).font = SMALL
+        r += 1
+        return QT[name]
+
+    POS_ = []  # 每季：(期間 P、期內序號 j、期內季數 k、同期欄)
+    for i, q in enumerate(QS):
+        same = [x for x in range(NQ) if QS[x]['period'] == q['period']]
+        POS_.append((q['period'], same.index(i), len(same), [QCL[x] for x in same]))
+    IA = lambda name, P: f"'輸入與假設'!{COLS[P]}${IN[name]}"
+    ACC = lambda P: f"'輸入與假設'!{COLS[P]}${_acc}"
+    BIL = lambda P: f"'輸入與假設'!{COLS[P]}${_bil}"
+    ANN = {"revenue": lambda P: f"{PL}{COLS[P]}{rev_v}", "adjEbitda": lambda P: f"{PL}{COLS[P]}{ebitda_v}",
+           "adjOpInc": lambda P: f"{PL}{COLS[P]}{ebit_v}", "capex": lambda P: IA("毛 CapEx", P)}
+    qrow("所屬期間", "", lambda j, c: f"={JR(_PERL, j)}", NUM0, "1＝" + PN[0] + (f"、2＝{PN[1]}" if len(PN) > 1 else ""), GREEN)
+    qrow("季序", "", lambda j, c: j + 1, NUM0, "EBITDA 率直線的 x 軸")
+    MST = f"'輸入與假設'!$C${JQ['季度｜MW 起點（第 1 期期初 Accepted）']}" if DRV else None
+    a0 = lambda P: MST if P == PERS[0] else ACC(P - 1)
+    b0 = lambda P: MW0 if P == PERS[0] else BIL(P - 1)
+    if DRV:
+        qrow("季末 Accepted MW（模型）", "MW", lambda j, c: f"={a0(POS_[j][0])}+({ACC(POS_[j][0])}-{a0(POS_[j][0])})*{POS_[j][1] + 1}/{POS_[j][2]}", NUM0,
+             "期初與期末 Accepted 之間線性內插；第 1 期起點見 J 區")
+        qrow("平均在役 MW（Billable，拆分依據）", "MW", lambda j, c: f"={b0(POS_[j][0])}+({BIL(POS_[j][0])}-{b0(POS_[j][0])})*{2 * POS_[j][1] + 1}/{2 * POS_[j][2]}", NUM0,
+             "期初與期末 Billable 之間線性內插的季平均")
+        qrow("季內新增 Accepted MW", "MW", lambda j, c: (f"={c}{QT['季末 Accepted MW（模型）']}-{a0(POS_[j][0])}" if POS_[j][1] == 0
+                                                     else f"={c}{QT['季末 Accepted MW（模型）']}-{QCL[j - 1]}{QT['季末 Accepted MW（模型）']}"), NUM0, "CapEx 拆分依據")
+    else:
+        qrow("季末 Accepted MW（模型）", "MW", lambda j, c: "不適用", NUM0, "company.json 未設定 MW 驅動")
+        qrow("平均在役 MW（Billable，拆分依據）", "MW", lambda j, c: "不適用", NUM0)
+        qrow("季內新增 Accepted MW", "MW", lambda j, c: 1, NUM0, "無 MW 驅動：CapEx 期內平分")
+    _AV, _AD = QT['平均在役 MW（Billable，拆分依據）'], QT['季內新增 Accepted MW']
+    _AN = f"'輸入與假設'!$C${JQ[[k for k in JQ if k.startswith('季度｜營收起點')][0]]}" if QC.get('revenueAnchor') else None
+
+    def _rev(j, c):
+        P, jj, k, cols = POS_[j]
+        R, how = ANN["revenue"](P), (QC.get('revenueSplit') or [])[PERS.index(P)] if PERS.index(P) < len(QC.get('revenueSplit') or []) else "equal"
+        if how == "anchor" and _AN:
+            return f"={_AN}+{jj + 1}*({R}-{k}*{_AN})/{k * (k + 1) / 2:g}"
+        if how == "driverAvg" and DRV:
+            return f"={R}*{c}{_AV}/(" + "+".join(f"{x}{_AV}" for x in cols) + ")"
+        return f"={R}/{k}"
+    qrow("營收（模型）", "US$bn", _rev, NUM, "拆分方法見『輸入與假設』J 區與 HTML「拆分方法」")
+    _RV_ = QT["營收（模型）"]
+    # EBITDA 率直線：兩個期間時同時符合兩期年度 EBITDA（a＋b × 季序）；一個期間時為常數
+    for nm, fn in (("EBITDA 率直線｜各期營收合計 S", lambda P, cols: "=" + "+".join(f"{x}{_RV_}" for x in cols)),
+                   ("EBITDA 率直線｜營收 × 季序合計 T", lambda P, cols: "=" + "+".join(f"{x}{_RV_}*{x}{QT['季序']}" for x in cols)),
+                   ("EBITDA 率直線｜年度 EBITDA E", lambda P, cols: f"={ANN['adjEbitda'](P)}")):
+        QT[nm] = r
+        ws.cell(row=r, column=1, value=nm).font = BLACK
+        for pi, P in enumerate(PERS):
+            cols = [QCL[x] for x in range(NQ) if QS[x]['period'] == P]
+            c = ws.cell(row=r, column=3 + pi, value=fn(P, cols)); c.number_format = NUM; c.border = BOX
+        ws.cell(row=r, column=_NOTE, value="欄＝期間（" + "、".join(PN) + "）").font = SMALL
+        r += 1
+    _S, _T, _E = QT["EBITDA 率直線｜各期營收合計 S"], QT["EBITDA 率直線｜營收 × 季序合計 T"], QT["EBITDA 率直線｜年度 EBITDA E"]
+    if len(PERS) == 2:
+        QT["EBITDA 率直線｜截距 a／斜率 b"] = r
+        ws.cell(row=r, column=1, value="EBITDA 率直線｜截距 a／斜率 b").font = BLACK
+        ws.cell(row=r, column=3, value=f"=(C{_E}*D{_T}-C{_T}*D{_E})/(C{_S}*D{_T}-C{_T}*D{_S})").number_format = '0.0000%'
+        ws.cell(row=r, column=4, value=f"=(C{_S}*D{_E}-D{_S}*C{_E})/(C{_S}*D{_T}-C{_T}*D{_S})").number_format = '0.0000%'
+        ws.cell(row=r, column=_NOTE, value="解兩式：Σ營收×(a＋b×季序)＝各期年度 EBITDA").font = SMALL
+        _AB = r; r += 1
+        qrow("EBITDA 率（模型）", "%", lambda j, c: f"=$C${_AB}+$D${_AB}*{c}{QT['季序']}", PCT, "跨季一條直線，季度 EBITDA 加總＝年度")
+    else:
+        qrow("EBITDA 率（模型）", "%", lambda j, c: f"={'CDEFGH'[PERS.index(POS_[j][0])]}{_E}/{'CDEFGH'[PERS.index(POS_[j][0])]}{_S}", PCT, "期內常數")
+    qrow("調整後 EBITDA（模型）", "US$bn", lambda j, c: f"={c}{_RV_}*{c}{QT['EBITDA 率（模型）']}", NUM)
+    qrow("車隊折舊（模型）", "US$bn", lambda j, c: (f"=({IA('期初毛 PP&E', POS_[j][0])}+{IA('成長型 CapEx（模型期）', POS_[j][0])}*{2 * POS_[j][1] + 1}/{2 * POS_[j][2]})"
+                                                  f"/{LIFE}*{IA('模型期長度（年）', POS_[j][0])}/{POS_[j][2]}"), NUM, "依期內平均 PP&E（與年度車隊折舊公式相同）")
+    qrow("調整後營業利益（模型）", "US$bn", lambda j, c: f"={c}{QT['調整後 EBITDA（模型）']}-{c}{QT['車隊折舊（模型）']}", NUM, "＝調整後 EBITDA − 車隊折舊（未扣 SBC）")
+    # 指引（J 區；數字區間與文字）——CapEx 指引錨定需先有指引列
+    CROW, CSEC, GLO, GHI, AROW, GTX = {}, {}, {}, {}, {}, {}
+    for m in QMET:
+        lo, hi = f"季度指引｜{m['label']}（低）", f"季度指引｜{m['label']}（高）"
+        if lo in JQ:
+            GLO[m['key']] = qrow(f"指引｜{m['label']}（低）", m['unit'], lambda j, c, n=lo: f'=IF(ISNUMBER({JR(n, j)}),{JR(n, j)},"不適用")', NUM)
+            GHI[m['key']] = qrow(f"指引｜{m['label']}（高）", m['unit'], lambda j, c, n=hi: f'=IF(ISNUMBER({JR(n, j)}),{JR(n, j)},"不適用")', NUM)
+        tn = f"季度文字指引｜{m['label']}"
+        if tn in JQ:
+            GTX[m['key']] = qrow(f"指引（文字）｜{m['label']}", "", lambda j, c, n=tn: f'=IF(ISTEXT({JR(n, j)}),{JR(n, j)},"")', '@', "文字指引：只列不計差距")
+    MIDX = lambda k, c: f"(({c}{GLO[k]}+{c}{GHI[k]})/2)"
+    GOKX = lambda k, c: f"ISNUMBER({c}{GLO[k]}),ISNUMBER({c}{GHI[k]})"
+    if QC.get('capexSplit') == 'guidanceAnchor' and 'capex' in GLO:
+        qrow("CapEx 指引錨定值", "US$bn", lambda j, c: f'=IF(AND({GOKX("capex", c)}),{MIDX("capex", c)},"")', NUM, "有季度指引的季取指引中點（capexSplit＝guidanceAnchor）")
+        _ANC = QT["CapEx 指引錨定值"]
+        qrow("CapEx 未錨定季的新增 MW", "MW", lambda j, c: f'=IF(ISNUMBER({c}{_ANC}),0,{c}{_AD})', NUM0, "期間餘數依此分配")
+        _FR = QT["CapEx 未錨定季的新增 MW"]
+
+        def _cx(j, c):
+            P, jj, k, cols = POS_[j]
+            sa, sf = "+".join(f"{x}{_ANC}" for x in cols), "+".join(f"{x}{_FR}" for x in cols)
+            rem = f"({ANN['capex'](P)}-SUM({','.join(f'{x}{_ANC}' for x in cols)}))"
+            return f"=IF(ISNUMBER({c}{_ANC}),{c}{_ANC},IF(({sf})>0,{rem}*{c}{_FR}/({sf}),{rem}/({k}-COUNT({','.join(f'{x}{_ANC}' for x in cols)}))))"
+        qrow("CapEx（毛額）（模型）", "US$bn", _cx, NUM, "有季度指引的季＝指引中點；其餘季＝期間餘數依新增 Accepted MW 分配")
+    else:
+        qrow("CapEx（毛額）（模型）", "US$bn", lambda j, c: (f"=IF((" + "+".join(f"{x}{_AD}" for x in POS_[j][3]) + f")>0,{ANN['capex'](POS_[j][0])}*{c}{_AD}/("
+                                                            + "+".join(f"{x}{_AD}" for x in POS_[j][3]) + f"),{ANN['capex'](POS_[j][0])}/{POS_[j][2]})"), NUM, "依季內新增 Accepted MW")
+    MROW = {"revenue": _RV_, "adjEbitda": QT["調整後 EBITDA（模型）"], "ebitdaMargin": QT["EBITDA 率（模型）"], "adjOpInc": QT["調整後營業利益（模型）"],
+            "capex": QT["CapEx（毛額）（模型）"], "mw": QT["季末 Accepted MW（模型）"]}
+    # 共識（I 區；只有共識檔列出的季度，其餘「不適用」）
+    QEK = [k for k in CONS.get('quarterlyEstimates', {}) if _re_q.match(r'^\d{4}Q\d$', k)]
+    _CL = {"revenue": "季度｜營收", "ebitda": "季度｜EBITDA", "ebit": "季度｜EBIT", "netIncome": "季度｜淨利"}
+    ciq = lambda fld, qk: CIR(_CL[fld], QEK.index(qk)) if qk in QEK and fld in _CL else None
+    for m in QMET:
+        if m.get('consensus') == 'derived':
+            def _cd(j, c):
+                e, v = ciq('ebitda', QS[j]['key']), ciq('revenue', QS[j]['key'])
+                return f'=IF(AND(ISNUMBER({e}),ISNUMBER({v})),{e}/{v},"不適用")' if e and v else "不適用"
+            CROW[m['key']] = qrow(f"共識｜{m['label']} [Derived]", m['unit'], _cd, PCT, "＝共識 EBITDA ÷ 共識營收")
+        elif m.get('consensus'):
+            CROW[m['key']] = qrow(f"共識｜{m['label']}", m['unit'], lambda j, c, f=m['consensus']: (f'=IF(ISNUMBER({ciq(f, QS[j]["key"])}),{ciq(f, QS[j]["key"])},"不適用")'
+                                                                                              if ciq(f, QS[j]['key']) else "不適用"), NUM, "I 區季度共識 [Interested-party]")
+        if m.get('consensusSecondary'):
+            CSEC[m['key']] = qrow(m.get('consensusSecondaryLabel') or f"共識｜{m['consensusSecondary']}", m['unit'],
+                                  lambda j, c, f=m['consensusSecondary']: (f'=IF(ISNUMBER({ciq(f, QS[j]["key"])}),{ciq(f, QS[j]["key"])},"不適用")' if ciq(f, QS[j]['key']) else "不適用"), NUM,
+                                  "口徑未揭露：只列不比較")
+    for m in QMET:
+        al = f"實際｜{m.get('actualLabel', m['label'])}"
+        if m['key'] == 'ebitdaMargin':
+            e_, v_ = "季度實際｜" + next(x for x in QMET if x['key'] == 'adjEbitda').get('actualLabel', "調整後 EBITDA"), "季度實際｜" + next(x for x in QMET if x['key'] == 'revenue').get('actualLabel', "營收")
+            AROW[m['key']] = qrow(al, m['unit'], lambda j, c: f'=IF(AND(ISNUMBER({JR(e_, j)}),ISNUMBER({JR(v_, j)})),{JR(e_, j)}/{JR(v_, j)},"")', PCT, "＝實際 EBITDA ÷ 實際營收")
+        else:
+            n_ = f"季度實際｜{m.get('actualLabel', m['label'])}"
+            AROW[m['key']] = qrow(al, m['unit'], lambda j, c, n=n_: f'=IF(ISNUMBER({JR(n, j)}),{JR(n, j)},"")', PCT if m['unit'] == "%" else NUM, None, GREEN)
+    # 差距（v4.4 第 4 輪）：營收、CapEx＝比例；利潤類＝金額差＋利潤率百分點；EBITDA 率＝百分點；MW＝差額
+    TOLX = CONS_TOL
+    KIND = {m['key']: m.get('gap') or ('pt' if m['unit'] == "%" else 'ratio') for m in QMET}
+    _GFMT = lambda k, u: PCT if KIND[k] in ('ratio', 'pt') else (NUM0 if u == "MW" else NUM)
+    GAP, GPT = {}, {}
+    for m in QMET:
+        k, u, kd = m['key'], m['unit'], KIND[m['key']]
+        rel = (lambda x, y: f"{x}/({y})-1") if kd == 'ratio' else (lambda x, y: f"{x}-({y})")
+        nz = (lambda y: f",{y}<>0") if kd == 'ratio' else (lambda y: "")
+        M_ = lambda c: f"{c}{MROW[k]}"
+        C_ = (lambda c: f"{c}{CROW[k]}") if k in CROW else None
+        MID = (lambda c: MIDX(k, c)) if k in GLO else None
+        A_ = lambda c: f"{c}{AROW[k]}"
+        un = "%" if kd == 'ratio' else ("pt" if kd == 'pt' else u)
+        G = {}
+        G['mc'] = qrow(f"差距｜{m['label']}｜模型 vs 共識", un, lambda j, c: (f'=IF(AND(ISNUMBER({M_(c)}),ISNUMBER({C_(c)}){nz(C_(c))}),{rel(M_(c), C_(c))},"不適用")' if C_ else "不適用"), _GFMT(k, u))
+        G['mg'] = qrow(f"差距｜{m['label']}｜模型 vs 指引中點", un, lambda j, c: (f'=IF(AND(ISNUMBER({M_(c)}),{GOKX(k, c)}),{rel(M_(c), MID(c))},"不適用")' if MID else "不適用"), _GFMT(k, u))
+        G['am'] = qrow(f"差距｜{m['label']}｜實際 vs 模型", un, lambda j, c: f'=IF(ISNUMBER({A_(c)}),IF(AND(ISNUMBER({M_(c)}){nz(M_(c))}),{rel(A_(c), M_(c))},"不適用"),"")', _GFMT(k, u))
+        G['ac'] = qrow(f"差距｜{m['label']}｜實際 vs 共識", un, lambda j, c: (f'=IF(ISNUMBER({A_(c)}),IF(AND(ISNUMBER({C_(c)}){nz(C_(c))}),{rel(A_(c), C_(c))},"不適用"),"")' if C_ else f'=IF(ISNUMBER({A_(c)}),"不適用","")'), _GFMT(k, u))
+        G['ag'] = qrow(f"差距｜{m['label']}｜實際 vs 指引中點", un, lambda j, c: (f'=IF(ISNUMBER({A_(c)}),IF(AND({GOKX(k, c)}),{rel(A_(c), MID(c))},"不適用"),"")' if MID else f'=IF(ISNUMBER({A_(c)}),"不適用","")'), _GFMT(k, u))
+        GAP[k] = G
+        if m.get('marginOf'):  # 利潤率百分點（利潤 ÷ 同來源營收）
+            rk = m['marginOf']
+            MM = lambda c: (f"ISNUMBER({c}{MROW[k]}),ISNUMBER({c}{MROW[rk]}),{c}{MROW[rk]}<>0", f"{c}{MROW[k]}/{c}{MROW[rk]}")
+            CM = (lambda c: (f"ISNUMBER({c}{CROW[k]}),ISNUMBER({c}{CROW[rk]}),{c}{CROW[rk]}<>0", f"{c}{CROW[k]}/{c}{CROW[rk]}")) if k in CROW and rk in CROW else None
+            GMg = (lambda c: (f"{GOKX(k, c)},{GOKX(rk, c)}", f"{MIDX(k, c)}/{MIDX(rk, c)}")) if k in GLO and rk in GLO else None
+            AM = lambda c: (f"ISNUMBER({c}{AROW[k]}),ISNUMBER({c}{AROW[rk]}),{c}{AROW[rk]}<>0", f"{c}{AROW[k]}/{c}{AROW[rk]}")
+
+            def _pt(a, b, act):
+                def f(j, c):
+                    if a is None or b is None:
+                        return f'=IF(ISNUMBER({c}{AROW[k]}),"不適用","")' if act else "不適用"
+                    (ca, va), (cb, vb) = a(c), b(c)
+                    core = f'IF(AND({ca},{cb}),{va}-{vb},"不適用")'
+                    return f'=IF(ISNUMBER({c}{AROW[k]}),{core},"")' if act else "=" + core
+                return f
+            P_ = {}
+            P_['mc'] = qrow(f"差距｜{m['label']}｜模型 vs 共識（利潤率 pt）", "pt", _pt(MM, CM, False), PCT)
+            P_['mg'] = qrow(f"差距｜{m['label']}｜模型 vs 指引中點（利潤率 pt）", "pt", _pt(MM, GMg, False), PCT)
+            P_['am'] = qrow(f"差距｜{m['label']}｜實際 vs 模型（利潤率 pt）", "pt", _pt(AM, MM, True), PCT)
+            P_['ac'] = qrow(f"差距｜{m['label']}｜實際 vs 共識（利潤率 pt）", "pt", _pt(AM, CM, True), PCT)
+            P_['ag'] = qrow(f"差距｜{m['label']}｜實際 vs 指引中點（利潤率 pt）", "pt", _pt(AM, GMg, True), PCT)
+            GPT[k] = P_
+
+    def _DTX(x, u, dp=2):  # 金額差文字（與 HTML dTxtQ 同格式）
+        return f'IF({x}<0,"−","+")&' + _VX(f"ABS({x})", u, dp)
+
+    def _GTX(k, key, c, u):  # 差距文字（與 HTML gTxtQ 同格式）
+        g = f"{c}{GAP[k][key]}"
+        if KIND[k] == 'diff':
+            s = _DTX(g, u)
+            if k in GPT:
+                p_ = f"{c}{GPT[k][key]}"
+                s += f'&IF(ISNUMBER({p_}),"／"&{_GX(p_, True)},"")'
+            return s
+        return _GX(g, KIND[k] == 'pt')
+
+    def _EXC(k, g, b):  # 超過門檻：比例／百分點＝|差|>門檻；金額差＝|差|>門檻 × |比較基準|
+        if KIND[k] == 'diff':
+            return f"OR(AND({b}<>0,ABS({g})>{TOLX}*ABS({b})),AND({b}=0,{g}<>0))"
+        return f"ABS({g})>{TOLX}"
+    # 差異原因（已決定事項 2）：拆法＝所屬期間合計差距在門檻內（指引另須在隱含區間內）；模型落在指引區間外也須附原因；其餘讀 varianceReasons；找不到為「未歸類」
+    VSN = {"consensus": "vs 共識", "guidance": "vs 指引中點", "actual": "實際 vs 模型"}
+    RSN, RTY = {}, {}
+    _PG = QC.get('periodGuidance') or {}
+    CNM = {"consensus": "共識合計", "guidance": "指引隱含"}
+    _PCX = lambda x: f'TEXT(({x})*100,"#,##0.0")&"%"'
+
+    def _NEED(k, gk, c, g, b):  # 需附原因：利潤類（marginOf）＝利潤率差 > PM_TOL（pt 無值時沿用比較基準門檻）；其餘＝比較基準門檻
+        base = _EXC(k, g, b)
+        if k in GPT and PM_TOL:
+            p_ = f"{c}{GPT[k][gk]}"
+            return f"IF(ISNUMBER({p_}),ABS({p_})>{PM_TOL},{base})"
+        return base
+    for m in QMET:
+        k, u = m['key'], m['unit']
+        if KIND[k] == 'pt':
+            continue
+        # 期間合計的比較基準與差距拆解（水準＝(模型期間 − 比較期間) × 比較季占比；分配＝(模型季占比 − 比較季占比) × 模型期間）
+        DEC = {}
+        for vs in ("consensus", "guidance"):
+            if k not in ANN:
+                continue
+            if vs == "consensus" and k in CROW:
+                bfn = lambda j, c: (f'=IF(COUNT(' + ",".join(f"{x}{CROW[k]}" for x in POS_[j][3]) + f')={POS_[j][2]},' + "+".join(f"{x}{CROW[k]}" for x in POS_[j][3]) + ',"不適用")')
+                cq = lambda c: f"{c}{CROW[k]}"
+            elif vs == "guidance" and k in GLO and any(k in v for v in _PG.values()):
+                def bfn(j, c):
+                    P = POS_[j][0]
+                    if not _PG.get(str(P), {}).get(k):
+                        return "不適用"
+                    n = f"期間指引｜{PN[PERS.index(P)]} {m['label']}（全年低／全年高／扣除 1H 實際）"
+                    return f"=('輸入與假設'!$C${JQ[n]}+'輸入與假設'!$D${JQ[n]})/2-'輸入與假設'!$E${JQ[n]}"
+                cq = lambda c: MIDX(k, c)
+            else:
+                continue
+            B = qrow(f"合計基準｜{m['label']}｜vs {'共識' if vs == 'consensus' else '指引'}", u, bfn, NUM,
+                     "所屬期間的季度共識合計" if vs == "consensus" else "所屬期間的隱含指引中點（全年指引中點 − 1H 實際）")
+            ok = lambda c, B=B, cq=cq: f"ISNUMBER({c}{B}),{c}{B}<>0,ISNUMBER({cq(c)}),ISNUMBER({c}{MROW[k]})"
+            L = qrow(f"拆解｜{m['label']}｜vs {'共識' if vs == 'consensus' else '指引'}｜水準", u, lambda j, c, B=B, cq=cq, ok=ok: (
+                f'=IF(AND({ok(c)}),({ANN[k](POS_[j][0])}-{c}{B})*({cq(c)})/{c}{B},"不適用")'), NUM, "(模型期間 − 比較期間) × 比較的季占比")
+            A_ = qrow(f"拆解｜{m['label']}｜vs {'共識' if vs == 'consensus' else '指引'}｜分配", u, lambda j, c, B=B, cq=cq, ok=ok: (
+                f'=IF(AND({ok(c)}),({c}{MROW[k]}/{ANN[k](POS_[j][0])}-({cq(c)})/{c}{B})*{ANN[k](POS_[j][0])},"不適用")'), NUM, "(模型季占比 − 比較季占比) × 模型期間；水準＋分配＝季度差距")
+            DEC[vs] = (B, L, A_, cq)
+        for vs, gk in (("consensus", "mc"), ("guidance", "mg"), ("actual", "am")):
+            def _rs(j, c, typ_only=False, vs=vs, gk=gk, k=k, u=u, m=m, DEC=DEC):
+                q = QS[j]; P = POS_[j][0]; pn = PN[PERS.index(P)]; G = f"{c}{GAP[k][gk]}"
+                cfg = _find_rsn('quarter', q['key'], k, vs)
+                head = f'"{m["label"]} {VSN[vs]} "&{_GTX(k, gk, c, u)}&"：'
+
+                def ctx(path):  # 原因文字的 {路徑}：q.＝本季模型值、c.＝本季共識（I 區）、g.＝本季指引中點、lq.＝latestQuarter（常數）
+                    if path == 'q.da':
+                        return f"{c}{QT['車隊折舊（模型）']}"
+                    if path == 'q.mwAvg':
+                        return f"{c}{_AV}"
+                    if path.startswith('q.') and path[2:] in MROW:
+                        return f"{c}{MROW[path[2:]]}"
+                    if path.startswith('c.'):
+                        return ciq(path[2:], q['key'])  # 該季沒有共識＝None
+                    if path.startswith('g.'):
+                        return MIDX(path[2:], c) if path[2:] in GLO and QC.get('guidance', {}).get(q['key'], {}).get(path[2:]) else None
+                    if path.startswith('lq.'):
+                        return repr(float(CO['latestQuarter'][path[3:]]))
+                    raise KeyError(f"varianceReasons 路徑無法對應 Excel 儲存格：{path}")
+                base = {"consensus": f"{c}{CROW[k]}" if k in CROW else None, "guidance": MIDX(k, c) if k in GLO else None, "actual": f"{c}{MROW[k]}"}[vs]
+                if base is None:
+                    return ""
+                trig = _NEED(k, gk, c, G, base)
+                if vs == "guidance":
+                    trig = f"OR({trig},{c}{MROW[k]}>{c}{GHI[k]},{c}{MROW[k]}<{c}{GLO[k]})"
+                if vs == "actual":
+                    if not cfg:
+                        return ""
+                    body = f'"{cfg["type"]}"' if typ_only else f'{head}{cfg["type"]}（"&{_TOKX(cfg["text"], ctx)}&"）"'
+                    return f'=IF(ISNUMBER({G}),IF({trig},{body},""),"")'
+                other = (f'"{cfg["type"]}"' if typ_only else f'{head}{cfg["type"]}（"&{_TOKX(cfg["text"], ctx)}&"）"') if cfg else ('"未歸類"' if typ_only else f'{head}未歸類（差異原因待補）"')
+                inner = other
+                if vs in DEC:
+                    B, L, A_, cq = DEC[vs]
+                    Lc, Ac, Bc, AP = f"{c}{L}", f"{c}{A_}", f"{c}{B}", ANN[k](P)
+                    mS, cS = f"{c}{MROW[k]}/{AP}", f"({cq(c)})/{Bc}"
+                    split = '"拆法"' if typ_only else (f'{head}拆法（分配 "&{_DTX(Ac, u, 3)}&"（{q["label"]} 占 {pn} "&{_PCX(mS)}&"，{CNM[vs]} "&{_PCX(cS)}&"）；水準 "&{_DTX(Lc, u, 3)}&"）"')
+                    vtype = cfg["type"] if cfg else "觀點"
+                    view = f'"{vtype}"' if typ_only else (f'{head}{vtype}（水準 "&{_DTX(Lc, u, 3)}&"（{pn} 模型 "&{_VX(AP, u, 3)}&"，{CNM[vs]} "&{_VX(Bc, u, 3)}&"）；分配 "&{_DTX(Ac, u, 3)}'
+                                                           + (f'&"；"&{_TOKX(cfg["text"], ctx)}' if cfg else '') + '&"）"')
+                    inner = f'IF(ISNUMBER({Lc}),IF(ABS({Ac})>ABS({Lc}),{split},{view}),{other})'
+                return f'=IF(ISNUMBER({G}),IF({trig},{inner},""),"")'
+            RSN[(k, vs)] = qrow(f"原因｜{m['label']}｜{VSN[vs]}", "", _rs, '@')
+            RTY[(k, vs)] = qrow(f"原因類型｜{m['label']}｜{VSN[vs]}", "", lambda j, c, f=_rs: f(j, c, True), '@')
+    _rl = [RSN[x] for m in QMET for x in [(m['key'], v) for v in ("consensus", "guidance", "actual")] if x in RSN]
+    qrow("差異原因（一行）", "", lambda j, c: "=MID(" + "&".join(f'IF({c}{x}<>"","；"&{c}{x},"")' for x in _rl) + ",2,9999)", '@')
+    TAG = {}
+    for m in QMET:
+        ts = [RTY[(m['key'], v)] for v in ("consensus", "guidance", "actual") if (m['key'], v) in RTY]
+        if not ts:
+            continue
+        def _tag(j, c, ts=ts):
+            t = [f"{c}{x}" for x in ts]
+            s = t[0]
+            for i in range(1, len(t)):
+                prev = t[:i]
+                s += f'&IF(AND({t[i]}<>"",' + ",".join(f"{t[i]}<>{p}" for p in prev) + f'),IF(({"&".join(prev)})<>"","、","")&{t[i]},"")'
+            return f'=IF(({s})<>"","〔"&({s})&"〕","")'
+        TAG[m['key']] = qrow(f"原因標籤｜{m['label']}", "", _tag, '@')
+    # 驗證點句（與 HTML quarterlyView.line 同格式）
+    LINE = {}
+    for m in QMET:
+        k, u = m['key'], m['unit']
+
+        def _ln(j, c, k=k, u=u, m=m):
+            M = f"{c}{MROW[k]}"
+            gx = lambda key: f"{c}{GAP[k][key]}"
+            gtx = lambda key: f'IF(ISNUMBER({gx(key)}),{_GTX(k, key, c, u)},"不適用")'
+            s = f'="{m["label"]}：模型 "&IF(ISNUMBER({M}),{_VX(M, u)},"不適用")'
+            if k in CROW:
+                C_ = f"{c}{CROW[k]}"
+                s += f'&IF(ISNUMBER({C_}),"｜共識 "&{_VX(C_, u)}&"（"&{gtx("mc")}&"）","")'
+            txt = f'IF({c}{GTX[k]}<>"","｜指引（文字）"&{c}{GTX[k]},"")' if k in GTX else '""'
+            if k in GLO:
+                lo, hi = f"{c}{GLO[k]}", f"{c}{GHI[k]}"
+                s += f'&IF(AND(ISNUMBER({lo}),ISNUMBER({hi})),"｜指引 "&{_RX(lo, hi, u)}&"（中點 "&{gtx("mg")}&"，"&{_POS(M, lo, hi)}&"）",{txt})'
+            elif k in GTX:
+                s += f'&{txt}'
+            A = f"{c}{AROW[k]}"
+            act = f'"｜實際 "&{_VX(A, u)}&"（較模型 "&{gtx("am")}'
+            if k in CROW:
+                C_ = f"{c}{CROW[k]}"
+                act += f'&IF(ISNUMBER({C_}),"、較共識 "&{gtx("ac")},"")'
+            if k in GLO:
+                lo, hi = f"{c}{GLO[k]}", f"{c}{GHI[k]}"
+                act += f'&IF(AND(ISNUMBER({lo}),ISNUMBER({hi})),"、"&{_POS(A, lo, hi)},"")'
+            s += f'&IF(ISNUMBER({A}),{act}&"）","")'
+            if k in TAG:
+                s += f'&{c}{TAG[k]}'
+            return s
+        LINE[k] = qrow(f"句｜{m['label']}", "", _ln, '@')
+    # 期間合計核對（季度加總＝年度模型；應全為 0）
+    r += 1
+    ws.cell(row=r, column=1, value="核對｜季度加總 − 年度模型（應為 0；欄＝期間 " + "、".join(PN) + "）").font = BOLD; r += 1
+    for nm, row_, annf in (("營收", _RV_, ANN["revenue"]), ("調整後 EBITDA", QT["調整後 EBITDA（模型）"], ANN["adjEbitda"]),
+                           ("調整後營業利益", QT["調整後營業利益（模型）"], ANN["adjOpInc"]), ("CapEx（毛額）", QT["CapEx（毛額）（模型）"], ANN["capex"]),
+                           ("車隊折舊", QT["車隊折舊（模型）"], lambda P: IA("D&A（車隊）", P))):
+        QT[f"核對｜{nm}"] = r
+        ws.cell(row=r, column=1, value=f"核對｜{nm}").font = BLACK
+        for pi, P in enumerate(PERS):
+            cols = [QCL[x] for x in range(NQ) if QS[x]['period'] == P]
+            c = ws.cell(row=r, column=3 + pi, value="=" + "+".join(f"{x}{row_}" for x in cols) + f"-{annf(P)}"); c.number_format = '0.000000'; c.border = BOX
+        r += 1
+    # ---------------- 第 1 區：焦點季（第一屏） ----------------
+    r1 = 4
+    section(ws, r1, "1｜焦點季（『輸入與假設』J 區選擇）：模型／共識／指引／實際與差距", span=17)
+    FH = r1 + 1
+    for j, h in enumerate(["指標", "單位", "模型", "共識", "模型 vs 共識", "指引（低）", "指引（高）", "模型 vs 指引中點", "實際", "實際 vs 模型", "實際 vs 共識", "實際 vs 指引中點",
+                           "利潤率 pt：模型 vs 共識", "模型 vs 指引", "實際 vs 模型", "實際 vs 共識", "實際 vs 指引"]):
+        c = ws.cell(row=FH, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
+    IX = lambda row_: f"INDEX($C${row_}:${QCL[-1]}${row_},{FOCUS})"
+    for i, m in enumerate(QMET):
+        rr = FH + 1 + i; k, u = m['key'], m['unit']
+        QT[f"焦點｜{m['label']}"] = rr
+        ws.cell(row=rr, column=1, value=f"焦點｜{m['label']}").font = BLACK
+        ws.cell(row=rr, column=2, value=u).font = SMALL
+        fmt = PCT if u == "%" else (NUM0 if u == "MW" else NUM)
+        _lo = (f'=IF(ISNUMBER({IX(GLO[k])}),{IX(GLO[k])},' + (f'IF({IX(GTX[k])}<>"",{IX(GTX[k])},"不適用"))' if k in GTX else '"不適用")')) if k in GLO else (
+            f'=IF({IX(GTX[k])}<>"",{IX(GTX[k])},"不適用")' if k in GTX else "不適用")
+        vals = [f"={IX(MROW[k])}", f"={IX(CROW[k])}" if k in CROW else "不適用", f"={IX(GAP[k]['mc'])}",
+                _lo, f"={IX(GHI[k])}" if k in GLO else "不適用", f"={IX(GAP[k]['mg'])}",
+                f'=IF(ISNUMBER({IX(AROW[k])}),{IX(AROW[k])},"待公布")', f"={IX(GAP[k]['am'])}", f"={IX(GAP[k]['ac'])}", f"={IX(GAP[k]['ag'])}"]
+        vals += [f"={IX(GPT[k][x])}" if k in GPT else "" for x in ("mc", "mg", "am", "ac", "ag")]
+        gf = _GFMT(k, u)
+        for j, v in enumerate(vals):
+            c = ws.cell(row=rr, column=3 + j, value=v); c.border = BOX
+            c.number_format = gf if j in (2, 5, 7, 8, 9) else (PCT if j >= 10 else fmt)
+    rr = FH + 1 + NM_
+    QT["焦點｜季度"] = rr
+    ws.cell(row=rr, column=1, value="焦點｜季度").font = BOLD
+    ws.cell(row=rr, column=3, value=f"=INDEX($C${HDR}:${QCL[-1]}${HDR},{FOCUS})").font = BOLD
+    QT["焦點｜差異原因"] = rr + 1
+    ws.cell(row=rr + 1, column=1, value="焦點｜差異原因").font = BOLD
+    ws.cell(row=rr + 1, column=3, value=f'=IF({IX(QT["差異原因（一行）"])}="","無（差距皆在 "&{_PC(CONS_TOL)}&" 以內）",{IX(QT["差異原因（一行）"])})')
+    ws.freeze_panes = "C6"
+    ws = wb["輸入與假設"]
 
 # =====================================================================
 # v4.3：摘要（一頁摘要；放在「導覽」之後）。全部活公式，與 HTML 總結頁第 1 頁同一組數字與字串（cmp31 逐項比對）
@@ -2309,8 +2842,13 @@ for k in ["營收", "調整後 EBITDA", "EBITDA 率", "CapEx（毛額）", "淨�
     srow(f"差異｜{k}｜差距", "%", [f"={c}{r-2}/{c}{r-1}-1" for c in "CDE"], PCT,
          "共識淨負債不含租賃、口徑未揭露：只列不判斷" if k == "淨負債" else ("共識 CapEx 口徑未揭露；FY26＝1H 實際毛額＋2H 模型毛額" if k.startswith("CapEx") else
          ("FY26 模型＝1H 實際調整後 EBITDA（輸入與假設 G 區，報導轉述 [Verified]）＋2H 模型" if k == "調整後 EBITDA" else None)))
+    if k in ("調整後 EBITDA", "淨負債"):  # v4.4：利潤類與淨負債以金額差呈現（比例列保留作判斷門檻）
+        srow(f"差異｜{k}｜差距（金額）", "US$bn", [f"={c}{r-3}-{c}{r-2}" for c in "CDE"], NUM, "與 HTML 一頁摘要、市場共識分頁同一呈現；判斷門檻仍用上一列比例")
 _gr = {"營收": SM["差異｜營收｜差距"], "EBITDA": SM["差異｜調整後 EBITDA｜差距"], "CapEx": SM["差異｜CapEx（毛額）｜差距"]}
-srow("差異｜分歧項目（超過門檻者）", "", [("=MID(" + "&".join(f'IF(ABS({c}{_gr[n]})>{CONS_TOL},"、{n} "&{_G(f"{c}{_gr[n]}")},"")' for n in ("營收", "EBITDA", "CapEx")) + ",2,999)") for c in "CDE"],
+_DX = lambda x: f'IF({x}<0,"−","+")&"$"&TEXT(ABS({x}),"#,##0.00")&"bn"'  # 與 HTML dTxtQ 同格式
+_GT = lambda n, c: (f'{_DX(c + str(SM["差異｜調整後 EBITDA｜差距（金額）"]))}&"／"&{_G(c + str(SM["差異｜EBITDA 率｜差距（百分點）"]), True)}'
+                    if n == "EBITDA" else _G(f"{c}{_gr[n]}"))  # EBITDA：金額差／EBITDA 率百分點
+srow("差異｜分歧項目（超過門檻者）", "", [("=MID(" + "&".join(f'IF(ABS({c}{_gr[n]})>{CONS_TOL},"、{n} "&{_GT(n, c)},"")' for n in ("營收", "EBITDA", "CapEx")) + ",2,999)") for c in "CDE"],
      NUM, "營收、EBITDA、CapEx 任一項差距絕對值超過門檻即列出（與 HTML 判斷句同一規則）")
 _L = SM["差異｜分歧項目（超過門檻者）"]
 srow("差異｜分歧起始年（1＝FY26…3＝FY28；0＝無）", "", [f'=IF(C{_L}<>"",1,IF(D{_L}<>"",2,IF(E{_L}<>"",3,0)))'], NUM0)
@@ -2320,6 +2858,44 @@ srow("差異｜判斷句", "", [(f'=CHOOSE({_F}+1,"FY26–FY28 營收、EBITDA�
                           f'"分歧始於 FY26（"&C{_L}&"）"&{_nx("D", "FY27")}&{_nx("E", "FY28")}&"。",'
                           f'"FY26 營收、EBITDA、CapEx 與共識差距在 "&{_T}&" 以內；分歧始於 FY27（"&D{_L}&"）"&{_nx("E", "FY28")}&"。",'
                           f'"FY26–FY27 營收、EBITDA、CapEx 與共識差距在 "&{_T}&" 以內；分歧始於 FY28（"&E{_L}&"）。")')], bold=True)
+# v4.4：差距超過門檻的項目附差異原因（已決定事項 2；原因讀 company.json → varianceReasons，與 HTML consensusView 同一組字串）
+_ANK = [("營收", "rev", "營收"), ("EBITDA", "ebitda", "調整後 EBITDA"), ("CapEx", "capex", "CapEx（毛額）"), ("淨負債", "nd", "淨負債")]
+_SMK = {"rev": "營收", "ebitda": "調整後 EBITDA", "ebM": "EBITDA 率", "capex": "CapEx（毛額）", "nd": "淨負債"}
+_YRS = ["FY26", "FY27", "FY28"]
+_RT = []
+for _yi, _yr in enumerate(_YRS):
+    _c = "CDE"[_yi]
+    for _n, _k, _full in _ANK:
+        _cfg = _find_rsn('annual', _yr, _k, 'consensus')
+        if not _cfg:
+            continue
+        _g = f"{_c}{SM[f'差異｜{_full}｜差距']}"
+        def _actx(path, _c=_c, _yi=_yi):  # 原因文字的 {路徑}：m／c／gap＝本頁差異列、y＝年度引擎列、in＝輸入格
+            a, b = path.split('.', 1)
+            if a in ('m', 'c'):
+                return f"{_c}{SM['差異｜' + _SMK[b] + '｜' + ('模型' if a == 'm' else '共識')]}"
+            if a == 'gap':
+                return f"{_c}{SM['差異｜EBITDA 率｜差距（百分點）' if b == 'ebM' else '差異｜' + _SMK[b] + '｜差距']}"
+            if a == 'y':
+                return {"mwNew": f"'輸入與假設'!{COLS[_yi]}${IN['本期新增 MW']}", "accepted": f"'輸入與假設'!{COLS[_yi]}${_acc}",
+                        "costMW": f"'輸入與假設'!{COLS[_yi]}${IN['每 MW 建置成本']}"}[b]
+            if a == 'in':
+                return {"ebStart": EB0, "ebSteady": EBSS}[b]
+            raise KeyError(f"varianceReasons 路徑無法對應 Excel 儲存格：{path}")
+        _cond = (f"ABS({_c}{SM['差異｜EBITDA 率｜差距（百分點）']})>{PM_TOL}" if _k == "ebitda" and PM_TOL else f"ABS({_g})>{CONS_TOL}")  # EBITDA：利潤率差門檻
+        srow(f"差異原因｜{_yr}｜{_n}", "", [f'=IF({_cond},"{_cfg["type"]}","")', f'=IF({_cond},{_TOKX(_cfg["text"], _actx)},"")'], NUM,
+             "C＝類型、D＝原因（需附原因時顯示；EBITDA 以利潤率差、其餘以比例門檻判斷）" if not _RT else None)
+        _RT.append(SM[f"差異原因｜{_yr}｜{_n}"])
+_GR4 = [SM[f"差異｜{_full}｜差距"] for _n, _k, _full in _ANK]
+_GR4 = [SM["差異｜EBITDA 率｜差距（百分點）"] if (_k == "ebitda" and PM_TOL) else SM[f"差異｜{_full}｜差距"] for _n, _k, _full in _ANK]
+_TL4 = [PM_TOL if (_k == "ebitda" and PM_TOL) else CONS_TOL for _n, _k, _full in _ANK]
+srow("差異｜需附原因項數", "", ["=" + "+".join(f"SUMPRODUCT(--(ABS(C{g}:E{g})>{t}))" for g, t in zip(_GR4, _TL4))], NUM0, "營收、EBITDA（利潤率差）、CapEx、淨負債 × FY26–FY28")
+_NX = f"C{SM['差異｜需附原因項數']}"
+_cnt = lambda t: ("+".join(f'COUNTIF(C{x},"{t}")' for x in _RT) or "0")
+_parts = "&".join(f'IF(({_cnt(t)})>0,"、{t} "&({_cnt(t)})&" 項","")' for t in RSN_TYPES[:-1])
+_unx = f"({_NX}-(" + "+".join(f"({_cnt(t)})" for t in RSN_TYPES[:-1]) + "))"
+srow("差異｜差異原因摘要", "", [f'=IF({_NX}=0,"","需附原因的 "&{_NX}&" 項差距："&MID({_parts}&IF({_unx}>0,"、未歸類 "&{_unx}&" 項",""),2,999)&"；原因見「損益與評價 → 市場共識」。")'],
+     NUM, "與 HTML 一頁摘要同一句")
 
 r += 1
 r = section(ws, r, "3｜現價隱含什麼")
@@ -2339,30 +2915,30 @@ for k, nm in enumerate(["反向 DCF｜FY30 每 MW 年收入（目前／隱含／
 
 r += 1
 r = section(ws, r, "4｜驗證點與市場看法（賣方與管理層數字標記 Interested-party）")
-_q, _qe, _glo, _ghi = CIR("季度｜營收", 0), CIR("季度｜EBITDA", 0), CIR("公司指引｜Q3 營收（低／高）", 0), CIR("公司指引｜Q3 營收（低／高）", 1)
-srow("驗證｜Q3 共識營收／EBITDA", "US$bn", [f"={_q}", f"={_qe}"], '#,##0.000', "Q3 財報預計 11/9 [Interested-party]")
-srow("驗證｜公司 Q3 營收指引（低／高）", "US$bn", [f"={_glo}", f"={_ghi}"], NUM, "管理層預估 [Interested-party]")
-srow("驗證｜Q3 句", "", [(f'="Q3 共識營收 $"&TEXT({_q},"0.00")&"bn "&IF({_q}>{_ghi},"高於公司指引上緣",IF({_q}<{_glo},"低於公司指引下緣",IF({_q}>=({_glo}+{_ghi})/2,"位於公司指引上半部","位於公司指引下半部")))'
-                        f'&"（$"&TEXT({_glo},"0.00")&"–$"&TEXT({_ghi},"0.00")&"bn）；共識 EBITDA $"&TEXT({_qe},"0.00")&"bn。"')], bold=True)
+if QC:  # v4.4：驗證點改為引用「季度追蹤」焦點季（company.json → quarterly.keyMetrics）
+    _QTS = "'季度追蹤'!"
+    srow("驗證｜焦點季", "", [f"={_QTS}C{QT['焦點｜季度']}"], NUM, "『輸入與假設』J 區選擇；季度層由年度模型拆分，只用於追蹤")
+    for _k in QC.get('keyMetrics', []):
+        _m = next(x for x in QMET if x['key'] == _k); _fr = QT[f"焦點｜{_m['label']}"]
+        srow(f"驗證｜{_m['label']}（模型／共識／指引低／指引高／實際）", _m['unit'], [f"={_QTS}{c}{_fr}" for c in "CDFGI"],
+             PCT if _m['unit'] == "%" else NUM, "共識、指引為 Interested-party")
+        srow(f"驗證｜{_m['label']}｜句", "", [f"=INDEX({_QTS}$C${LINE[_k]}:${QCL[-1]}${LINE[_k]},{FOCUS})"], bold=True)
 srow("驗證｜評等分布（強力買進／買進／持有／賣出／強力賣出）", "家", [f"={CIR('評等分布｜' + a)}" for a in ("強力買進", "買進", "持有", "賣出", "強力賣出")], NUM0,
      f"{CONS['ratings']['month']}，合計 {CONS['ratings']['total']} 家 [Interested-party]")
 srow("驗證｜目標價（平均／中位數／最低／最高）", "US$", [f"={CIR('目標價｜' + a)}" for a in ("平均", "中位數", "最低", "最高")], USD,
      f"{CONS['priceTarget']['analysts']} 家；{CONS['priceTarget']['source']}，擷取 {CONS['priceTarget']['retrieved']} [Interested-party]")
-for x in CONS['recentActions']:
-    k = f"分析師動作｜{x['date']} {x['firm']}"
-    srow(f"驗證｜{k}", "US$", [f"={CIR(k)}" if x['target'] is not None else "目標價未列"], USD, x['rating'] + " [Interested-party]")
 ws.cell(row=r + 1, column=1, value="來源獨立性：" + CONS['sourceIndependence']).font = SMALL
-ws.cell(row=r + 2, column=1, value=f"共識來源：{CONS['annualEstimates']['source']}、{CONS['priceTarget']['source']}、{CONS['recentActionsMeta']['source']}；擷取 {CONS['annualEstimates']['retrieved']}。逐筆來源、日期與標記見『輸入與假設』I 區。").font = SMALL
+ws.cell(row=r + 2, column=1, value=f"共識來源：{CONS['annualEstimates']['source']}、{CONS['priceTarget']['source']}；擷取 {CONS['annualEstimates']['retrieved']}。逐筆來源、日期與標記見『輸入與假設』I 區。").font = SMALL
 
 for s in wb.worksheets:
     s.sheet_view.showGridLines = False
     if s.title not in ("導覽", "來源", "摘要"):
         s.freeze_panes = "C5"
 
-_order = ["導覽", "摘要", "輸入與假設", "各期收支", "運營_產能與收入", "運營_站點", "資產負債_既有債務", "資產負債_新債與新股",
+_order = ["導覽", "摘要", "輸入與假設", "各期收支", "季度追蹤", "運營_產能與收入", "運營_站點", "資產負債_既有債務", "資產負債_新債與新股",
           "資產負債_租賃承諾", "損益", "評價_DCF與目標價", "評價_反向DCF", "評價_可比公司", "檢查_連動", "檢查_版本紀錄", "來源"]
 wb._sheets = [wb[n] for n in _order] + [w for w in wb.worksheets if w.title not in _order]
-_tab = {"摘要": "C00000", "輸入與假設": "1F3864", "各期收支": "0F6B4C", "運營_產能與收入": "0F5C61", "運營_站點": "0F5C61",
+_tab = {"摘要": "C00000", "輸入與假設": "1F3864", "各期收支": "0F6B4C", "季度追蹤": "0F6B4C", "運營_產能與收入": "0F5C61", "運營_站點": "0F5C61",
         "資產負債_既有債務": "5B5778", "資產負債_新債與新股": "5B5778", "資產負債_租賃承諾": "5B5778",
         "損益": "C4A35A", "評價_DCF與目標價": "9F1239", "評價_可比公司": "9F1239", "評價_反向DCF": "9F1239", "檢查_連動": "808080", "檢查_版本紀錄": "808080", "來源": "808080"}
 for _n, _c in _tab.items():
@@ -2373,7 +2949,7 @@ import json as _json
 # 輸出位置相對於 repo 根目錄：預設 out/；可用第 1 個參數指定 xlsx 路徑（outline.json 一律寫在 out/）
 _OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "out")
 _osrv.makedirs(_OUT_DIR, exist_ok=True)
-_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_3.xlsx")
+_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260926_CoreWeave收支模型_v4_4.xlsx")
 _json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
 wb.save(_xlsx)
 print("saved", _xlsx)

@@ -762,7 +762,7 @@ function AM({
               w: 440
             })]
           })]
-        }), a === 5 && (0, $.jsx)(ConsTabQ, { d: e, p: r, o: n, tr: TR }), a === 3 && (0, $.jsxs)(Jj, {
+        }), a === 5 && (0, $.jsx)(ConsTabQ, { d: e, p: r, o: n, tr: TR, st: t }), a === 3 && (0, $.jsxs)(Jj, {
           children: [(0, $.jsxs)(`div`, {
             className: `flex flex-wrap items-center gap-2`,
             children: [(0, $.jsx)(`h2`, {

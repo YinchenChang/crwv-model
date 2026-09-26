@@ -129,6 +129,7 @@ F = [
  ('methodology.blendWeights.pe', '加權目標價中 EV/EBITDA 的權重（兩者合計 1）', '比例', K),
  ('methodology.rangeMultiples', '方法區間的 EV/EBITDA 倍數下端與上端', '倍 清單', C),
  ('methodology.consensusGapTol', '與市場共識比較的判斷句門檻：營收、EBITDA、CapEx 差距絕對值超過此比例即視為分歧（v4.3）', '比例', K),
+ ('methodology.profitMarginTolPt', '利潤類（調整後 EBITDA、調整後營業利益）須附差異原因的門檻：利潤率差超過此百分點（寫成比例，0.02＝2pt）；營收、CapEx、淨負債、MW 仍用 consensusGapTol 的比例門檻；不影響分歧判斷句（v4.4）', '比例', K),
  ('methodology.rating.buyUpsideMin', '買進：空間（加權目標價 ÷ 現價 − 1）至少要達到的值', '比例', K),
  ('methodology.rating.buyTvShareMax', '買進：終值占企業價值須低於此值', '比例', K),
  ('methodology.rating.sellUpsideMax', '賣出：空間小於或等於此值即賣出；賣出門檻價＝現價 ×（1＋此值）', '比例（負數）', K),
@@ -143,6 +144,26 @@ F = [
  ('peers.textHtml.caveat', 'HTML Comps 表下方的「口徑與限制」', '文字', M),
  ('peers.textXlsx.subtitle', 'Excel「可比公司」頁第 2 列說明', '文字', M),
  ('peers.textXlsx.notes', 'Excel「可比公司」頁表下方的讀法說明（每句一列）', '文字清單', M),
+ # v4.4：季度層與差異原因
+ ('quarterly._note', '季度層的說明文字（不進程式）', '文字', K),
+ ('quarterly.quarters', '追蹤的季度，一季一列：key 季別代碼（與共識檔 quarterlyEstimates 的鍵相同，例如 2026Q3）、label 顯示名稱、period 所屬模型期（0＝第 1 期…）、reportNote 財報日說明（選填）。季度加總必須等於所屬模型期的年度數字', '清單', M),
+ ('quarterly.periodNames', '各所屬模型期的顯示名稱（依期別順序，例如 2H26、FY27）', '文字清單', M),
+ ('quarterly.focus', '焦點季（「季度追蹤」第一屏與一頁摘要驗證點顯示的季度；財報後改為下一季）', '季別代碼', M),
+ ('quarterly.keyMetrics', '一頁摘要「驗證點」列出的指標（2–3 項；metrics 的 key）', '文字清單', C),
+ ('quarterly.driver', '拆分依據：type＝mw 時依 MW 內插（endStart＝第 1 期期初 Accepted MW、endStartNote 來源）；type＝none（沒有 MW 資料的公司）時營收依 revenueSplit、CapEx 平分，MW 列顯示「不適用」', '物件', C),
+ ('quarterly.revenueSplit', '各所屬模型期的營收拆法：anchor＝從 revenueAnchor 逐季線性爬升、driverAvg＝依平均在役 MW、equal＝平分', '文字清單', C),
+ ('quarterly.revenueAnchor', '營收拆法 anchor 的起點（最新一季實際營收）：value、label、tag', '物件', M),
+ ('quarterly.metrics', '追蹤的指標，一項一列：key（revenue、adjEbitda、ebitdaMargin、adjOpInc、capex、mw 之一）、label、unit（US$bn／%／MW）、gap 差距寫法（ratio＝比例，用於營收、CapEx；diff＝金額差；pt＝百分點）、marginOf 利潤類另列利潤率百分點時的分母指標（revenue）、consensus 共識檔季度欄位名（derived＝由共識 EBITDA ÷ 營收換算）、consensusSecondary／consensusSecondaryLabel 只列不比較的共識欄位、actualLabel 實際數列名稱', '清單', C),
+ ('quarterly.capexSplit', 'CapEx 拆法：guidanceAnchor＝有季度指引的季取指引中點、其餘季分配期間餘數（依新增 MW）；driverAdds（或不填）＝全部依新增 MW', '文字', C),
+ ('quarterly.guidanceText', '文字型指引（例如「調整後營業利益率 low teens」），{季別: {指標: {text, source, tag}}}：只列不計差距；完整支援（年增率、利潤率區間）列入待辦 5', '物件', M),
+ ('quarterly.guidance', '季度指引（公司預估），{季別: {指標: [低, 高]}}；沒有指引的季度或公司不填，顯示「不適用」', '物件', M),
+ ('quarterly.guidanceMeta', '季度指引的來源與標記', '物件', M),
+ ('quarterly.periodGuidance', '期間隱含指引，{模型期: {指標: {range: [全年低, 全年高], less: 已實現部分}}}：只用於判斷季度差距是否為「拆法」', '物件', M),
+ ('quarterly.periodGuidanceNote', '上一欄的說明文字', '文字', M),
+ ('quarterly.consistency', '建置檢查：[路徑 A, 路徑 B, 倍數（選填）]，兩者（B × 倍數）必須相同，否則建置失敗（防止同一數字在兩處不一致）', '清單', C),
+ ('quarterly.actuals', '季度實際數（公司公布後填入；預設空白＝待公布），{季別: {各指標, source, date, tag}}；Excel 對應「輸入與假設」J 區藍字格', '物件', M),
+ ('varianceReasons._note', '差異原因的說明文字（不進程式）', '文字', K),
+ ('varianceReasons.list', '差異原因（已決定事項 2），一筆一列：scope（annual 年度共識對照／quarter 季度）、period（FY27、2026Q3 或 *）、metric（年度：rev、ebitda、capex、nd；季度：metrics 的 key）、vs（consensus、guidance、actual 或 *）、type（觀點／已知限制）、text 一句原因，{路徑:格式} 由模型數字帶入。「拆法」由程式判定，不需填。差距超過 methodology.consensusGapTol 卻沒有原因時建置失敗', '清單', C),
 ]
 LQ = {
  'filed': ('申報日', '日期'), 'periodEnd': ('季末日', '日期'), 'revenue': ('當季營收', 'US$bn'), 'yoy': ('當季營收年增率', '比例'),
@@ -227,7 +248,8 @@ for q in doc: get(q)  # 說明了不存在的欄位會在此報錯
 SECT = [('meta', '基本資料'), ('periods', '模型期'), ('actual1H', '上半年實際數（10-Q）'), ('historicalPL', '歷年損益'),
         ('rpo', '已簽約未認列營收（RPO）'), ('leases', '租約'), ('debt', '既有債務'), ('latestQuarter', '最新一季財報數字（10-Q）'),
         ('callFacts', '法說會與期後事項'), ('scenarios', '三個擴張情境'), ('legacy', '舊版對照值'),
-        ('defaults', '預設假設（畫面上可調的輸入）'), ('valuation', '評價參數'), ('methodology', '評價方法與評等門檻'), ('peers', '同業比較（Comps）')]
+        ('defaults', '預設假設（畫面上可調的輸入）'), ('valuation', '評價參數'), ('methodology', '評價方法與評等門檻'), ('peers', '同業比較（Comps）'),
+        ('quarterly', '季度層（v4.4）'), ('varianceReasons', '差異原因（v4.4）')]
 out, shown = [], set()
 for top, title in SECT:
     out.append(f'\n### `{top}`：{title}\n')
