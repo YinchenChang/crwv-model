@@ -13,7 +13,7 @@
   "latestQuarterReported": "FY26Q2",
   "firstModelFY": null,
   "modelYears": 4,
-  "targetHorizon": "firstFullYearEnd"
+  "targetHorizon": "valuationPlus12m"
  },
  "ytdActual": {
   "throughQuarter": "FY26Q2",
