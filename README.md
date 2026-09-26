@@ -118,6 +118,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - **升版驗收**：對前一版成品做 `EXPECT=scripts/expect/v4_5_vs_v4_4.txt scripts/verify.sh --vs-dist`。清單列出預期變動的格（每格附原因），以及「區段 舊 => 新」「列 舊 => 新」改名對照；Excel 其餘須 0 差異。畫面文字差異另外分類說明。
 - **期間字樣**：說明文字以佔位符書寫，建置時換成目前日曆的字樣；期間特有的敘述與數字放 `texts`、`ytdActual.notes`。滾動後第一屏不得出現舊日曆字樣（`test_rolling.py` A；離線檢查另比對第一屏的資料更新日、模型期間、現價日與評價日）。
 - **反向 DCF**：`scripts/rv_solve.py` 以 Excel（LibreOffice UNO）求解，取代 JS 快照（verify.sh 步驟 3b）。
+- **目標價變動拆解**（已決定事項 12）：每次升版把目標價變動拆成 (a) 時間推移、(b) 實際數更新、(c) 假設變更、(d) 方法變更，依序重算，四項相加＝總變動，並列於版本紀錄。v4.5 全部屬 (d)。
 - **每季滾動流程**（已決定事項 10）：(1) 財報當天（新聞稿）：填 `quarterly.actuals`、`calendar.latestQuarterReported` 加一季、焦點季改為下一季；年度首期不動。(2) 10-Q／10-K 申報後：`calendar.latestQuarterFiled` 加一季；更新 `ytdActual`（含 `throughQuarter`、`months`、`label`、`notes`、`jvSplit`）、`historicalPL` 最後一格、`latestQuarter`、RPO 桶、債務與租賃到期表、`texts`（頁首來源一行、現金稅、首期股權組成）與各期清單（首期縮短一季）；建置時 `calendar_q.py` 檢查截止季與月數、`historicalPL` 與 `ytdActual.label` 的標籤是否一致。(3) 財年最後一季（10-K）後：首期為下一財年全年模型，模型期延長一年，需補新一年的假設（Andy 決定）。
 
 ## company.json 欄位說明（換公司填表指引）
