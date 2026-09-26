@@ -58,6 +58,31 @@
    "crossCheck": "MarketScreener 季度表同列 1,157／1,510，一致",
    "note": "公司公布之實際數，引用自財報報導轉述，非公司新聞稿原文",
    "usage": "只用於「與市場的差異」的 FY26 調整後 EBITDA 比較；模型 GAAP 損益與評價不使用"
+  },
+  "jvSplit": {
+   "jv": 0.55,
+   "strategic": 0.138
+  },
+  "notes": {
+   "cash1231": "10-Q 比較期資產負債表 [Verified]",
+   "cfo": "已含已付利息 0.806 與租賃付款 0.748 [Verified]",
+   "cashCapex": "現金流量表投資活動 [Verified]",
+   "capex": "PP&E 增加＋融資租賃−CIP 變動；與全年指引同口徑 [Verified]",
+   "jv": "JV 0.550＋策略投資 0.138 [Verified]",
+   "borrow": "融資活動流入 [Verified]",
+   "debtRepaid": "融資活動流出 [Verified]",
+   "cappedCall": "Q2 4.0bn 可轉債的 capped call [Verified]",
+   "equity": "NVIDIA 2.0 @$87.20、4 月 1.0 @$109 [Verified]",
+   "interest": "損益表；現金 0.806、資本化 0.176 [Verified]",
+   "leasePaid": "已含在 CFO 內，僅供對照 [Verified]",
+   "revenue": "Q1 2.078＋Q2 2.575 [Verified]",
+   "opInc": "[Verified]",
+   "ni": "[Verified]",
+   "prepay": "已含在 CFO 內，僅供對照 [Verified]",
+   "da": "現金流量表 [Verified]",
+   "sbc": "現金流量表 [Verified]",
+   "eps": "淨損 −1.366 ÷ 加權股數約 0.539 [Verified]",
+   "ngEps": "(−1.366＋0.318)÷0.539 [Derived]"
   }
  },
  "historicalPL": [
@@ -1205,5 +1230,10 @@
     "text": "淨負債隨 CapEx 與融資需求而定（模型 CapEx 差距 {gap.capex:gap}）；共識淨負債不含租賃、口徑未揭露"
    }
   ]
+ },
+ "texts": {
+  "fy0EquityNote": "«P0»＝«YTD» 私募股權 2.982＋«STUB» 可轉債淨現金 3.2＋ATM 上限 2.8",
+  "cashTaxNote": "H1 現金稅約 0.1bn",
+  "sourceLine": "Q2 2026 10-Q + 法說 + 9/17 8-K · 口徑分層"
  }
 }

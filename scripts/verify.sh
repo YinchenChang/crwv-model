@@ -97,6 +97,10 @@ step "8. 季度層測試（暫存副本：假設 Q3 實際數、可移植性；v
 if python3 scripts/test_quarterly.py > "$OUT/test_quarterly.log" 2>&1; then ok "test_quarterly：假設實際數與可移植性測試通過"; tail -3 "$OUT/test_quarterly.log"
 else bad "test_quarterly（見 $OUT/test_quarterly.log）"; tail -20 "$OUT/test_quarterly.log"; fi
 
+step "8b. 期間滾動測試（暫存副本：日曆推算 6 種情況、滾動後第一屏無過期日期與期間字樣；v4.5）"
+if python3 scripts/test_rolling.py > "$OUT/test_rolling.log" 2>&1; then ok "test_rolling：日曆推算與滾動後第一屏"; tail -3 "$OUT/test_rolling.log"
+else bad "test_rolling（見 $OUT/test_rolling.log）"; tail -30 "$OUT/test_rolling.log"; fi
+
 if (( VS_DIST )); then
   step "9. 與 dist/ 成品比對"
   python3 crawl.py "$DIST_HTML" "$OUT/crawl_dist.json"

@@ -24,8 +24,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | fix_outline.py | LibreOffice 重算後，補回 Excel 群組按鈕位置與收合狀態：`python3 fix_outline.py 檔案.xlsx [outline.json]`（預設讀 `out/outline.json`；v3.4 修正：outlinePr 依 schema 放在 tabColor 之後） |
 | fix_datatable.py | v4.1：LibreOffice 重算後，把模擬運算表（情境區間）由 `TABLE()` 一般公式還原為 Excel 的 `dataTable` 公式，保留算出的值：`python3 fix_datatable.py 檔案.xlsx` |
 | verify_ooxml.py | Excel 嚴格結構檢查（XML 格式、工作表與 sheetPr 子元素順序；v4.1 起另檢查模擬運算表存在且無殘留 `TABLE()`）；v3.4 新增 |
-| calendar_q.py | v4.5（5a-1）：期間滾動。由 `company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、模型年數、目標價時點）推算期間標籤、期間長度、評價日、各期期末日與折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整；`build_xlsx.py`、`build_html_portable.py`、`load_engine.js` 都讀同一份推算結果（`COMPANY_DATA.cal`；Excel「輸入與假設」F 區「期間與日期」）。`periods`、`periodYears`、`valuation.optT` 不再存於 company.json。`python3 calendar_q.py` 印出推算結果 |
-| vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
+| calendar_q.py | v4.5（5a-1）：期間滾動。由 `company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、模型年數、目標價時點）推算期間標籤、期間長度、評價日、各期期末日與折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整；`build_xlsx.py`、`build_html_portable.py`、`load_engine.js` 都讀同一份推算結果（`COMPANY_DATA.cal`；Excel「輸入與假設」F 區「期間與日期」）。`periods`、`periodYears`、`valuation.optT` 不再存於 company.json。`python3 calendar_q.py` 印出推算結果 | 說明文字中的期間字樣以佔位符書寫（«YTD»、«STUB»、«VMD»、«P0»…，`tokens`），build_xlsx 存檔前、cmp31 查列名稱時換成目前日曆的字樣；目前日曆下換出的文字與 v4.4 相同。期間特有的敘述句與數字放 `company.json` → `texts`、`ytdActual.notes`，隨每季資料更新 || vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
 | rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」與「摘要」頁使用）。v4.5 起由 `scripts/rv_solve.py` 以 Excel 求解產生（verify.sh 步驟 3b；有變動時自動重建 Excel），不再用 JS 引擎（`scripts/rv_snap.js` 已移除） |
 | scripts/rv_solve.py | v4.5：反向 DCF 求解。以 LibreOffice（UNO，`scripts/uno_q.py`）開啟建好的 Excel，改「每 MW 年收入倍數」「每 MW 建置成本倍數」「穩態 EBITDA 率」並重算，依與 HTML `reverseDcf` 相同的規則（同一上下界、22 次對半）二分法反解，寫入 rv_snap.json；結果有變動時代碼 3 |
 | scripts/uno_q.py | v4.5：以 LibreOffice UNO 驅動 Excel 的共用模組（依 A 欄列名稱找格、改值、讀重算後的值；不存檔） |
@@ -35,7 +34,9 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值（暫存檔在 `out/`，以 `scripts/recalc.py` 重算）；cmp31.js 以 HTML 引擎逐列比對（三情境各 313 項，含 v4.1 目標價區間與判斷句、v4.3 市場共識逐筆與一頁摘要的差距、隱含倍數與句子逐字比對、v4.4 季度層 6 季數字／差距／差異原因／驗證點句與年度差異原因；讀取目前目錄的 `xl17_*.json`） |
 | scripts/recalc.py | LibreOffice headless 重算：`python3 scripts/recalc.py 檔案.xlsx [逾時秒數]`＝開啟、全部重算、原地存檔，輸出 JSON 並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）；有錯誤或失敗時代碼 1 |
 | scripts/verify.sh | 一次跑完建置與核對（見下節） |
-| scripts/check_offline.py | 離線開啟檢查（已決定事項 11）：`python3 scripts/check_offline.py 檔案.html 同版.xlsx`。HTML 單獨複製到空資料夾，Playwright 阻斷網路、以 file:// 開啟；(a) 除 HTML 本身外的請求數＝0（網路與旁邊的本機檔案都算）、(b) console 無錯誤與例外、(c) 5 個分頁 10 項關鍵數字（依 A 欄列名稱取自同版 Excel）出現在畫面且無 NaN／undefined／Infinity。verify.sh 步驟 5c 對新建 HTML 與 dist/ 成品各跑一次 |
+| scripts/first_screen.py | v4.5：擷取「第一屏」文字——HTML 各頁面／分頁在 1440×900 視窗、捲動到頂端時可見的文字；Excel 各工作表前 40 個可見列（A–J 欄，重算後的值）。`python3 scripts/first_screen.py 檔案.html｜檔案.xlsx [輸出.json]` |
+| scripts/test_rolling.py | v4.5：期間滾動測試（暫存副本）。B：日曆推算 6 種情況（12 月財年 Q1–Q4 已申報、5 月財年、無已申報季度）× 2 種目標價時點；A：把副本滾動到下一個已申報季度（只改日曆與標籤、不改數字），建 HTML 與 Excel，第一屏不得出現舊日曆特有的字樣（評價日、年初至今／首期標籤、已申報季度）。例外：版本紀錄與來源頁、整段落在 company.json／共識檔資料字串內的字樣。verify.sh 步驟 8b |
+| scripts/check_offline.py | 離線開啟檢查（已決定事項 11）：`python3 scripts/check_offline.py 檔案.html 同版.xlsx`。HTML 單獨複製到空資料夾，Playwright 阻斷網路、以 file:// 開啟；(a) 除 HTML 本身外的請求數＝0（網路與旁邊的本機檔案都算）、(b) console 無錯誤與例外、(c) 5 個分頁 10 項關鍵數字（依 A 欄列名稱取自同版 Excel）出現在畫面且無 NaN／undefined／Infinity；v4.5 另比對第一屏（視窗內）的資料更新日、模型期間、現價日與評價日（`CHECKS_FIRST`；列名稱中的期間佔位符以任意文字比對，新舊版 Excel 皆可）。verify.sh 步驟 5c 對新建 HTML 與 dist/ 成品各跑一次 |
 | scripts/check_quarterly.js | v4.4：季度加總＝年度（三情境）、`quarterly.consistency` 一致性、超過門檻的差距都有原因；`build_html_portable.py` 建置時呼叫，verify.sh 步驟 0 |
 | scripts/test_quarterly.py | v4.4：暫存副本測試——(A) 假設 Q3 實際數，Python 獨立計算差距並與 HTML、Excel 比對；(B) 可移植性（無 MW、無季度指引與共識）。verify.sh 步驟 8 |
 | scripts/cloud_setup.sh | 雲端環境 setup script（只裝 Python 套件；LibreOffice Calc 於工作階段內補裝，見 CLAUDE.md） |
@@ -147,6 +148,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `ytdActual.throughQuarter` | 年初至今實際數的截止財季，須等於 calendar.latestQuarterFiled（v4.5，原 actual1H） | 文字 | FY26Q2 | 必改 |
 | `ytdActual.months` | 年初至今的月數，須等於日曆推算值（v4.5） | 月 | 6 | 必改 |
 | `ytdActual.label` | 「年初至今實際數」的標題 | 文字 | 1H26 實際（10-Q） | 必改 |
+| `ytdActual.jvSplit` | JV 出資與策略投資的拆分（v4.5；說明文字與「JV 已付」讀此） | 物件（US$bn） | 物件（jv、strategic） | 必改 |
+| `ytdActual.notes` | 各欄位的逐列說明（來源、口徑、拆分；Excel「輸入與假設」G 區；v4.5 起隨資料一起更新） | 物件（文字） | 物件（cash1231、cfo、cashCapex、capex、jv、borrow、debtRepaid、cappedCall、equity、interest、leasePaid、revenue、opInc、ni、prepay、da、sbc、eps、ngEps） | 必改 |
 | `ytdActual.cash1231` | 上一年底現金 | US$bn | 3.127 | 必改 |
 | `ytdActual.revenue` | 上半年營收 | US$bn | 4.653 | 必改 |
 | `ytdActual.capex` | 上半年資本支出（認列口徑，含設備商融資） | US$bn | 16.139 | 必改 |
@@ -233,9 +236,9 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `rpo24m` | RPO 於 24 個月內認列比例 | 比例 | 0.41 | 否 |
 | `rpo25to48` | RPO 於 25–48 個月認列比例 | 比例 | 0.39 | 否 |
 | `rpo49to78` | RPO 於 49–78 個月認列比例 | 比例 | 0.2 | 否 |
-| `cash` | 季末現金 | US$bn | 5.524 | 否 |
+| `cash` | 季末現金 | US$bn | 5.524 | 是 |
 | `restricted` | 受限現金 | US$bn | 1.38 | 否 |
-| `marketable` | 有價證券 | US$bn | 0.015 | 否 |
+| `marketable` | 有價證券 | US$bn | 0.015 | 是 |
 | `availability` | 未動用信用額度 | US$bn | 10.014 | 是 |
 | `debtPrincipal` | 債務本金合計 | US$bn | 35.551 | 是 |
 | `recourseNet` | 追索債務淨額 | US$bn | 31.405 | 否 |
@@ -513,6 +516,13 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 |---|---|---|---|---|
 | `varianceReasons._note` | 差異原因的說明文字（不進程式） | 文字 | 差異原因（已決定事項 2）：差距超過 methodo… | 可沿用 |
 | `varianceReasons.list` | 差異原因（已決定事項 2），一筆一列：scope（annual 年度共識對照／quarter 季度）、period（FY27、2026Q3 或 *）、metric（年度：rev、ebitda、capex、nd；季度：metrics 的 key）、vs（consensus、guidance、actual 或 *）、type（觀點／已知限制）、text 一句原因，{路徑:格式} 由模型數字帶入。「拆法」由程式判定，不需填。差距超過 methodology.consensusGapTol 卻沒有原因時建置失敗 | 清單 | 7 筆 | 檢查 |
+
+### `texts`：公司特有的說明文字（v4.5；隨資料更新）
+
+| 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
+|---|---|---|---|---|
+| `texts.fy0EquityNote` | 首期股權／可轉債的組成說明（含年初至今與首期模型的金額；v4.5；可用期間佔位符 «P0»、«YTD»、«STUB»） | 文字 | «P0»＝«YTD» 私募股權 2.982＋«STU… | 必改 |
+| `texts.cashTaxNote` | 年初至今現金稅的說明（損益與評價頁；v4.5） | 文字 | H1 現金稅約 0.1bn | 必改 |
 
 ## v4.0 架構：公司資料單一來源
 - **company.json**：所有公司原始輸入（HTML 引擎與 Excel 共用）。換公司時先改這個檔；衍生值（情境 Billable 比率、Q3 新增 RPO 權重、債務合計與平均利率）留在 segA 開頭由程式推導。

@@ -15,6 +15,9 @@ F = [
  ('meta.company', '公司名稱', '文字', M), ('meta.ticker', '股票代號', '文字', M),
  ('meta.updateDate', '資料更新日', '日期', M), ('meta.priceDate', '股價日期（現價的收盤日；畫面與 Excel 的現價日期都讀這格）', '日期', M),
  ('meta.consensusFile', '市場共識資料檔路徑（v4.3；只讀，由使用者查證後提供；建置時併入 HTML、Excel 讀同一檔）', '路徑', M),
+ ('texts.fy0EquityNote', '首期股權／可轉債的組成說明（含年初至今與首期模型的金額；v4.5；可用期間佔位符 «P0»、«YTD»、«STUB»）', '文字', M),
+ ('texts.sourceLine', '頁首的資料來源一行（例如最新 10-Q、法說、期後 8-K；v4.5）', '文字', M),
+ ('texts.cashTaxNote', '年初至今現金稅的說明（損益與評價頁；v4.5）', '文字', M),
  ('meta.sourceOrderNote', '資料來源的先後與衝突時的取捨原則（畫面說明文字）', '文字', M),
  ('calendar.fiscalYearEndMonth', '財年結束月份（v4.5；CoreWeave 12、Oracle 5）', '月', M),
  ('calendar.latestQuarterFiled', '最新已申報（10-Q／10-K）的財季，格式 FYyyQn；驅動年度首期滾動與評價日（v4.5）', '文字', M),
@@ -25,6 +28,8 @@ F = [
  ('ytdActual.throughQuarter', '年初至今實際數的截止財季，須等於 calendar.latestQuarterFiled（v4.5，原 actual1H）', '文字', M),
  ('ytdActual.months', '年初至今的月數，須等於日曆推算值（v4.5）', '月', M),
  ('ytdActual.label', '「年初至今實際數」的標題', '文字', M),
+ ('ytdActual.jvSplit', 'JV 出資與策略投資的拆分（v4.5；說明文字與「JV 已付」讀此）', '物件（US$bn）', M),
+ ('ytdActual.notes', '各欄位的逐列說明（來源、口徑、拆分；Excel「輸入與假設」G 區；v4.5 起隨資料一起更新）', '物件（文字）', M),
  ('ytdActual.cash1231', '上一年底現金', 'US$bn', M), ('ytdActual.revenue', '上半年營收', 'US$bn', M),
  ('ytdActual.capex', '上半年資本支出（認列口徑，含設備商融資）', 'US$bn', M),
  ('ytdActual.cashCapex', '上半年現金購置固定資產', 'US$bn', M), ('ytdActual.interest', '上半年利息費用', 'US$bn', M),
@@ -254,7 +259,7 @@ SECT = [('meta', '基本資料'), ('calendar', '期間與日期（v4.5）'), ('y
         ('rpo', '已簽約未認列營收（RPO）'), ('leases', '租約'), ('debt', '既有債務'), ('latestQuarter', '最新一季財報數字（10-Q）'),
         ('callFacts', '法說會與期後事項'), ('scenarios', '三個擴張情境'), ('legacy', '舊版對照值'),
         ('defaults', '預設假設（畫面上可調的輸入）'), ('valuation', '評價參數'), ('methodology', '評價方法與評等門檻'), ('peers', '同業比較（Comps）'),
-        ('quarterly', '季度層（v4.4）'), ('varianceReasons', '差異原因（v4.4）')]
+        ('quarterly', '季度層（v4.4）'), ('varianceReasons', '差異原因（v4.4）'), ('texts', '公司特有的說明文字（v4.5；隨資料更新）')]
 out, shown = [], set()
 for top, title in SECT:
     out.append(f'\n### `{top}`：{title}\n')

@@ -1,4 +1,6 @@
 const fs=require('fs'); require('./load_engine.js')(); // v4.0：引擎資料來自 company.json
+// v4.5：Excel 列名稱中的期間字樣由日曆產生（佔位符 → 目前日曆字樣，與 build_xlsx 相同的 calendar_q.tokens）
+const T=s=>Object.keys(CALQ.tokens).sort((a,b)=>b.length-a.length).reduce((x,k)=>x.split(k).join(CALQ.tokens[k]),s);
 const SC=process.argv[2], AK=+(process.argv[3]||3), AKX=process.argv[3]!==undefined; // AK：EV/EBITDA 錨定年度（1＝FY27…4＝FY30）
 const X=JSON.parse(fs.readFileSync('xl17_'+({low:1,base:2,high:3}[SC])+(AKX?'_a'+AK:'')+'.json','utf8'));
 VAL_DEFAULTS.evYear=AK;
@@ -18,7 +20,7 @@ function cmp(label, xlKey, html, note){
 const S='產能與收入|', F='支出與資金|', V='損益與評價|';
 cmp('Accepted', S+'Accepted MW（已驗收，單調不減）', d.m.accepted);
 cmp('Billable', S+'Billable MW（上限為 Accepted）', d.m.billable);
-cmp('平均在役MW', S+'平均在役 MW（FY26 欄為下半年平均）', H('avgBillable'));
+cmp('平均在役MW', S+T('平均在役 MW（«P0» 欄為«STUBW»平均）'), H('avgBillable'));
 cmp('容量上限', S+'容量上限（模型期最多能交付的收入）', H('capacity'));
 cmp('排程RPO', S+'排程 RPO（模型期，依 10-Q 桶分攤）', H('scheduled'));
 cmp('瓶頸', S+'產能瓶頸（模型期：排程 − 容量）', H('bottleneck'));
@@ -33,7 +35,7 @@ cmp('EBITDA率', S+'EBITDA 率（損益與資金共用）', H('ebM'));
 cmp('EBITDAR率', S+'EBITDAR 率（EBITDA 率＋租金÷營收）', H('cashMargin'));
 cmp('模型期總營收', S+'模型期總營收（算力＋服務）', H('totRev'));
 cmp('服務現金', '輸入|非算力服務現金', H('legacy'));
-cmp('FY26全年營收(產能頁)', S+'FY26 全年總營收（1H 實際＋模型期算力＋服務）', [y[0].fyRevenue+y[0].servicesRev]);
+cmp('FY26全年營收(產能頁)', S+T('«P0» 全年總營收（«YTD» 實際＋模型期算力＋服務）'), [y[0].fyRevenue+y[0].servicesRev]);
 cmp('毛CapEx模型期', '輸入|毛 CapEx（模型期，下游引用此列）', H('gross'));
 cmp('全年CapEx公式', '輸入|全年毛 CapEx（公式）', H('capexFull'));
 cmp('成長型', '輸入|成長型 CapEx（模型期）', H('capexGrowth'));
@@ -54,7 +56,7 @@ cmp('累計新股', F+'累計新股', H('cumNewShares'));
 cmp('總債務', F+'期末總債務（既有＋可轉債＋新債＋高息債）', H('totalDebtEnd'));
 cmp('租金合計', F+'　租金合計', H('lease'));
 cmp('排程還本(FY26含1H)', F+'⑤ 排程還本（10-Q 本金表）', y.map((e,i)=>i===0?e.fyDebtPay:e.debtPay));
-cmp('客戶預付', F+'Ⓓ 客戶預付（2H 起）', H('external'));
+cmp('客戶預付', F+T('Ⓓ 客戶預付（«STUB» 起）'), H('external'));
 cmp('營運來源合計', F+'營運來源合計', y.map((e,i)=>i===0?e.fySourcesOp:e.sourcesOp));
 cmp('營運缺口', F+'營運缺口（不含融資、不含還本）', y.map((e,i)=>i===0?e.fyOperatingGap:e.operatingGap));
 cmp('期末累積現金', F+'期末累積現金', H('cum'));
@@ -63,9 +65,9 @@ cmp('用途合計(HTML各期結果口徑)', F+'用途合計（現金口徑）', 
 cmp('JV(FY26含1H)', F+'④ JV／策略投資出資', y.map((e,i)=>i===0?e.fyDiv:e.div));
 cmp('股權/可轉債', F+'Ⓔ 股權／可轉債（融資）', y.map((e,i)=>i===0?e.fyEquity:e.atm));
 cmp('總來源', F+'總來源（含融資）', y.map((e,i)=>i===0?e.fySrcTotal:e.sources));
-cmp('CFO(1H)', F+'Ⓐ0 1H26 實際營運現金流（CFO）', y.map((e,i)=>i===0?e.fyCfo:0));
-cmp('CapEx用途', F+'① CapEx（用途用：1H 現金／2H 毛額）', y.map((e,i)=>i===0?e.fyCapexUse:e.gross));
-cmp('調節', F+'　1H 其他／受限現金調節', y.map((e,i)=>i===0?e.hPlug:0));
+cmp('CFO(1H)', F+T('Ⓐ0 «YTDL» 實際營運現金流（CFO）'), y.map((e,i)=>i===0?e.fyCfo:0));
+cmp('CapEx用途', F+T('① CapEx（用途用：«YTD» 現金／«STUB» 毛額）'), y.map((e,i)=>i===0?e.fyCapexUse:e.gross));
+cmp('調節', F+T('　«YTD» 其他／受限現金調節'), y.map((e,i)=>i===0?e.hPlug:0));
 cmp('期初累積現金', F+'　期初累積現金', y.map((e,i)=>i===0?3.127:y[i-1].cum));
 cmp('全年總營收', V+'全年總營收', f.map(e=>e.fyRevenue));
 cmp('全年EBIT', V+'全年 GAAP 營業利益', f.map(e=>e.fyOpInc));
@@ -183,6 +185,6 @@ for(const e of lM){ const key={NBIS:'NBIS Nebius',IREN:'IREN',APLD:'APLD Applied
   rows.push([ok?'OK ':'XX ','comps '+e.ticker,[e.ev.toFixed(2),(e.ev/e.rev).toFixed(2),((e.ev+(e.opl||0))/e.rev).toFixed(2)].join('/'),[xv[2],(+xv[4]).toFixed(2),(+xv[5]).toFixed(2)].join('/')]);}
 const med=X[CO+'同業中位數']; rows.push([Math.abs(wM(lM.map(e=>e.ev/e.rev))-med[4])<0.01?'OK ':'XX ','comps median',wM(lM.map(e=>e.ev/e.rev)).toFixed(2),(+med[4]).toFixed(2)]);
 const cr=X[CO+'CRWV（TTM 至 Q2）']; const hv=(CALL_FACTS.mktCapLast+VAL_DEFAULTS.netDebt)/CALL_FACTS.ttmRev; rows.push([Math.abs(hv-cr[4])<0.01?'OK ':'XX ','comps CRWV TTM EV/S',hv.toFixed(3),(+cr[4]).toFixed(3)]);
-const cm=X[CO+'CRWV 模型 FY27E']; const hv2=(VAL_DEFAULTS.price*p.shares+VAL_DEFAULTS.netDebt)/f[1].revenue; rows.push([Math.abs(hv2-cm[4])<0.01?'OK ':'XX ','comps CRWV FY27E EV/S',hv2.toFixed(3),(+cm[4]).toFixed(3)]);
+const cm=X[CO+T(COMPANY_DATA.meta.ticker+' 模型 «P1»E')]; const hv2=(VAL_DEFAULTS.price*p.shares+VAL_DEFAULTS.netDebt)/f[1].revenue; rows.push([Math.abs(hv2-cm[4])<0.01?'OK ':'XX ','comps CRWV FY27E EV/S',hv2.toFixed(3),(+cm[4]).toFixed(3)]);
 for(const r of rows) console.log(r.join(' | '));
 console.log('bench',d.totals.bench, 'X具名', JSON.stringify(X['站點租賃|具名站點合計']));

@@ -48,7 +48,7 @@ function AM({
       }), (0, $.jsx)(`div`, {
         className: `mt-3 grid grid-cols-2 gap-2 md:grid-cols-5`,
         children: [
-          [`FY27 算力產能`, mA(s[1].gpu) + `bn`],
+          [`${PERIODS[1]} 算力產能`, mA(s[1].gpu) + `bn`],
           [`五期 Cash CapEx`, mA(e.totals.cashCapex) + `bn`],
           [`需股權募資`, mA(p) + `bn`],
           [`ATM／股數`, `${t.includeAtm?`含`:`不含`} · ${Y(h,3)}bn`],
@@ -92,7 +92,7 @@ function AM({
           children: `評價假設`
         }), (0, $.jsx)(`p`, {
           className: `mt-1 text-xs leading-relaxed text-muted`,
-          children: `現價為 ${PRICE_DATE} 收盤 $${Y(VAL_DEFAULTS.price, 2)}。股數隨 ATM 開關連動（關閉則扣回 35m 股上限）。營收＝資金模型算力產能＋非算力服務。稅率 21% 為名目（公司因評價備抵仍認列稅費，H1 現金稅約 0.1bn）。淨負債用 6/30 本金 35.55 − 現金 5.54，與期初現金同日，9/17 可轉債的現金與負債兩邊都不計，以免雙計。`
+          children: `現價為 ${PRICE_DATE} 收盤 $${Y(VAL_DEFAULTS.price, 2)}。股數隨 ATM 開關連動（關閉則扣回 35m 股上限）。營收＝資金模型算力產能＋非算力服務。稅率 21% 為名目（公司因評價備抵仍認列稅費，${COMPANY_DATA.texts.cashTaxNote}）。淨負債用 ${CALQ.valuationMD} 本金 ${Y(LATEST_Q.debtPrincipal, 2)} − 現金 ${Y(LATEST_Q.cash + LATEST_Q.marketable, 2)}，與期初現金同日，9/17 可轉債的現金與負債兩邊都不計，以免雙計。`
         }), (0, $.jsxs)(`div`, {
           className: `mt-4 space-y-3`,
           children: [(0, $.jsx)(kM, {
@@ -230,7 +230,7 @@ function AM({
           className: `max-w-full overflow-x-auto`,
           children: [(0, $.jsx)(`h2`, {
             className: `font-display text-lg font-semibold`,
-            children: `損益簡表（類損益表：歷史 FY23–1H26＋前瞻五期）`
+            children: `損益簡表（類損益表：歷史 ${HIST_PL[0].year}–${HIST_PL[HIST_PL.length - 1].year}＋前瞻五期）` // v4.5：兩端讀 historicalPL（最後一格＝年初至今實際，滾動時隨資料更新）
           }), (0, $.jsx)(`p`, {
             className: `mt-1 text-xs leading-relaxed text-muted`,
             children: `前瞻算力收入連動資金模型可計費產能；非算力服務＝軟體／儲存／CPU／managed inference（Q2 ARR >0.4bn、推論年底 ≥0.25bn）。FY26 欄＝1H26 實際（10-Q）＋2H26 模型，可直接對照公司全年指引 12.4–13.2；FY27 起為純模型。算力收入＝期初 RPO 轉換（產能約束後）＋新簽約（多出來的產能×簽約率）。FY28 起多數收入來自尚未簽署的合約，這是 8 GW 敘事的本質。DCF 只折現 2026-06-30 之後的現金流，不含 1H 實際；FY26E 欄的 1H 部分為 10-Q 實際值。`

@@ -5,9 +5,11 @@ import sys as _sysv; _sysv.path.insert(0, _osrv.path.dirname(_osrv.path.abspath(
 from vlog import VLOG as _VL
 VLOG_X = [list(r) for r in _VL]
 import json as _jco
+import re
 import calendar_q as _calq  # v4.5：期間與日期由 company.json → calendar 推算（與 HTML 共用）
 CO = _calq.load(_osrv.path.dirname(_osrv.path.abspath(__file__)))  # 公司資料單一來源（與 HTML 共用）
 CAL = CO['cal']
+YA = CO['ytdActual']  # v4.5：年初至今實際（原 actual1H）；數值與逐列備註都讀 company.json，滾動時隨資料更新
 # v4.3：市場共識資料檔（只讀；路徑在 company.json → meta.consensusFile）。與 HTML 相同的一致性檢查見 build_html_portable.py
 CONS = _jco.load(open(_osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), CO['meta']['consensusFile']), encoding='utf-8'))
 assert (CONS['companyGuidance']['2026Q3']['revenueLow'], CONS['companyGuidance']['2026Q3']['revenueHigh']) == (CO['callFacts']['q3RevLo'], CO['callFacts']['q3RevHi']), 'Q3 營收指引：company.json 與共識檔不一致'
@@ -145,12 +147,12 @@ guide = [
     ("", None),
     ("分頁結構（依模組分組，分頁標籤顏色相同者為同一模組）", None),
     ("摘要            一頁摘要：結論、與市場共識的差異、現價隱含什麼、驗證點（v4.3；全部活公式）。", None),
-    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G 1H 實際 → H 情境區間運算表 → I 市場共識 → J 季度追蹤輸入）。", None),
+    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G «YTD» 實際 → H 情境區間運算表 → I 市場共識 → J 季度追蹤輸入）。", None),
     ("各期收支        類現金流量：來源、用途、融資前缺口、期前融資瀑布。", None),
     ("季度追蹤        焦點季的模型／共識／指引／實際與差距（v4.4；由年度模型拆分，只用於追蹤；實際數填在輸入與假設 J 區）。", None),
     ("運營_產能與收入  合約排程 vs 機房產能 → 收入 → 現金；運營_站點：房東揭露與租金檢驗。", None),
     ("資產負債_既有債務／新債與新股／租賃承諾  類資產負債表：10-Q 債務明細、每期現金與總債務與股數、租賃承諾。", None),
-    ("損益            類損益表（FY26＝1H 實際＋下半年模型）。", None),
+    ("損益            類損益表（«FY0»）。", None),
     ("評價_DCF與目標價／評價_可比公司  DCF、EV/EBITDA、加權目標價；同業 EV/Sales 比較。", None),
     ("評價_反向DCF    現價隱含的收入與成本（目標搜尋＋HTML 快照）。", None),
     ("檢查_連動／檢查_版本紀錄  恆等式與口徑檢查；每一版的變更與目標價；來源：每個硬編碼數字的出處。", None),
@@ -164,7 +166,7 @@ guide = [
     ("", None),
     ("兩條線各自獨立產生：", None),
     ("  (A) 排程 RPO ＝ 已簽約、依 10-Q 揭露的時程「應該」在本期認列的收入。", None),
-    ("      公式：(6/30 RPO ＋ Q3 新增承諾) × 本期權重 ÷ 權重合計 × 五期認列比例", None),
+    ("      公式：(«VMD» RPO ＋ Q3 新增承諾) × 本期權重 ÷ 權重合計 × 五期認列比例", None),
     ("      這條線只看合約，完全不管機房蓋好了沒。", None),
     ("  (B) 容量上限 ＝ 本期實際能交付的最大收入 ＝ 平均在役 MW × 每 MW 年收入 × 利用率 × 期間係數。", None),
     ("      這條線只看機房，完全不管簽了多少約。", None),
@@ -176,7 +178,7 @@ guide = [
     ("      這段要靠新簽約來賣，乘上『新產能簽約率』後成為『新簽約收入』，賣不掉的是『未售產能』。", None),
     ("", None),
     ("所以本模型的收入有兩個來源，而且互斥：期初 RPO 轉換（受容量封頂）＋ 新簽約（用剩餘容量）。", None),
-    ("基準路徑下，FY26 下半年與 FY27 是瓶頸期（合約多於機房），FY28 之後反轉為產能多於期初合約——", None),
+    ("基準路徑下，«P0» «STUBW»與 «P1» 是瓶頸期（合約多於機房），FY28 之後反轉為產能多於期初合約——", None),
     ("這就是為什麼 FY28 起的收入愈來愈依賴『還沒簽的約』，也是 8 GW 敘事的真正風險所在。", None),
     ("", None),
     ("■ 收入之後的三道折扣（產能與收入頁）", None),
@@ -188,7 +190,7 @@ guide = [
     ("  支出與資金頁與損益頁的 FY26 欄，1H 部分直接採用 10-Q 現金流量表的實際值（CFO 3.663、現金購置 14.117、", None),
     ("  JV 0.688、借款 16.747、還款 5.219、私募股權 2.982、capped call 0.492），2H 部分才是模型推算。", None),
     ("  因此 FY26 的 CapEx 37.1 與營收 12.8 可以直接對照公司全年指引 35–39 與 12.4–13.2。", None),
-    ("  產能與收入頁的首欄也是 FY26，但標示「（模型期）」的收入列只含下半年：RPO 桶自 2026-06-30 起算，", None),
+    ("  產能與收入頁的首欄也是 «P0»，但標示「（模型期）」的收入列只含«STUBW»：RPO 桶自 «VD» 起算，", None),
     ("  1H 的收入已經實現、不再受產能約束，因此 1H 實際單列，兩者相加即該頁的「FY26 全年總營收」。DCF 只折現 6/30 之後的現金流。", None),
     ("  1H 的利息與租金已包含在實際 CFO 內，所以支出頁那兩列的 FY26 欄只有 2H 金額；全年數字見「FY26 全年備忘」區。", None),
     ("", None),
@@ -241,7 +243,7 @@ ws.column_dimensions["I"].width = 92
 ws.column_dimensions["J"].width = 60
 ws["A1"] = "輸入（依類別排序；點左側 ＋／− 展開或收合。藍字可改；黃底為最關鍵假設）"
 ws["A1"].font = TITLE
-ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：1H26 實際 → H 情境區間運算表 → I 市場共識 → J 季度追蹤輸入。灰底『▸』為明細子區，預設收合"
+ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：«YTDL» 實際 → H 情境區間運算表 → I 市場共識 → J 季度追蹤輸入。灰底『▸』為明細子區，預設收合"
 ws["A2"].font = SMALL
 IN = {}
 
@@ -306,17 +308,17 @@ row_line(ws, r, "Billable／Accepted 爬坡比例", "%", [1700/1850, 2900/3100, 
          "三情境共用")
 BR_ROW = r; r += 1
 row_line(ws, r, "表外現金租金（積極路徑）", "US$bn", CO['scenarios']['leaseHighPath'], NUM, BLUE,
-         "其他情境依「新增 MW（相對 6/30 的 1,500 MW）」等比例縮放")
+         "其他情境依「新增 MW（相對 «VMD» 的 1,500 MW）」等比例縮放")
 LEASE_HI = r; r += 2
 
 # ---------------- B 產能與收入 ----------------
 r = section(ws, r, "B｜產能與收入（RPO、MW、利用率、單價、簽約、信用）")
-RPO0 = gi(r, "6/30 RPO", "US$bn", D['rpoFy26'], "10-Q 103.7（backlog 104.2 含 0.5 其他）[Verified]", NUM, True); r += 1
+RPO0 = gi(r, "«VMD» RPO", "US$bn", D['rpoFy26'], "10-Q 103.7（backlog 104.2 含 0.5 其他）[Verified]", NUM, True); r += 1
 RPOADD = gi(r, "Q3 初新增承諾", "US$bn", D['rpoQ1Add'], "法說「>25」，尚未入 RPO [Interested-party]"); r += 1
 RP = gi(r, "五期認列比例（至 2030 末）", "%", D['rp'] / 100, "10-Q 桶 41／39／20 線性分攤後五期合計 84% [Derived]", PCT, True); r += 1
 WSUM = gi(r, "RPO 桶權重合計", "%", CO['rpo']['scheduledShare'], "下方權重列的合計，用於歸一化", PCT); r += 1
 MW_YE25 = gi(r, "2025-12-31 主動電力", "MW", D['mwYE25'], "Q4 2025 法說：年底 >850 MW、43 座資料中心 [Verified]", NUM0); r += 1
-MW0 = gi(r, "6/30 Billable MW", "MW", D['billableOpen'], "主動電力 1.5 GW 扣爬坡中 [Assumed]", NUM0); r += 1
+MW0 = gi(r, "«VMD» Billable MW", "MW", D['billableOpen'], "主動電力 1.5 GW 扣爬坡中 [Assumed]", NUM0); r += 1
 AVGON = gi(r, "收入用平均在役 MW（1=是）", "", int(D['useAvgMw']), "0＝用期末存量全期化。CRWV 交付後載（6 月 +300MW），建議 1", NUM0); r += 1
 REVSC = gi(r, "每 MW 年收入倍數（整體）", "%", D['revScale'], "反向 DCF 與壓力測試用；預設 100%。以『目標搜尋』調整此格即可反解市價隱含單價", PCT); r += 1
 r = phdr(r)
@@ -370,13 +372,13 @@ CAPSC = gi(r, "每 MW 建置成本倍數（整體）", "%", D['capexScale'], "�
 r = phdr(r)
 r = prow(r, "每 MW 建置成本", "US$m/MW", CO['scenarios']['capexTemplate']['costMW'], NUM1, "GPU＋網路＋機房內裝；以 FY26 校準重現全年指引 35–39 [Derived]")
 r = prow(r, "客戶預付占毛 CapEx", "%", CO['scenarios']['capexTemplate']['customerFund'], PCT, "H1 遞延收入淨流入 1.365÷CapEx 16.139＝8.5% [Derived]")
-r = prow(r, "在帳現金租金（10-Q 到期表）", "US$bn", CO['leases']['onBalanceCash'], NUM, "營業＋融資租賃未折現付款；2030 後尚有 19.023 [Verified]")
+r = prow(r, "在帳現金租金（10-Q 到期表）", "US$bn", CO['leases']['onBalanceCash'], NUM, f"營業＋融資租賃未折現付款；«LASTYR» 後尚有 {CO['leases']['afterFY30']} [Verified]")
 r = prow(r, "表外現金租金（未起租）", "US$bn", [0] * 5, NUM, "＝積極路徑 × 新增 MW 比例（A 區）[Assumed]", BLACK)
 for i in range(5):
     L = COLS[i]
     ws.cell(row=IN["表外現金租金（未起租）"], column=3 + i,
             value=f"={L}{LEASE_HI}*MAX(0,{L}{_acc}-1500)/({L}{sc_rows['積極 8 GW']}-1500)")
-r = prow(r, "JV 已承諾餘額出資", "US$bn", D['jvCommit'], NUM, "10-Q：兩個 JV 承諾最高 1.7，2026 年內履行；H1 已付 0.55 [Verified／Derived]")
+r = prow(r, "JV 已承諾餘額出資", "US$bn", D['jvCommit'], NUM, f"10-Q：兩個 JV 承諾最高 1.7，2026 年內履行；«YTDA» 已付 {YA['jvSplit']['jv']:.2f} [Verified／Derived]")
 r = prow(r, "JV 後續增資＋策略投資", "US$bn", CO['scenarios']['capexTemplate']['div'], NUM, "入夥後須追加出資，金額未揭露 [Assumed]")
 r = prow(r, "JV／策略投資出資", "US$bn",
          [f"=C{IN['JV 已承諾餘額出資']}+C{IN['JV 後續增資＋策略投資']}".replace("C", COLS[0], 0)] * 5, NUM, "＝已承諾餘額＋後續增資", BLACK)
@@ -445,7 +447,7 @@ WACC = gi(r, "WACC", "%", V['wacc'], "[Assumed]", PCT); r += 1
 GG = gi(r, "永續成長 g", "%", V['g'], "[Assumed]", PCT); r += 1
 MAINT = gi(r, "終值維持性 CapEx 占 D&A", "%", V['maintRatio'], "終值不讓成長性 CapEx 偽裝成永續 FCF [Assumed]", PCT); r += 1
 TAX = gi(r, "稅率", "%", V['tax'], "美國聯邦名目稅率 [Verified]", PCT); r += 1
-NOL0 = gi(r, "期初 NOL（虧損扣抵）", "US$bn", V['nol'], "6/30 累積虧損約 4.0；抵扣上限為應稅所得 80% [Derived]"); r += 1
+NOL0 = gi(r, "期初 NOL（虧損扣抵）", "US$bn", V['nol'], f"«VMD» 累積虧損約 {V['nol']:.1f}；抵扣上限為應稅所得 80% [Derived]"); r += 1
 EVEBITDA = gi(r, "EV/EBITDA 倍數", "x", V['evEbitda'], "穩態合理倍數約 3.4–6.0x（轉換率 ÷ (WACC − g)），6x 為上緣 [Assumed]", MULT); r += 1
 EVY = gi(r, "EV/EBITDA 錨定年度（1＝FY27、2＝FY28、3＝FY29、4＝FY30）", "", V['evYear'], "FY28 起以 WACC 折回 FY27 末（目標價時點）；v3.6 起預設 FY29：接近穩態利潤率，與 6x 穩態倍數一致 [Assumed]", NUM0, True); r += 1
 from openpyxl.worksheet.datavalidation import DataValidation as _DV
@@ -471,6 +473,9 @@ CAL_VD = _calc(r, "評價日（已申報季度的季末）", "", CAL['valuationD
 CAL_TD = _calc(r, "目標價時點", "", CAL['targetDate'],
                "首期之後第一個完整財年末" if CAL['targetHorizon'] == 'firstFullYearEnd' else "評價日＋12 個月", "@"); r += 1
 CAL_TT = _calc(r, "目標價時點距評價日", "年", CAL['targetT'], "", NUM); r += 1
+_calc(r, "模型期間", "", f"{PERIODS[0]}–{PERIODS[-1]}", "首期＋4 個完整財年（calendar.modelYears）", "@"); r += 1
+_calc(r, "資料更新日", "", CO['meta']['updateDate'], "company.json → meta.updateDate", "@"); r += 1
+_calc(r, "現價日（收盤）", "", CO['meta']['priceDate'], "company.json → meta.priceDate", "@"); r += 1
 OFF = _calc(r, "錨定期折回年數調整（目標價時點 − 首期長度）", "年", CAL['evOffset'],
             "EV/EBITDA 腿：錨定期 k 的期末折回目標價時點的年數＝k − 此值", NUM); r += 1
 r = phdr(r, first="期間與日期")
@@ -495,32 +500,17 @@ RT_TVW = gi(r, "終值占 EV 警示", "%", RT['tvShareWarn'], "超過此值表�
 r += 1
 
 # ---------------- G 參考：1H26 實際 ----------------
-r = section(ws, r, "G｜參考：1H26 實際（10-Q，2026-01-01 至 06-30；硬編碼，勿改）", collapsed=True)
-h1_rows = [
-    ("2025-12-31 現金", "US$bn", 3.127, "10-Q 比較期資產負債表 [Verified]"),
-    ("營運現金流 CFO", "US$bn", 3.663, "已含已付利息 0.806 與租賃付款 0.748 [Verified]"),
-    ("現金購置 PP&E", "US$bn", 14.117, "現金流量表投資活動 [Verified]"),
-    ("CapEx 認列（含 OEM 融資）", "US$bn", 16.139, "PP&E 增加＋融資租賃−CIP 變動；與全年指引同口徑 [Verified]"),
-    ("JV＋策略投資出資", "US$bn", 0.688, "JV 0.550＋策略投資 0.138 [Verified]"),
-    ("借款", "US$bn", 16.747, "融資活動流入 [Verified]"),
-    ("還款", "US$bn", 5.219, "融資活動流出 [Verified]"),
-    ("capped call 支出", "US$bn", 0.492, "Q2 4.0bn 可轉債的 capped call [Verified]"),
-    ("私募股權", "US$bn", 2.982, "NVIDIA 2.0 @$87.20、4 月 1.0 @$109 [Verified]"),
-    ("利息費用", "US$bn", 1.176, "損益表；現金 0.806、資本化 0.176 [Verified]"),
-    ("租賃現金支付", "US$bn", 0.748, "已含在 CFO 內，僅供對照 [Verified]"),
-    ("營收", "US$bn", 4.653, "Q1 2.078＋Q2 2.575 [Verified]"),
-    ("GAAP 營業損益", "US$bn", -0.193, "[Verified]"),
-    ("淨損", "US$bn", -1.366, "[Verified]"),
-    ("遞延收入淨流入", "US$bn", 1.365, "已含在 CFO 內，僅供對照 [Verified]"),
-    ("D&A", "US$bn", 2.540, "現金流量表 [Verified]"),
-    ("SBC", "US$bn", 0.318, "現金流量表 [Verified]"),
-    ("GAAP EPS", "US$", -2.53, "淨損 −1.366 ÷ 加權股數約 0.539 [Verified]"),
-    ("EPS（加回 SBC）", "US$", -1.94, "(−1.366＋0.318)÷0.539 [Derived]"),
+r = section(ws, r, "G｜參考：«YTDL» 實際（10-Q，«FYSTART» 至 «VMMDD»；硬編碼，勿改）", collapsed=True)
+h1_rows = [(lab, "US$" if k in ('eps', 'ngEps') else "US$bn", YA[k], YA['notes'][k]) for lab, k in [
+    ("«PREVFYE» 現金", 'cash1231'), ("營運現金流 CFO", 'cfo'), ("現金購置 PP&E", 'cashCapex'), ("CapEx 認列（含 OEM 融資）", 'capex'),
+    ("JV＋策略投資出資", 'jv'), ("借款", 'borrow'), ("還款", 'debtRepaid'), ("capped call 支出", 'cappedCall'), ("私募股權", 'equity'),
+    ("利息費用", 'interest'), ("租賃現金支付", 'leasePaid'), ("營收", 'revenue'), ("GAAP 營業損益", 'opInc'), ("淨損", 'ni'),
+    ("遞延收入淨流入", 'prepay'), ("D&A", 'da'), ("SBC", 'sbc'), ("GAAP EPS", 'eps'), ("EPS（加回 SBC）", 'ngEps')]] + [
     # v4.3：只用於「摘要」頁與市場共識的 FY26 調整後 EBITDA 比較；模型 GAAP 損益與評價不使用
-    ("調整後 EBITDA（Q1＋Q2）", "US$bn", CO['ytdActual']['adjEbitda'],
-     f"Q1 {CO['ytdActual']['adjEbitdaMeta']['q1']:.3f}＋Q2 {CO['ytdActual']['adjEbitdaMeta']['q2']:.3f}；"
-     + "；".join(f"{x['quarter']} {x['name']}" for x in CO['ytdActual']['adjEbitdaMeta']['sources'])
-     + f"；{CO['ytdActual']['adjEbitdaMeta']['crossCheck']}。{CO['ytdActual']['adjEbitdaMeta']['note']} [{CO['ytdActual']['adjEbitdaMeta']['tag']}]"),
+    ("調整後 EBITDA（«YTDQS»）", "US$bn", YA['adjEbitda'],
+     "＋".join(f"{k.upper()} {YA['adjEbitdaMeta'][k]:.3f}" for k in sorted(YA['adjEbitdaMeta']) if re.fullmatch(r'q\d', k)) + "；"
+     + "；".join(f"{x['quarter']} {x['name']}" for x in YA['adjEbitdaMeta']['sources'])
+     + f"；{YA['adjEbitdaMeta']['crossCheck']}。{YA['adjEbitdaMeta']['note']} [{YA['adjEbitdaMeta']['tag']}]"),
 ]
 start_h1 = r
 for nm, un, v, nt in h1_rows:
@@ -554,7 +544,7 @@ ws["A1"] = "產能與收入 — 合約排程 vs 機房產能"
 ws["A1"].font = TITLE
 ws["A2"] = "兩條線獨立產生後相減：排程>容量→瓶頸（收不到）；容量>排程→剩餘產能（要靠新簽約賣掉）"
 ws["A2"].font = SMALL
-ws["A3"] = "FY26 欄口徑：MW 為年底存量；標示「（模型期）」的收入列只含 2026 下半年——RPO 桶自 2026-06-30 起算，1H 收入已實現、不再受產能約束。1H 實際單列，兩者相加即 FY26 全年（見本頁「FY26 全年」列）。"
+ws["A3"] = "«P0» 欄口徑：MW 為年底存量；標示「（模型期）」的收入列只含 «STUBYR» «STUBW»——RPO 桶自 «VD» 起算，«YTD» 收入已實現、不再受產能約束。«YTD» 實際單列，兩者相加即 «P0» 全年（見本頁「FY26 全年」列）。"
 ws["A3"].font = SMALL
 r = 5
 r = period_header(ws, r)
@@ -575,8 +565,8 @@ def crow(name, unit, formula_fn, fmt=NUM, font=BLACK, note=None):
     r += 1
 
 
-crow("模型期間", "", lambda i: (f'="2026-07-01~12-31"' if i == 0 else f'="{2027+i-1} 全年"'), NUM, BLACK,
-     "FY26 的模型期只有下半年；1H 已實現的營收單列於下方")
+crow("模型期間", "", lambda i: (f'="«VSTART»~«STUBEND»"' if i == 0 else f'="{CAL["periodEnd"][i][:4]} 全年"'), NUM, BLACK,
+     "«P0» 的模型期只有«STUBW»；«YTD» 已實現的營收單列於下方")
 crow("模型期長度（年）", "", lambda i: f"={inref('模型期長度（年）', i)}", NUM, GREEN,
      "只用於下方三處：容量上限、電力、維護——把年率換算成該期金額")
 r = section(ws, r, "（A）機房：容量上限")
@@ -600,10 +590,10 @@ bil_row = CR["Billable MW（上限為 Accepted）"]
 crow("期初在役 MW", "MW",
      lambda i: (f"={MW0}" if i == 0 else f"={COLS[i-1]}{bil_row}"), NUM0, BLACK, "前期期末＝本期期初")
 beg_row = CR["期初在役 MW"]
-crow("平均在役 MW（FY26 欄為下半年平均）", "MW",
+crow("平均在役 MW（«P0» 欄為«STUBW»平均）", "MW",
      lambda i: f"=IF({AVGON}=1,({COLS[i]}{beg_row}+{COLS[i]}{bil_row})/2,{COLS[i]}{bil_row})", NUM0, BLACK,
      "開關在輸入頁：1＝(期初+期末)/2，0＝期末全期化")
-avg_row = CR["平均在役 MW（FY26 欄為下半年平均）"]
+avg_row = CR["平均在役 MW（«P0» 欄為«STUBW»平均）"]
 crow("利用率", "%", lambda i: f"={inref('利用率', i)}", PCT, GREEN)
 crow("每 MW 年收入", "US$bn/MW", lambda i: f"={inref('每 MW 年收入', i)}", '0.0000', GREEN)
 crow("容量上限（模型期最多能交付的收入）", "US$bn",
@@ -616,7 +606,7 @@ for i in range(5):
 r = section(ws, r, "（B）合約：排程 RPO")
 crow("排程 RPO（模型期，依 10-Q 桶分攤）", "US$bn",
      lambda i: f"=({RPO0}+{RPOADD})*({inref('RPO 桶權重', i)}/{WSUM})*{RP}", NUM, BLACK,
-     "＝(6/30 RPO＋Q3 新增)×本期權重÷權重合計×五期認列比例。只看合約，不看機房")
+     "＝(«VMD» RPO＋Q3 新增)×本期權重÷權重合計×五期認列比例。只看合約，不看機房")
 sch_row = CR["排程 RPO（模型期，依 10-Q 桶分攤）"]
 ai_row = sch_row
 
@@ -648,14 +638,14 @@ crow("損益用算力收入（模型期＝RPO 轉換＋新簽約）", "US$bn",
      "損益與評價頁的算力收入由此連結，確保現金與損益同一組數字")
 isrev_row = CR["損益用算力收入（模型期＝RPO 轉換＋新簽約）"]
 
-crow("1H26 實際營收（10-Q，已實現）", "US$bn",
+crow("«YTDL» 實際營收（10-Q，已實現）", "US$bn",
      lambda i: (f"={H_REV}" if i == 0 else "=0"), NUM, GREEN,
-     "2026-01-01 至 06-30 已認列營收。已實現，不受下半年產能約束，故不進入上方的瓶頸計算")
-h1rev_row = CR["1H26 實際營收（10-Q，已實現）"]
-crow("FY26 全年總營收（1H 實際＋模型期算力＋服務）", "US$bn",
+     "«FYSTART» 至 «VMMDD» 已認列營收。已實現，不受«STUBW»產能約束，故不進入上方的瓶頸計算")
+h1rev_row = CR["«YTDL» 實際營收（10-Q，已實現）"]
+crow("«P0» 全年總營收（«YTD» 實際＋模型期算力＋服務）", "US$bn",
      lambda i: (f"={COLS[i]}{h1rev_row}+{COLS[i]}{isrev_row}+{inref('非算力服務營收', i)}"), NUM, BOLD,
      "FY26 欄可直接對照公司全年指引 12.4–13.2；FY27 以後即為該年度總營收")
-fy_rev_row = CR["FY26 全年總營收（1H 實際＋模型期算力＋服務）"]
+fy_rev_row = CR["«P0» 全年總營收（«YTD» 實際＋模型期算力＋服務）"]
 for i in range(5):
     ws.cell(row=fy_rev_row, column=3 + i).font = Font(name="Arial", size=10, bold=True)
 ws.cell(row=fy_rev_row, column=3).fill = FILL_KEY
@@ -685,7 +675,7 @@ crow("新簽約現金", "US$bn",
 newcash_row = CR["新簽約現金"]
 
 r += 1
-ws.cell(row=r, column=1, value="讀法：FY26（2H）與 FY27 瓶頸>0，合約多於機房；FY28 起反轉，收入愈來愈靠『新簽約收入』這一列。").font = BOLD
+ws.cell(row=r, column=1, value="讀法：«P0»（«STUB»）與 «P1» 瓶頸>0，合約多於機房；FY28 起反轉，收入愈來愈靠『新簽約收入』這一列。").font = BOLD
 r += 1
 ws.cell(row=r, column=1, value="把『新產能簽約率』調到 0，就能看到只靠期初 RPO 的資金缺口有多大——這是最重要的一個壓力測試。").font = SMALL
 CAP = {"cm": cm_row, "totrev": totrev_row, "cap": cap_row, "sch": sch_row, "bot": bot_row, "rev": rev_row, "newrev": newrev_row,
@@ -703,7 +693,7 @@ for c in COLS:
 ws.column_dimensions["I"].width = 96
 ws["A1"] = "支出與資金 — 五層支出、四層來源、現金橋"
 ws["A1"].font = TITLE
-ws["A2"] = "FY26 欄＝1H 實際（10-Q 現金流量表口徑）＋下半年模型；FY27 以後為純模型。瀑布以「融資前現金」決定需求並直接由各支出列加總，因此沒有循環參照"
+ws["A2"] = "«P0» 欄＝«YTD» 實際（10-Q 現金流量表口徑）＋«STUBW»模型；«P1» 以後為純模型。瀑布以「融資前現金」決定需求並直接由各支出列加總，因此沒有循環參照"
 ws["A2"].font = SMALL
 r = 4
 r = period_header(ws, r)
@@ -728,30 +718,31 @@ def frow(name, unit, fn, fmt=NUM, font=BLACK, note=None, bold=False):
 r = section(ws, r, "支出（五層）")
 frow("① 毛 CapEx（認列，備忘）", "US$bn",
      lambda i: (f"={H_CAPEX}+{inref('毛 CapEx', i)}" if i == 0 else f"={inref('毛 CapEx', i)}"), NUM, BLACK,
-     "FY26＝1H 實際認列 16.139＋2H 模型；對照公司全年指引 35–39。備忘列：用途合計採現金口徑，不用這一列")
+     f"«P0»＝«YTD» 實際認列 {CO['ytdActual']['capex']}＋«STUB» 模型；對照公司全年指引 {CO['callFacts']['capexLo']}–{CO['callFacts']['capexHi']}。備忘列：用途合計採現金口徑，不用這一列")
 frow("　客戶預付率", "%", lambda i: f"={inref('客戶預付占毛 CapEx', i)}", PCT, GREEN)
-frow("　客戶預付金額（抵減，2H 起）", "US$bn",
+frow("　客戶預付金額（抵減，«STUB» 起）", "US$bn",
      lambda i: f"={inref('毛 CapEx', i)}*{COLS[i]}{FR['　客戶預付率']}", NUM, BLACK,
-     "1H 的預付已含在實際 CFO 內，不重複計入")
-frow("① CapEx（用途用：1H 現金／2H 毛額）", "US$bn",
+     "«YTD» 的預付已含在實際 CFO 內，不重複計入")
+frow("① CapEx（用途用：«YTD» 現金／«STUB» 毛額）", "US$bn",
      lambda i: (f"={H_CCAPEX}+{inref('毛 CapEx', i)}" if i == 0 else f"={inref('毛 CapEx', i)}"), NUM, BLACK,
-     "1H 採現金流量表的現金購置 14.117；2H 起採毛額，客戶預付在來源端抵回（避免重複計入）")
-frow("② 在帳現金租金（備忘，1H 已含在 CFO）", "US$bn",
+     f"«YTD» 採現金流量表的現金購置 {CO['ytdActual']['cashCapex']}；«STUB» 起採毛額，客戶預付在來源端抵回（避免重複計入）")
+frow("② 在帳現金租金（備忘，«YTD» 已含在 CFO）", "US$bn",
      lambda i: f"={inref('在帳現金租金（10-Q 到期表）', i)}", NUM, GREEN,
-     "見『租賃與承諾』頁；2030 後尚有 19.023。FY26 欄僅 2H：1H 租金 0.748 已含在實際 CFO 內")
+     f"見『租賃與承諾』頁；«LASTYR» 後尚有 {CO['leases']['afterFY30']}。«P0» 欄僅 «STUB»：«YTD» 租金 {CO['ytdActual']['leasePaid']} 已含在實際 CFO 內")
 frow("② 表外現金租金（未起租）", "US$bn", lambda i: f"={inref('表外現金租金（未起租）', i)}", NUM, GREEN,
      "未起租 35.5＋單站上限 14.7＋355MW 造價計租的現金路徑")
 frow("　租金合計", "US$bn",
-     lambda i: f"={COLS[i]}{FR['② 在帳現金租金（備忘，1H 已含在 CFO）']}+{COLS[i]}{FR['② 表外現金租金（未起租）']}", NUM, BLACK)
+     lambda i: f"={COLS[i]}{FR['② 在帳現金租金（備忘，«YTD» 已含在 CFO）']}+{COLS[i]}{FR['② 表外現金租金（未起租）']}", NUM, BLACK)
 _wsc = wb["運營_產能與收入"]; _wsi = wb["輸入與假設"]
 for i in range(5):
     _wsc.cell(row=CAP["cm"], column=3 + i,
               value=f"={inref('EBITDA 率', i)}+'各期收支'!{COLS[i]}{FR['　租金合計']}/MAX(0.01,{COLS[i]}{CAP['totrev']})")
     c = _wsi.cell(row=IN["非算力服務現金"], column=3 + i,
                   value=f"={inref('非算力服務營收', i)}*'運營_產能與收入'!{COLS[i]}{CAP['cm']}"); c.font = BLACK
-frow("③ 存量債務利息（備忘，1H 已含在 CFO）", "US$bn",
+frow("③ 存量債務利息（備忘，«YTD» 已含在 CFO）", "US$bn",
      lambda i: f"={inref('存量債務利息', i)}", NUM, GREEN,
-     "6/30 債務餘額的利息。FY26 全年利息＝1H 實際 1.176＋2H 1.8＝2.98（見下方備忘）")
+     # v4.5：首期模型部分的利息由本列算出，說明句改為文字公式（滾動後隨模型值更新）
+     f'="«VMD» 債務餘額的利息。«P0» 全年利息＝«YTD» 實際 {YA["interest"]}＋«STUB» "&TEXT(C{r},"0.0")&"＝"&TEXT({YA["interest"]}+C{r},"0.00")&"（見下方備忘）"')
 frow("　期初累積現金", "US$bn", lambda i: f"={H_CASH1231}", NUM, BLACK,
      "FY26 自 2025-12-31 的 3.127 起算；之後＝前期期末累積現金")
 beg_cash = FR["　期初累積現金"]
@@ -763,11 +754,11 @@ frow("③ 新債利息（瀑布）", "US$bn", lambda i: "=0", NUM, BLACK,
      "＝新債利率×期間長度×(期初新債＋本期舉借)；見下方「期前融資瀑布」")
 newint_row = FR["③ 新債利息（瀑布）"]
 frow("　利息合計", "US$bn",
-     lambda i: f"={COLS[i]}{FR['③ 存量債務利息（備忘，1H 已含在 CFO）']}+{COLS[i]}{newint_row}", NUM, BLACK)
+     lambda i: f"={COLS[i]}{FR['③ 存量債務利息（備忘，«YTD» 已含在 CFO）']}+{COLS[i]}{newint_row}", NUM, BLACK)
 int_row = FR["　利息合計"]
 frow("④ JV／策略投資出資", "US$bn",
      lambda i: (f"={H_JV}+{inref('JV／策略投資出資', i)}" if i == 0 else f"={inref('JV／策略投資出資', i)}"), NUM, BLACK,
-     "FY26＝1H 實際 0.688（JV 0.550＋策略投資 0.138）＋2H 模型。10-Q 已承諾 1.7bn。CRWV 不發股息")
+     f"«P0»＝«YTD» 實際 {YA['jv']}（JV {YA['jvSplit']['jv']:.3f}＋策略投資 {YA['jvSplit']['strategic']:.3f}）＋«STUB» 模型。10-Q 已承諾 1.7bn。{CO['meta']['ticker']} 不發股息")
 frow("　電力（overlay）", "US$bn",
      lambda i: (f"=IF({OVERLAY}=1,'運營_產能與收入'!{COLS[i]}{CAP['acc']}*8760*{inref('PUE', i)}*{inref('電價', i)}/1000000000*"
                 f"'運營_產能與收入'!{COLS[i]}{CR['模型期長度（年）']},0)"), NUM, BLACK,
@@ -778,41 +769,41 @@ frow("　維護（overlay）", "US$bn",
 frow("⑤ 排程還本（10-Q 本金表）", "US$bn",
      lambda i: (f"={H_REPAY}+IF({DEBTON}=1,{inref('排程還本（10-Q 本金表）', i)},0)" if i == 0
                 else f"=IF({DEBTON}=1,{inref('排程還本（10-Q 本金表）', i)},0)"), NUM, BLACK,
-     "FY26＝1H 實際還款 5.219＋2H 到期表 4.413")
-frow("⑥ capped call 支出（1H 實際）", "US$bn",
+     f"«P0»＝«YTD» 實際還款 {CO['ytdActual']['debtRepaid']}＋«STUB» 到期表 {CO['debt']['amortization'][0]}")
+frow("⑥ capped call 支出（«YTD» 實際）", "US$bn",
      lambda i: (f"={H_CAP}" if i == 0 else "=0"), NUM, BLACK, "Q2 4.0bn 可轉債的 capped call 現金支出")
 debt_row = FR["⑤ 排程還本（10-Q 本金表）"]
 frow("用途合計（現金口徑）", "US$bn",
-     lambda i: (f"={COLS[i]}{FR['① CapEx（用途用：1H 現金／2H 毛額）']}+{COLS[i]}{FR['　租金合計']}+{COLS[i]}{int_row}+"
+     lambda i: (f"={COLS[i]}{FR['① CapEx（用途用：«YTD» 現金／«STUB» 毛額）']}+{COLS[i]}{FR['　租金合計']}+{COLS[i]}{int_row}+"
                 f"{COLS[i]}{FR['④ JV／策略投資出資']}+{COLS[i]}{FR['　電力（overlay）']}+"
-                f"{COLS[i]}{FR['　維護（overlay）']}+{COLS[i]}{debt_row}+{COLS[i]}{FR['⑥ capped call 支出（1H 實際）']}"),
+                f"{COLS[i]}{FR['　維護（overlay）']}+{COLS[i]}{debt_row}+{COLS[i]}{FR['⑥ capped call 支出（«YTD» 實際）']}"),
      NUM, BLACK,
-     "FY26 的 1H 部分採 10-Q 現金流量表口徑（現金購置、還款、JV、capped call）；1H 的利息與租金已含在 CFO 內，不重複列",
+     "«P0» 的 «YTD» 部分採 10-Q 現金流量表口徑（現金購置、還款、JV、capped call）；«YTD» 的利息與租金已含在 CFO 內，不重複列",
      bold=True)
 uses_row = FR["用途合計（現金口徑）"]
 
 r = section(ws, r, "來源（四層）")
-frow("Ⓐ0 1H26 實際營運現金流（CFO）", "US$bn",
+frow("Ⓐ0 «YTDL» 實際營運現金流（CFO）", "US$bn",
      lambda i: (f"={H_CFO}" if i == 0 else "=0"), NUM, GREEN,
-     "10-Q 實際值，取代模型推算；已含 1H 的利息、租金與客戶預付")
-frow("Ⓐ RPO 現金（2H 起）", "US$bn", lambda i: f"='運營_產能與收入'!{COLS[i]}{CAP['rpocash']}", NUM, GREEN)
+     "10-Q 實際值，取代模型推算；已含 «YTD» 的利息、租金與客戶預付")
+frow("Ⓐ RPO 現金（«STUB» 起）", "US$bn", lambda i: f"='運營_產能與收入'!{COLS[i]}{CAP['rpocash']}", NUM, GREEN)
 frow("Ⓑ 新簽約現金", "US$bn", lambda i: f"='運營_產能與收入'!{COLS[i]}{CAP['newcash']}", NUM, GREEN)
 frow("Ⓒ 非算力服務現金", "US$bn", lambda i: f"={inref('非算力服務現金', i)}", NUM, GREEN)
-frow("Ⓓ 客戶預付（2H 起）", "US$bn",
-     lambda i: f"={COLS[i]}{FR['　客戶預付金額（抵減，2H 起）']}", NUM, BLACK)
+frow("Ⓓ 客戶預付（«STUB» 起）", "US$bn",
+     lambda i: f"={COLS[i]}{FR['　客戶預付金額（抵減，«STUB» 起）']}", NUM, BLACK)
 frow("營運來源合計", "US$bn",
-     lambda i: (f"={COLS[i]}{FR['Ⓐ0 1H26 實際營運現金流（CFO）']}+{COLS[i]}{FR['Ⓐ RPO 現金（2H 起）']}+"
-                f"{COLS[i]}{FR['Ⓑ 新簽約現金']}+{COLS[i]}{FR['Ⓒ 非算力服務現金']}+{COLS[i]}{FR['Ⓓ 客戶預付（2H 起）']}"),
+     lambda i: (f"={COLS[i]}{FR['Ⓐ0 «YTDL» 實際營運現金流（CFO）']}+{COLS[i]}{FR['Ⓐ RPO 現金（«STUB» 起）']}+"
+                f"{COLS[i]}{FR['Ⓑ 新簽約現金']}+{COLS[i]}{FR['Ⓒ 非算力服務現金']}+{COLS[i]}{FR['Ⓓ 客戶預付（«STUB» 起）']}"),
      NUM, BLACK, bold=True)
 srcop_row = FR["營運來源合計"]
 frow("Ⓔ 股權／可轉債（融資）", "US$bn",
      lambda i: (f"={H_EQ}+IF({ATMON}=1,{ATM},0)" if i == 0 else "=0"), NUM, BLACK,
-     "FY26＝1H 私募股權 2.982＋2H 可轉債淨現金 3.2＋ATM 上限 2.8")
+     CO['texts']['fy0EquityNote'])
 atm_row = FR["Ⓔ 股權／可轉債（融資）"]
-frow("Ⓕ 1H26 實際借款（融資）", "US$bn",
+frow("Ⓕ «YTDL» 實際借款（融資）", "US$bn",
      lambda i: (f"={H_BORROW}" if i == 0 else "=0"), NUM, GREEN,
-     "10-Q：H1 借款 16.747。1H 的缺口實際上就是靠舉債填補的")
-borrow_row = FR["Ⓕ 1H26 實際借款（融資）"]
+     f"10-Q：«YTDA» 借款 {YA['borrow']}。«YTD» 的缺口實際上就是靠舉債填補的")
+borrow_row = FR["Ⓕ «YTDL» 實際借款（融資）"]
 frow("Ⓖ 瀑布：新債（額度＋資產層）", "US$bn", lambda i: "=0", NUM, BLACK, "見下方「期前融資瀑布」")
 fac_row = FR["Ⓖ 瀑布：新債（額度＋資產層）"]
 frow("Ⓗ 瀑布：股權募資", "US$bn", lambda i: "=0", NUM, BLACK, "債務用罄後的殘差；每年不超過股權吸收上限")
@@ -825,13 +816,13 @@ frow("總來源（含融資）", "US$bn",
 src_row = FR["總來源（含融資）"]
 
 r = section(ws, r, "缺口與現金橋")
-frow("　1H 其他／受限現金調節", "US$bn",
+frow("　«YTD» 其他／受限現金調節", "US$bn",
      lambda i: (f"={CASH0}-({H_CASH1231}+{H_CFO}+{H_BORROW}+{H_EQ}-{H_CCAPEX}-{H_JV}-{H_REPAY}-{H_CAP})"
                 if i == 0 else "=0"), NUM, BLACK,
-     "使 1H 實際流量接回 6/30 現金餘額；差額來自受限現金重分類與未逐項列出的項目")
-plug_row = FR["　1H 其他／受限現金調節"]
+     "使 «YTD» 實際流量接回 «VMD» 現金餘額；差額來自受限現金重分類與未逐項列出的項目")
+plug_row = FR["　«YTD» 其他／受限現金調節"]
 frow("營運缺口（不含融資、不含還本）", "US$bn",
-     lambda i: f"={COLS[i]}{srcop_row}-({COLS[i]}{uses_row}-{COLS[i]}{debt_row}-{COLS[i]}{FR['⑥ capped call 支出（1H 實際）']})",
+     lambda i: f"={COLS[i]}{srcop_row}-({COLS[i]}{uses_row}-{COLS[i]}{debt_row}-{COLS[i]}{FR['⑥ capped call 支出（«YTD» 實際）']})",
      NUM, BLACK, "本業能不能自給：營運來源 −（用途 − 排程還本 − capped call）", bold=True)
 opgap_row = FR["營運缺口（不含融資、不含還本）"]
 frow("期間缺口（含融資）", "US$bn",
@@ -850,10 +841,10 @@ r += 1
 r = section(ws, r, "期前融資瀑布（缺口在需要前一期先融好：額度 → 資產層新債 → 股權）")
 LROW = f"'運營_產能與收入'!{{c}}{CR['模型期長度（年）']}"
 frow("用途（不含新債利息）", "US$bn",
-     lambda i: (f"={COLS[i]}{FR['① CapEx（用途用：1H 現金／2H 毛額）']}+{COLS[i]}{FR['　租金合計']}+"
-                f"{COLS[i]}{FR['③ 存量債務利息（備忘，1H 已含在 CFO）']}+{COLS[i]}{FR['④ JV／策略投資出資']}+"
+     lambda i: (f"={COLS[i]}{FR['① CapEx（用途用：«YTD» 現金／«STUB» 毛額）']}+{COLS[i]}{FR['　租金合計']}+"
+                f"{COLS[i]}{FR['③ 存量債務利息（備忘，«YTD» 已含在 CFO）']}+{COLS[i]}{FR['④ JV／策略投資出資']}+"
                 f"{COLS[i]}{FR['　電力（overlay）']}+{COLS[i]}{FR['　維護（overlay）']}+{COLS[i]}{debt_row}+"
-                f"{COLS[i]}{FR['⑥ capped call 支出（1H 實際）']}"), NUM, BLACK, "避免循環參照：直接由各支出列加總")
+                f"{COLS[i]}{FR['⑥ capped call 支出（«YTD» 實際）']}"), NUM, BLACK, "避免循環參照：直接由各支出列加總")
 wu_row = FR["用途（不含新債利息）"]
 frow("新債期初餘額", "US$bn", lambda i: "=0", NUM, BLACK)
 dn_beg = FR["新債期初餘額"]
@@ -962,9 +953,9 @@ ws.cell(row=r, column=1, value="＋ 1H 實際借款").font = BLACK
 ws.cell(row=r, column=3, value=f"=SUM(C{borrow_row}:G{borrow_row})").number_format = NUM
 b3b = r; r += 1
 ws.cell(row=r, column=1, value="− capped call（1H）").font = BLACK
-ws.cell(row=r, column=3, value=f"=-SUM(C{FR['⑥ capped call 支出（1H 實際）']}:G{FR['⑥ capped call 支出（1H 實際）']})").number_format = NUM
+ws.cell(row=r, column=3, value=f"=-SUM(C{FR['⑥ capped call 支出（«YTD» 實際）']}:G{FR['⑥ capped call 支出（«YTD» 實際）']})").number_format = NUM
 b3c = r; r += 1
-ws.cell(row=r, column=1, value="＋ 1H 其他／受限現金調節").font = BLACK
+ws.cell(row=r, column=1, value="＋ «YTD» 其他／受限現金調節").font = BLACK
 ws.cell(row=r, column=3, value=f"=SUM(C{plug_row}:G{plug_row})").number_format = NUM
 b3d = r; r += 1
 ws.cell(row=r, column=1, value="＋ 瀑布新債＋股權＋高息債合計").font = BLACK
@@ -990,7 +981,7 @@ r = section(ws, r, "FY26 全年備忘（對照公司指引）", collapsed=True)
 memo = [
     ("FY26 總營收（1H 實際＋2H 模型）", f"='運營_產能與收入'!C{fy_rev_row}", NUM, "公司指引 12.4–13.2"),
     ("FY26 CapEx 認列（1H＋2H）", f"=C{FR['① 毛 CapEx（認列，備忘）']}", NUM, "公司指引 35–39"),
-    ("FY26 利息（1H 實際＋2H 模型）", f"={H_INT}+{inref('存量債務利息', 0)}+C{newint_row}", NUM,
+    ("«P0» 利息（«YTD» 實際＋«STUB» 模型）", f"={H_INT}+{inref('存量債務利息', 0)}+C{newint_row}", NUM,
      "Q3 指引 0.86–0.94／季"),
     ("FY26 租賃現金（1H 實際＋2H 模型）", f"={H_LEASE}+C{FR['　租金合計']}", NUM, "1H 實際支付 0.748"),
     ("FY26 排程還本（1H 實際＋2H）", f"=C{debt_row}", NUM, "1H 實際還款 5.219＋2H 到期表 4.413"),
@@ -1019,7 +1010,7 @@ ws.column_dimensions["B"].width = 14
 for c in ["C", "D", "E", "F", "G", "H"]:
     ws.column_dimensions[c].width = 13
 ws.column_dimensions["I"].width = 86
-ws["A1"] = "租賃與承諾 — 10-Q（2026-06-30）原始揭露"
+ws["A1"] = "租賃與承諾 — 10-Q（«VD»）原始揭露"
 ws["A1"].font = TITLE
 ws["A2"] = "本頁為硬編碼的申報數字（藍字），支出與資金頁的租金與還本列由此而來"
 ws["A2"].font = SMALL
@@ -1135,12 +1126,12 @@ ws.column_dimensions["B"].width = 12
 for c in ["C", "D", "E", "F", "G", "H"]:
     ws.column_dimensions[c].width = 13
 ws.column_dimensions["I"].width = 90
-ws["A1"] = "債務明細 — 10-Q Note 10（2026-06-30）逐筆＋存量利息推導"
+ws["A1"] = "債務明細 — 10-Q Note 10（«VD»）逐筆＋存量利息推導"
 ws["A1"].font = TITLE
 ws["A2"] = "有效利率為 10-Q 揭露值（含折價攤銷，四捨五入至整數 %）。本頁算出的存量利息連回『輸入』頁，再進入支出與資金頁"
 ws["A2"].font = SMALL
 r = 4
-for j, h in enumerate(["工具", "類別", "到期", "有效利率", "6/30 本金", "年化利息", "", "", "備註"]):
+for j, h in enumerate(["工具", "類別", "到期", "有效利率", "«VMD» 本金", "年化利息", "", "", "備註"]):
     if h:
         c = ws.cell(row=r, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
 r += 1
@@ -1173,7 +1164,7 @@ for nm, cat, mat, rate, amt, note in debts:
     ws.cell(row=r, column=9, value=note + (" [Verified]" if note else "[Verified]")).font = SMALL
     r += 1
 d1 = r - 1
-ws.cell(row=r, column=1, value="合計（6/30）").font = BOLD
+ws.cell(row=r, column=1, value="合計（«VMD»）").font = BOLD
 c = ws.cell(row=r, column=5, value=f"=SUM(E{d0}:E{d1})"); c.font = BOLD; c.number_format = NUM
 c = ws.cell(row=r, column=6, value=f"=SUM(F{d0}:F{d1})"); c.font = BOLD; c.number_format = NUM
 ws.cell(row=r, column=9, value="應等於 10-Q 本金合計 35.551").font = SMALL
@@ -1204,7 +1195,7 @@ def drow(name, unit, fn, fmt=NUM, font=BLACK, note=None, bold=False):
     if note:
         ws.cell(row=r, column=9, value=note).font = SMALL
     DR[name] = r; r += 1
-drow("期初本金", "US$bn", lambda i: f"=E{tot_r}" if i == 0 else "=0", NUM, BLACK, "FY26 期初為 6/30 本金（模型期起點）")
+drow("期初本金", "US$bn", lambda i: f"=E{tot_r}" if i == 0 else "=0", NUM, BLACK, "«P0» 期初為 «VMD» 本金（模型期起點）")
 drow("排程還本", "US$bn", lambda i: f"={inref('排程還本（10-Q 本金表）', i)}", NUM, GREEN, "10-Q 到期表")
 drow("期末本金", "US$bn", lambda i: f"={COLS[i]}{DR['期初本金']}-{COLS[i]}{DR['排程還本']}", NUM, BLACK)
 for i in range(1, 5):
@@ -1396,7 +1387,7 @@ vrow("利息（含瀑布新債）", "US$bn", lambda i: f"='各期收支'!{COLS[i
 int_v = VR["利息（含瀑布新債）"]
 vrow("稅前損益", "US$bn", lambda i: f"={COLS[i]}{ebit_v}-{COLS[i]}{int_v}", NUM, BLACK)
 pre_v = VR["稅前損益"]
-vrow("NOL 期初餘額", "US$bn", lambda i: f"={NOL0}", NUM, BLACK, "6/30 累積虧損約 4.0")
+vrow("NOL 期初餘額", "US$bn", lambda i: f"={NOL0}", NUM, BLACK, f"«VMD» 累積虧損約 {V['nol']:.1f}")
 nol_b = VR["NOL 期初餘額"]
 vrow("　本期動用 NOL", "US$bn",
      lambda i: f"=MIN({COLS[i]}{nol_b},MAX(0,{COLS[i]}{pre_v})*0.8)", NUM, BLACK, "美國規定：抵扣上限為應稅所得 80%")
@@ -1423,19 +1414,19 @@ vrow("股數（含瀑布新股）", "bn", lambda i: f"={COLS[i]}{shb_v}+'各期�
      "＝基礎股數＋累計瀑布新股")
 shr_v = VR["股數（含瀑布新股）"]
 vrow("每股盈餘（EPS，模型期）", "US$", lambda i: f"={COLS[i]}{ni_v}/{COLS[i]}{shr_v}", USD, BLACK,
-     "FY26 欄只含下半年；全年口徑見下方")
+     "«P0» 欄只含«STUBW»；全年口徑見下方")
 
 r += 1
-r = section(ws, r, "損益表（全年口徑；FY26＝1H 實際＋下半年模型；與 HTML 損益簡表一致）")
-vrow("1H26 實際營收（已實現）", "US$bn", lambda i: (f"={H_REV}" if i == 0 else "=0"), NUM, GREEN)
-fy_h1 = VR["1H26 實際營收（已實現）"]
+r = section(ws, r, "損益表（全年口徑；«FY0»；與 HTML 損益簡表一致）")
+vrow("«YTDL» 實際營收（已實現）", "US$bn", lambda i: (f"={H_REV}" if i == 0 else "=0"), NUM, GREEN)
+fy_h1 = VR["«YTDL» 實際營收（已實現）"]
 vrow("全年總營收", "US$bn", lambda i: f"={COLS[i]}{fy_h1}+{COLS[i]}{rev_v}", NUM, BLACK, "FY26 可對照指引 12.4–13.2", bold=True)
 fy_rev = VR["全年總營收"]
 vrow("營收 YoY", "%", lambda i: (f"={COLS[i]}{fy_rev}/5.131-1" if i == 0 else f"={COLS[i]}{fy_rev}/{COLS[i-1]}{fy_rev}-1"), PCT, BLACK, "FY25 實際 5.131")
 vrow("全年 GAAP 營業利益", "US$bn", lambda i: (f"={H_OPINC}+{COLS[i]}{ebit_v}" if i == 0 else f"={COLS[i]}{ebit_v}"), NUM, BLACK)
 fy_ebit = VR["全年 GAAP 營業利益"]
 vrow("營利率", "%", lambda i: f"={COLS[i]}{fy_ebit}/{COLS[i]}{fy_rev}", PCT, BLACK)
-vrow("全年 D&A", "US$bn", lambda i: (f"={H_DA}+{COLS[i]}{da_v}" if i == 0 else f"={COLS[i]}{da_v}"), NUM, BLACK, "1H 實際 2.540")
+vrow("全年 D&A", "US$bn", lambda i: (f"={H_DA}+{COLS[i]}{da_v}" if i == 0 else f"={COLS[i]}{da_v}"), NUM, BLACK, f"«YTD» 實際 {YA['da']:.3f}")
 fy_da = VR["全年 D&A"]
 vrow("全年 EBITDA", "US$bn", lambda i: f"={COLS[i]}{fy_ebit}+{COLS[i]}{fy_da}", NUM, BLACK, bold=True)
 vrow("全年利息（含瀑布新債）", "US$bn", lambda i: (f"={H_INT}+{COLS[i]}{int_v}" if i == 0 else f"={COLS[i]}{int_v}"), NUM, BLACK,
@@ -1444,7 +1435,7 @@ vrow("全年淨利", "US$bn", lambda i: (f"={H_NI}+{COLS[i]}{ni_v}" if i == 0 el
 fy_ni = VR["全年淨利"]
 vrow("淨利率", "%", lambda i: f"={COLS[i]}{fy_ni}/{COLS[i]}{fy_rev}", PCT, BLACK)
 vrow("全年 GAAP EPS", "US$", lambda i: (f"={H_EPS}+{COLS[i]}{ni_v}/{COLS[i]}{shr_v}" if i == 0 else f"={COLS[i]}{ni_v}/{COLS[i]}{shr_v}"),
-     USD, BLACK, "FY26＝1H 實際 EPS −2.53＋下半年淨利÷股數", bold=True)
+     USD, BLACK, f"«P0»＝«YTD» 實際 EPS {CO['ytdActual']['eps']:.2f}＋«STUBW»淨利÷股數".replace("-", "−"), bold=True)
 vrow("全年 EPS（加回 SBC）", "US$",
      lambda i: (f"={H_NGEPS}+({COLS[i]}{ni_v}+{SBCY}*{inref('模型期長度（年）', i)})/{COLS[i]}{shr_v}" if i == 0
                 else f"=({COLS[i]}{ni_v}+{SBCY}*{inref('模型期長度（年）', i)})/{COLS[i]}{shr_v}"),
@@ -1463,14 +1454,14 @@ ws["A2"] = "營收、營業利益、D&A、EBITDA、股數引用『損益』頁�
 ws["A2"].font = SMALL
 r = 4
 r = period_header(ws, r)
-r = section(ws, r, "DCF（無槓桿自由現金流；起點為 2026-06-30）")
-vrow("現金 CapEx（2026-06-30 之後）", "US$bn",
-     lambda i: f"={inref('毛 CapEx', i)}-'各期收支'!{COLS[i]}{FR['　客戶預付金額（抵減，2H 起）']}", NUM, BLACK,
-     "DCF 起點為 6/30，故 FY26 欄只含 2H 的建置支出，不含 1H 已發生的 14.117")
-capex_v = VR["現金 CapEx（2026-06-30 之後）"]
+r = section(ws, r, "DCF（無槓桿自由現金流；起點為 «VD»）")
+vrow("現金 CapEx（«VD» 之後）", "US$bn",
+     lambda i: f"={inref('毛 CapEx', i)}-'各期收支'!{COLS[i]}{FR['　客戶預付金額（抵減，«STUB» 起）']}", NUM, BLACK,
+     f"DCF 起點為 «VMD»，故 «P0» 欄只含 «STUB» 的建置支出，不含 «YTD» 已發生的 {YA['cashCapex']}")
+capex_v = VR["現金 CapEx（«VD» 之後）"]
 vrow("比較基期營收", "US$bn",
      lambda i: ("=5.131" if i == 0 else (f"=4.653+{PL}{COLS[0]}{rev_v}" if i == 1 else f"={PL}{COLS[i-1]}{rev_v}")),
-     NUM, BLACK, "FY25 實際 5.131；FY27 基期＝1H 實際 4.653＋FY26 模型期營收")
+     NUM, BLACK, f"FY25 實際 5.131；«P1» 基期＝«YTD» 實際 {CO['ytdActual']['revenue']}＋«P0» 模型期營收")
 base_v = VR["比較基期營收"]
 vrow("營運資金變動", "US$bn",
      lambda i: f"=0.02*MAX(0,{PL}{COLS[i]}{rev_v}-{COLS[i]}{base_v})", NUM, BLACK, "營收增量的 2%")
@@ -1495,7 +1486,7 @@ vrow("UFCF", "US$bn",
      NUM, BLACK, "＝EBIT−無槓桿稅＋D&A−現金 CapEx−營運資金。建置期全為負是正常的", bold=True)
 ufcf_v = VR["UFCF"]
 vrow("折現期數", "年", lambda i: f"='輸入與假設'!${COLS[i]}${CAL_R['tEnd']}", '0.0', BLACK,
-     "自 2026-06-30 起算；FY26 模型期（下半年）的現金流平均落在 0.5 年")
+     f"自 «VD» 起算；«P0» 模型期（«STUBW»）的現金流平均落在 {CAL['tEnd'][0]} 年")
 t_v = VR["折現期數"]
 vrow("折現因子", "", lambda i: f"=1/(1+{WACC})^{COLS[i]}{t_v}", '0.000', BLACK)
 df_v = VR["折現因子"]
@@ -1510,7 +1501,7 @@ dcf_lines = [
     ("終值（Gordon）", None, NUM, "＝常態化 FCF×(1+g)÷(WACC−g)"),
     ("終值現值", None, NUM, None),
     ("企業價值 EV", None, NUM, None),
-    ("減：淨負債", f"=-{ND}", NUM, "6/30 本金 35.551 − 現金 5.524"),
+    ("減：淨負債", f"=-{ND}", NUM, f"«VMD» 本金 {CO['latestQuarter']['debtPrincipal']} − 現金 {CO['latestQuarter']['cash']}"),
     ("股權價值", None, NUM, None),
     ("DCF 每股", None, USD, None),
     ("終值占 EV 比重", None, PCT, f'="超過 "&{_PC(RT_TVW)}&" 表示結論由終值假設決定，不由現金流決定"'),
@@ -1771,7 +1762,7 @@ ws.cell(row=r, column=10, value="TTM 至 Q2").font = SMALL
 ws.cell(row=r, column=11, value=f"EV 用 9/21 市值與 6/30 淨負債；含租賃再加營業租賃負債 {CO['latestQuarter']['opLeaseLiab']}").font = SMALL
 crwv_r = r
 r += 1
-ws.cell(row=r, column=1, value="CRWV 模型 FY27E").font = BLACK
+ws.cell(row=r, column=1, value=f"{CO['meta']['ticker']} 模型 «P1»E").font = BLACK
 c = ws.cell(row=r, column=2, value=f"={PX}*{SH}"); c.number_format = NUM
 c = ws.cell(row=r, column=3, value=f"={ND}"); c.number_format = NUM
 c = ws.cell(row=r, column=4, value=f"=B{r}+C{r}"); c.number_format = NUM
@@ -1798,7 +1789,7 @@ for c in COLS:
 ws.column_dimensions["I"].width = 80
 ws["A1"] = "新債與新股（類資產負債表：現金、債務、股本、槓桿）"
 ws["A1"].font = TITLE
-ws["A2"] = "全部為連結公式。FY26 欄的現金自 2026-06-30 起算（模型期），與 HTML『資產與負債 → 新債與新股』同口徑"
+ws["A2"] = "全部為連結公式。«P0» 欄的現金自 «VD» 起算（模型期），與 HTML『資產與負債 → 新債與新股』同口徑"
 ws["A2"].font = SMALL
 r = 4
 r = period_header(ws, r)
@@ -1815,7 +1806,7 @@ def brow(name, unit, fn, fmt=NUM, note=None, bold=False):
         ws.cell(row=r, column=9, value=note).font = SMALL
     BR[name] = r; r += 1
 r = section(ws, r, "現金")
-brow("期初現金", "US$bn", lambda i: (f"={CASH0}" if i == 0 else f"={F_}{COLS[i-1]}{cum_row}"), NUM, "FY26＝6/30 現金（模型期起點）")
+brow("期初現金", "US$bn", lambda i: (f"={CASH0}" if i == 0 else f"={F_}{COLS[i-1]}{cum_row}"), NUM, "«P0»＝«VMD» 現金（模型期起點）")
 brow("營運收支淨額（含 9/17 可轉債／ATM，不含瀑布）", "US$bn",
      lambda i: (f"={F_}{COLS[i]}{pfc_row}-{CASH0}" if i == 0 else f"={F_}{COLS[i]}{pfc_row}-{F_}{COLS[i-1]}{pfc_row}"), NUM,
      "＝融資前累積現金的當期變動；負值即當期外部資金需求")
@@ -1969,21 +1960,22 @@ checks = [
     ("Billable ≤ Accepted（FY30）", f"='運營_產能與收入'!G{CAP['acc']}-'運營_產能與收入'!G{bil_row}", "≥0",
      "=IF(B{r}>=0,\"通過\",\"不一致\")", NUM0,
      "引擎已以 MIN 截斷；此列驗證截斷有效"),
-    ("FY26 CapEx 認列 vs 指引", f"='各期收支'!C{FRR['memo_capex']}", "35–39",
+    ("«P0» CapEx 認列 vs 指引", f"='各期收支'!C{FRR['memo_capex']}", "35–39",
      "=IF(AND(B{r}>=35,B{r}<=39),\"通過\",\"觀察\")", NUM,
-     "1H 實際認列 16.139＋2H 模型；公司 8/11 上修全年 35–39"),
-    ("FY26 營收 vs 指引", f"='各期收支'!C{FRR['memo_rev']}", "12.4–13.2",
+     f"«YTD» 實際認列 {CO['ytdActual']['capex']}＋«STUB» 模型；公司 8/11 上修全年 {CO['callFacts']['capexLo']}–{CO['callFacts']['capexHi']}"),
+    ("«P0» 營收 vs 指引", f"='各期收支'!C{FRR['memo_rev']}", "12.4–13.2",
      "=IF(AND(B{r}>=12.4,B{r}<=13.2),\"通過\",\"觀察\")", NUM,
-     "1H 實際 4.653＋2H 模型（算力＋非算力服務）"),
+     f"«YTD» 實際 {CO['ytdActual']['revenue']}＋«STUB» 模型（算力＋非算力服務）"),
     ("CapEx 強度（模型期合計）", None, "$28–34m/MW",
      "=IF(AND(B{r}>=20,B{r}<=45),\"通過\",\"觀察\")", NUM0,
      "公司自身比率：2026 CapEx 35–39bn 對應約 +1.25 GW ＝ $28–34m/MW"),
     ("表外租金路徑 ÷ 已承諾", f"='資產負債_租賃承諾'!C{lease_ratio_row}", "≥0.8x",
      "=IF(B{r}>=0.8,\"通過\",\"不一致\")", MULT,
      "8 GW 路徑所需新租約多數未簽，路徑高於承諾屬假設"),
-    ("FY26 利息（1H 實際＋2H）", f"='各期收支'!C{FRR['memo_int']}", "≥2.9",
+    ("«P0» 利息（«YTD» 實際＋«STUB»）", f"='各期收支'!C{FRR['memo_int']}", "≥2.9",
      "=IF(B{r}>=2.9,\"通過\",\"觀察\")", NUM,
-     "1H 實際 1.176＋2H 模型 1.8；Q3 指引 0.86–0.94／季"),
+     # v4.5：首期模型部分的存量利息讀「各期收支」③ 列（文字公式，滾動後隨模型值更新）
+     f'="«YTD» 實際 {YA["interest"]}＋«STUB» 模型 "&TEXT(\'各期收支\'!C{FR["③ 存量債務利息（備忘，«YTD» 已含在 CFO）"]},"0.0")&"；Q3 指引 {CO["callFacts"]["q3IntLo"]}–{CO["callFacts"]["q3IntHi"]}／季"'),
     ("FY28 起收入是否依賴未簽約", None, "<50% 較穩健",
      "=IF(B{r}<0.5,\"通過\",\"觀察\")", PCT,
      "FY28–30 新簽約收入 ÷ 同期總算力收入。高＝8 GW 敘事的風險集中點"),
@@ -2008,7 +2000,7 @@ checks = [
     ("FY26 全年 CapEx（MW 公式）", None, "35–39",
      "=IF(AND(B{r}>=35,B{r}<=39),\"通過\",\"觀察\")", NUM, "由 YE25 850→YE26 1,850 MW 與預建 FY27 推得；應重現公司全年指引"),
     ("JV 已承諾餘額於 2026 年內履行", None, "=1.15",
-     "=IF(ABS(B{r}-1.15)<0.01,\"通過\",\"不一致\")", NUM, "10-Q：1.7 承諾預計 2026 年內履行，H1 已付 0.55"),
+     "=IF(ABS(B{r}-1.15)<0.01,\"通過\",\"不一致\")", NUM, f"10-Q：1.7 承諾預計 2026 年內履行，«YTDA» 已付 {YA['jvSplit']['jv']:.2f}"),
     ("模型每 MW 年租金（FY30）", None, "≥ 市場基準×占比",
      "=IF(B{r}>=0,\"通過\",\"觀察\")", NUM, "低於基準×占比的八成即標示：模型租金路徑可能低估"),
     ("站點租賃：五期租金可能低估", None, "<10",
@@ -2071,12 +2063,12 @@ snap = [
     ("模型期排程 RPO", f"=SUM('運營_產能與收入'!C{CAP['sch']}:G{CAP['sch']})", NUM),
     ("模型期產能瓶頸", f"=SUM('運營_產能與收入'!C{CAP['bot']}:G{CAP['bot']})", NUM),
     ("模型期新簽約收入", f"=SUM('運營_產能與收入'!C{CAP['newrev']}:G{CAP['newrev']})", NUM),
-    ("模型期毛 CapEx（6/30 起）", f"=SUM('輸入與假設'!C{IN['毛 CapEx']}:G{IN['毛 CapEx']})", NUM),
-    ("模型期租金（6/30 起）", f"=SUM('各期收支'!C{FR['　租金合計']}:G{FR['　租金合計']})", NUM),
-    ("模型期利息（6/30 起，含瀑布新債）", f"=SUM('各期收支'!C{FRR['int']}:G{FRR['int']})", NUM),
-    ("模型期排程還本（6/30 起）", f"=SUM('輸入與假設'!C{IN['排程還本（10-Q 本金表）']}:G{IN['排程還本（10-Q 本金表）']})*{DEBTON}", NUM),
-    ("模型期營運缺口（6/30 起）", f"=SUM('各期收支'!C{FRR['opgap']}:G{FRR['opgap']})-({H_CFO}-{H_CCAPEX}-{H_JV})", NUM),
-    ("FY26 全年口徑營運缺口（含 1H 實際）", f"=SUM('各期收支'!C{FRR['opgap']}:G{FRR['opgap']})", NUM),
+    ("模型期毛 CapEx（«VMD» 起）", f"=SUM('輸入與假設'!C{IN['毛 CapEx']}:G{IN['毛 CapEx']})", NUM),
+    ("模型期租金（«VMD» 起）", f"=SUM('各期收支'!C{FR['　租金合計']}:G{FR['　租金合計']})", NUM),
+    ("模型期利息（«VMD» 起，含瀑布新債）", f"=SUM('各期收支'!C{FRR['int']}:G{FRR['int']})", NUM),
+    ("模型期排程還本（«VMD» 起）", f"=SUM('輸入與假設'!C{IN['排程還本（10-Q 本金表）']}:G{IN['排程還本（10-Q 本金表）']})*{DEBTON}", NUM),
+    ("模型期營運缺口（«VMD» 起）", f"=SUM('各期收支'!C{FRR['opgap']}:G{FRR['opgap']})-({H_CFO}-{H_CCAPEX}-{H_JV})", NUM),
+    ("«P0» 全年口徑營運缺口（含 «YTD» 實際）", f"=SUM('各期收支'!C{FRR['opgap']}:G{FRR['opgap']})", NUM),
     ("期末現金", f"='各期收支'!G{FRR['cum']}", NUM),
     ("DCF 每股", f"='評價_DCF與目標價'!{DCF_PS}", USD),
     ("加權目標價", f"='評價_DCF與目標價'!{TGT}", USD),
@@ -2859,8 +2851,8 @@ for k in ["營收", "調整後 EBITDA", "EBITDA 率", "CapEx（毛額）", "淨�
     srow(f"差異｜{k}｜模型", "US$bn", _MOD[k], NUM)
     srow(f"差異｜{k}｜共識", "US$bn", [f"={CIR(_CON[k], j)}" for j in range(3)], NUM)
     srow(f"差異｜{k}｜差距", "%", [f"={c}{r-2}/{c}{r-1}-1" for c in "CDE"], PCT,
-         "共識淨負債不含租賃、口徑未揭露：只列不判斷" if k == "淨負債" else ("共識 CapEx 口徑未揭露；FY26＝1H 實際毛額＋2H 模型毛額" if k.startswith("CapEx") else
-         ("FY26 模型＝1H 實際調整後 EBITDA（輸入與假設 G 區，報導轉述 [Verified]）＋2H 模型" if k == "調整後 EBITDA" else None)))
+         "共識淨負債不含租賃、口徑未揭露：只列不判斷" if k == "淨負債" else ("共識 CapEx 口徑未揭露；«P0»＝«YTD» 實際毛額＋«STUB» 模型毛額" if k.startswith("CapEx") else
+         ("«P0» 模型＝«YTD» 實際調整後 EBITDA（輸入與假設 G 區，報導轉述 [Verified]）＋«STUB» 模型" if k == "調整後 EBITDA" else None)))
     if k in ("調整後 EBITDA", "淨負債"):  # v4.4：利潤類與淨負債以金額差呈現（比例列保留作判斷門檻）
         srow(f"差異｜{k}｜差距（金額）", "US$bn", [f"={c}{r-3}-{c}{r-2}" for c in "CDE"], NUM, "與 HTML 一頁摘要、市場共識分頁同一呈現；判斷門檻仍用上一列比例")
 _gr = {"營收": SM["差異｜營收｜差距"], "EBITDA": SM["差異｜調整後 EBITDA｜差距"], "CapEx": SM["差異｜CapEx（毛額）｜差距"]}
@@ -2970,5 +2962,10 @@ _OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "ou
 _osrv.makedirs(_OUT_DIR, exist_ok=True)
 _xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260926_CoreWeave收支模型_v4_4.xlsx")
 _json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
+# v4.5（5a-1）：說明文字中的期間佔位符（«YTD»、«VMD»…）換成目前日曆的字樣（calendar_q.tokens；目前日曆下與 v4.4 文字相同）
+for _ws in wb:
+    for _row in _ws.iter_rows():
+        for _c in _row:
+            if isinstance(_c.value, str) and '«' in _c.value: _c.value = _calq.fill(_c.value, CAL['tokens'])
 wb.save(_xlsx)
 print("saved", _xlsx)

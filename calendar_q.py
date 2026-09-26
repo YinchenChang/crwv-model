@@ -14,6 +14,9 @@ import json, os, re, sys, calendar as _cal
 
 YTD_NAME = {3: '1Q', 6: '1H', 9: '9M'}        # 年初至今實際的標籤前綴（月數 → 前綴）
 STUB_NAME = {3: '4Q', 6: '2H', 9: '2Q–4Q', 12: ''}  # 首期模型部分的標籤前綴（月數 → 前綴）
+YTD_ALT = {3: 'Q1', 6: 'H1', 9: '9M'}         # 另一種寫法（例如「H1 借款」）
+YTD_WORD = {3: '第 1 季', 6: '上半年', 9: '前三季'}
+STUB_WORD = {3: '第 4 季', 6: '下半年', 9: '第 2–4 季', 12: '全年'}
 
 
 def _add_months(y, m, k):
@@ -59,12 +62,15 @@ def derive(co):
     ty, tm = _add_months(vy, vm, tgt_m)
     yy = lambda f: f'{f % 100:02d}'
     num = lambda x: int(x) if float(x).is_integer() else x  # 整數寫成 int（與舊版公式的常數寫法一致）
-    return {
+    out = {
         'fiscalYearEndMonth': fye, 'latestQuarterFiled': c.get('latestQuarterFiled'),
         'latestQuarterReported': c.get('latestQuarterReported'), 'targetHorizon': hz,
-        'valuationDate': _eom(vy, vm), 'valuationMD': f'{vm}/{_cal.monthrange(vy, vm)[1]}',
+        'valuationDate': _eom(vy, vm), 'prevFYE': _eom(*_add_months(*_fy_end(fy - 1, fye), 0)), 'valuationMD': f'{vm}/{_cal.monthrange(vy, vm)[1]}',
         'ytdMonths': ytd, 'stubMonths': stub,
+        'filedQLabel': (f"Q{c['latestQuarterFiled'][-1]} 20{c['latestQuarterFiled'][2:4]}" if c.get('latestQuarterFiled') else None),
         'ytdLabel': (YTD_NAME[ytd] + yy(fy)) if ytd else None,
+        'ytdShort': YTD_NAME.get(ytd), 'ytdShortAlt': YTD_ALT.get(ytd), 'ytdWord': YTD_WORD.get(ytd),
+        'stubShort': STUB_NAME[stub] or None, 'stubWord': STUB_WORD[stub],
         'stubLabel': (STUB_NAME[stub] + yy(fy)) if stub < 12 else f'FY{yy(fy)}',
         'periods': [f'FY{yy(f)}' for f in fys],
         'periodYears': [num(stub / 12)] + [1] * years,
@@ -74,6 +80,37 @@ def derive(co):
         # EV/EBITDA 腿：錨定期 k（1..N）期末折回目標價時點的年數＝k − evOffset；evOffset＝目標價時點年數 − 首期長度
         'evOffset': num(tgt_m / 12 - stub / 12),
     }
+    out['tokens'] = tokens(out)
+    return out
+
+
+def tokens(c):
+    """期間字樣的佔位符 → 目前日曆的寫法（Excel 建置、cmp31、離線檢查共用）。程式中的說明文字以佔位符書寫，
+    建置時統一換成目前日曆的字樣；目前日曆（FY26Q2 已申報）下換出的文字與 v4.4 完全相同。沒有年初至今實際數時以「年初至今」代稱。"""
+    y, p = c['ytdMonths'], c['periods']
+    na = '年初至今'
+    return {
+        '«VD»': c['valuationDate'], '«VMD»': c['valuationMD'], '«VSTART»': _next_day(c['valuationDate']),
+        '«STUBEND»': c['periodEnd'][0][5:], '«STUBYR»': c['periodEnd'][0][:4], '«LASTYR»': c['periodEnd'][-1][:4],
+        '«YTDL»': c['ytdLabel'] or na, '«YTDA»': c['ytdShortAlt'] or na, '«YTDW»': c['ytdWord'] or na, '«YTD»': c['ytdShort'] or na,
+        '«STUBL»': c['stubLabel'], '«STUBW»': c['stubWord'], '«STUB»': c['stubShort'] or '全年',
+        '«P0»': p[0], '«P1»': p[1], '«PL»': p[-1],
+        '«PREVFYE»': c['prevFYE'], '«FYSTART»': _next_day(c['prevFYE']), '«VMMDD»': c['valuationDate'][5:], '«YTDQS»': '＋'.join(f'Q{i}' for i in range(1, y // 3 + 1)) or na,
+        '«FY0»': f"{p[0]}＝{c['ytdShort']} 實際＋{c['stubWord']}模型" if y else f'{p[0]}＝全年模型',
+    }
+
+
+def _next_day(iso):
+    import datetime as _dt
+    return (_dt.date.fromisoformat(iso) + _dt.timedelta(days=1)).isoformat()
+
+
+def fill(s, tk):
+    """把字串中的佔位符換成目前日曆的字樣（長的先換，避免 «YTD» 吃掉 «YTDL»）。"""
+    if not isinstance(s, str) or '«' not in s: return s
+    for k in sorted(tk, key=len, reverse=True): s = s.replace(k, str(tk[k]))
+    assert '«' not in s, f'未定義的期間佔位符：{s[:80]}'
+    return s
 
 
 def load(root=None):
@@ -92,6 +129,9 @@ def apply(co):
     assert ya.get('throughQuarter') == cal['latestQuarterFiled'], \
         f"ytdActual.throughQuarter（{ya.get('throughQuarter')}）須等於 calendar.latestQuarterFiled（{cal['latestQuarterFiled']}）"
     assert ya.get('months') == cal['ytdMonths'], f"ytdActual.months（{ya.get('months')}）須等於推算的年初至今月數 {cal['ytdMonths']}"
+    if cal['ytdLabel']:
+        assert co['historicalPL'][-1]['year'] == cal['ytdLabel'], f"historicalPL 最後一格（{co['historicalPL'][-1]['year']}）須為年初至今 {cal['ytdLabel']}"
+        assert ya['label'].startswith(cal['ytdLabel']), f"ytdActual.label（{ya['label']}）須以 {cal['ytdLabel']} 開頭"
     co['cal'] = cal
     co['periods'], co['periodYears'] = cal['periods'], cal['periodYears']
     co['valuation']['optT'] = cal['tEnd'][-1]
