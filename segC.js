@@ -48,7 +48,7 @@ function AM({
       }), (0, $.jsx)(`div`, {
         className: `mt-3 grid grid-cols-2 gap-2 md:grid-cols-5`,
         children: [
-          [`FY27 算力產能`, mA(s[1].gpu) + `bn`],
+          [`${PERIODS[1]} 算力產能`, mA(s[1].gpu) + `bn`],
           [`五期 Cash CapEx`, mA(e.totals.cashCapex) + `bn`],
           [`需股權募資`, mA(p) + `bn`],
           [`ATM／股數`, `${t.includeAtm?`含`:`不含`} · ${Y(h,3)}bn`],
@@ -92,7 +92,7 @@ function AM({
           children: `評價假設`
         }), (0, $.jsx)(`p`, {
           className: `mt-1 text-xs leading-relaxed text-muted`,
-          children: `現價為 ${PRICE_DATE} 收盤 $${Y(VAL_DEFAULTS.price, 2)}。股數隨 ATM 開關連動（關閉則扣回 35m 股上限）。營收＝資金模型算力產能＋非算力服務。稅率 21% 為名目（公司因評價備抵仍認列稅費，H1 現金稅約 0.1bn）。淨負債用 6/30 本金 35.55 − 現金 5.54，與期初現金同日，9/17 可轉債的現金與負債兩邊都不計，以免雙計。`
+          children: `現價為 ${PRICE_DATE} 收盤 $${Y(VAL_DEFAULTS.price, 2)}。股數隨 ATM 開關連動（關閉則扣回 35m 股上限）。營收＝資金模型算力產能＋非算力服務。稅率 21% 為名目（公司因評價備抵仍認列稅費，${COMPANY_DATA.texts.cashTaxNote}）。淨負債用 ${CALQ.valuationMD} 本金 ${Y(LATEST_Q.debtPrincipal, 2)} − 現金 ${Y(LATEST_Q.cash + LATEST_Q.marketable, 2)}，與期初現金同日，9/17 可轉債的現金與負債兩邊都不計，以免雙計。`
         }), (0, $.jsxs)(`div`, {
           className: `mt-4 space-y-3`,
           children: [(0, $.jsx)(kM, {
@@ -175,7 +175,7 @@ function AM({
             })
           }), (0, $.jsx)(kM, {
             label: `EV/EBITDA 錨定年度`,
-            hint: `${PERIOD_LABELS[n.evYear ?? 1]}${(n.evYear ?? 1) > 1 ? `（以 WACC 折回 FY27 末）` : ``}`,
+            hint: `${PERIOD_LABELS[n.evYear ?? 1]}${(n.evYear ?? 1) >= CALQ.evDiscFrom ? `（以 WACC 折回 ${CALQ.targetText}）` : ``}`,
             children: (0, $.jsx)(`div`, {
               className: `grid grid-cols-4 gap-1 rounded-lg bg-surface p-1`,
               children: [1, 2, 3, 4].map(e => (0, $.jsx)(`button`, {
@@ -230,7 +230,7 @@ function AM({
           className: `max-w-full overflow-x-auto`,
           children: [(0, $.jsx)(`h2`, {
             className: `font-display text-lg font-semibold`,
-            children: `損益簡表（類損益表：歷史 FY23–1H26＋前瞻五期）`
+            children: `損益簡表（類損益表：歷史 ${HIST_PL[0].year}–${HIST_PL[HIST_PL.length - 1].year}＋前瞻五期）` // v4.5：兩端讀 historicalPL（最後一格＝年初至今實際，滾動時隨資料更新）
           }), (0, $.jsx)(`p`, {
             className: `mt-1 text-xs leading-relaxed text-muted`,
             children: `前瞻算力收入連動資金模型可計費產能；非算力服務＝軟體／儲存／CPU／managed inference（Q2 ARR >0.4bn、推論年底 ≥0.25bn）。FY26 欄＝1H26 實際（10-Q）＋2H26 模型，可直接對照公司全年指引 12.4–13.2；FY27 起為純模型。算力收入＝期初 RPO 轉換（產能約束後）＋新簽約（多出來的產能×簽約率）。FY28 起多數收入來自尚未簽署的合約，這是 8 GW 敘事的本質。DCF 只折現 2026-06-30 之後的現金流，不含 1H 實際；FY26E 欄的 1H 部分為 10-Q 實際值。`
@@ -634,7 +634,7 @@ function AM({
               v: Y(c.postShares, 3)
             }), (0, $.jsx)(jM, {
               k: `DCF 每股（${c.invalid ? `失效` : n.dcfMode === `option` ? `選擇權` : `0 截斷`}）`,
-              v: c.invalid ? `失效：${c.invalidReason}` : `$${Y(c.perShare,1)}（原始 $${Y(c.perShareRaw,1)}；0 截斷 $${Y(c.zeroPerShare,1)}；選擇權 $${Y(c.optPerShare,1)}）`
+              v: c.invalid ? `失效：${c.invalidReason}` : `$${Y(c.perShare,1)}（原始 $${Y(c.perShareRaw,1)}；0 截斷 $${Y(c.zeroPerShare,1)}；選擇權 $${Y(c.optPerShare,1)}）；推到 ${CALQ.targetDate} $${Y(c.perShareT,1)}`
             })]
           }), (0, $.jsx)(`h3`, {
             className: `mt-5 text-sm font-medium`,
@@ -780,7 +780,7 @@ function AM({
             children: [`加權目標價 `, (0, $.jsxs)(`span`, {
               className: `font-semibold tabular-nums`,
               children: [`$`, Y(m.blended, 0)]
-            }), c.invalid ? `＝ EV/EBITDA（融資後）$${Y(f, 0)} × 100%（DCF 失效已排除）` : `＝ DCF $${Y(c.perShare, 0)}（${n.dcfMode === `option` ? `選擇權` : `0 截斷`}）× ${hA(m.weights.dcf * 100, 0)} ＋ EV/EBITDA（融資後）$${Y(f, 0)} × ${hA(m.weights.pe * 100, 0)}`, `。相對現價 $`, Y(n.price, 2), ` 為`, ` `, (0, $.jsx)(`span`, {
+            }), c.invalid ? `＝ EV/EBITDA（融資後）$${Y(f, 0)} × 100%（DCF 失效已排除）` : `＝ DCF $${Y(c.perShareT, 0)}（${n.dcfMode === `option` ? `選擇權` : `0 截斷`}，推到 ${CALQ.targetDate}）× ${hA(m.weights.dcf * 100, 0)} ＋ EV/EBITDA（融資後）$${Y(f, 0)} × ${hA(m.weights.pe * 100, 0)}`, `。相對現價 $`, Y(n.price, 2), ` 為`, ` `, (0, $.jsx)(`span`, {
               className: m.upside >= 0 ? `text-ok` : `text-bad`,
               children: hA(m.upside * 100, 0)
             }), `。五期需股權 `, Y(p, 0), `bn。`]
@@ -886,7 +886,7 @@ function AM({
             })
           }), (0, $.jsx)(hdrQ, {
             title: `錨定年度 × 倍數：EV/EBITDA 腿的方法敏感度（即時重算）`,
-            tip: `EV/EBITDA 腿＝（錨定年 EBITDA × 倍數 − 錨定年末淨負債）÷ 錨定年末股數，FY28 起以 WACC 折回 FY27 末（目標價時點）。6x 是以單位經濟推算的穩態倍數上緣（約 3.4–6.0x），套在利潤率仍在爬坡的 FY27 上並不一致；FY27 年末淨負債也已含 FY28 才產生 EBITDA 的預建 CapEx。黃底為目前設定，綠底為不低於現價。`,
+            tip: `EV/EBITDA 腿＝（錨定年 EBITDA × 倍數 − 錨定年末淨負債）÷ 錨定年末股數，${CALQ.evDiscText}（目標價時點）。6x 是以單位經濟推算的穩態倍數上緣（約 3.4–6.0x），套在利潤率仍在爬坡的 FY27 上並不一致；FY27 年末淨負債也已含 FY28 才產生 EBITDA 的預建 CapEx。黃底為目前設定，綠底為不低於現價。`,
             w: 480
           }), (0, $.jsx)(EvGridQ, {
             st: t,
@@ -981,8 +981,8 @@ function AM({
             className: `mt-4 w-full text-sm`,
             children: (0, $.jsx)(`tbody`, {
               children: [
-                [`DCF（已含 CapEx）`, c.perShare, `不重複扣缺口`],
-                [`EV/EBITDA（融資後）`, f, `${PERIOD_LABELS[r.evK]} 末淨負債 ${Y(r.ndA,1)}bn ／ ${PERIOD_LABELS[r.evK]} 末股數 ${Y(r.shA,3)}bn${r.evK > 1 ? `；以 WACC 折回 FY27 末` : ``}`],
+                [`DCF（已含 CapEx）`, c.perShareT, `不重複扣缺口；以 WACC 推到 ${CALQ.targetDate}`],
+                [`EV/EBITDA（融資後）`, f, `${PERIOD_LABELS[r.evK]} 末淨負債 ${Y(r.ndA,1)}bn ／ ${PERIOD_LABELS[r.evK]} 末股數 ${Y(r.shA,3)}bn${r.evK >= CALQ.evDiscFrom ? `；以 WACC 折回 ${CALQ.targetText}` : ``}`],
               ].map(([e, t, n]) => (0, $.jsxs)(`tr`, {
                 className: `border-t border-border`,
                 children: [(0, $.jsx)(`td`, {

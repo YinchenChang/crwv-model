@@ -5,6 +5,7 @@
 #   --vs-dist  另與 dist/ 內現行成品比對：crawl.py 畫面文字與 xl_diff.py --by-label（值與公式）皆須 0 差異（純結構修改的驗收）。
 #              新增列、常數改為引用輸入格、文字改為活公式會另列清單，不計為差異（規則見 xl_diff.py 開頭）。
 # 版本號與更新日：預設取 vlog.py 最後一列與 dist/ 成品檔名的日期；可用環境變數 VER、DATE 覆寫。
+# EXPECT＝預期差異清單（v4.5）：傳給 xl_diff.py --expect（升版時對舊版成品做 --vs-dist，列出預期變動的格子，其餘須 0 差異）。
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/out"
@@ -60,6 +61,15 @@ if python3 build_xlsx.py "$XLSX"; then ok "建 Excel"; else bad "建 Excel"; fin
 step "3. 重算（LibreOffice headless）"
 if python3 scripts/recalc.py "$XLSX" 120; then ok "重算：0 公式錯誤"; else bad "重算"; finish; fi
 
+step "3b. 反向 DCF：以 Excel 求解（scripts/rv_solve.py；v4.5 取代 JS 快照）"
+set +e; python3 scripts/rv_solve.py "$XLSX"; rc=$?; set -e
+if (( rc == 3 )); then  # 反解結果有變動：rv_snap.json 已更新，重建 Excel 後再解一次須無變動
+  echo "rv_snap.json 已更新：重建 Excel"
+  python3 build_xlsx.py "$XLSX" && python3 scripts/recalc.py "$XLSX" 120 >/dev/null || { bad "重建 Excel（反向 DCF 更新後）"; finish; }
+  set +e; python3 scripts/rv_solve.py "$XLSX"; rc=$?; set -e
+fi
+if (( rc == 0 )); then ok "反向 DCF：Excel 求解，rv_snap.json 與 Excel 一致"; else bad "反向 DCF 求解（代碼 $rc）"; finish; fi
+
 step "4. fix_outline"
 if python3 fix_outline.py "$XLSX"; then ok "fix_outline"; else bad "fix_outline"; finish; fi
 
@@ -88,6 +98,10 @@ step "8. 季度層測試（暫存副本：假設 Q3 實際數、可移植性；v
 if python3 scripts/test_quarterly.py > "$OUT/test_quarterly.log" 2>&1; then ok "test_quarterly：假設實際數與可移植性測試通過"; tail -3 "$OUT/test_quarterly.log"
 else bad "test_quarterly（見 $OUT/test_quarterly.log）"; tail -20 "$OUT/test_quarterly.log"; fi
 
+step "8b. 期間滾動測試（暫存副本：日曆推算 6 種情況、滾動後第一屏無過期日期與期間字樣；v4.5）"
+if python3 scripts/test_rolling.py > "$OUT/test_rolling.log" 2>&1; then ok "test_rolling：日曆推算與滾動後第一屏"; tail -3 "$OUT/test_rolling.log"
+else bad "test_rolling（見 $OUT/test_rolling.log）"; tail -30 "$OUT/test_rolling.log"; fi
+
 if (( VS_DIST )); then
   step "9. 與 dist/ 成品比對"
   python3 crawl.py "$DIST_HTML" "$OUT/crawl_dist.json"
@@ -105,9 +119,9 @@ sys.exit(1 if diff or b['errors'] or not pa else 0)
 EOF
   then ok "crawl 畫面文字 0 差異"; else bad "crawl 畫面文字"; fi
   # v4.2：--by-label——列數或 A 欄不同的工作表以「區段＋列名稱」配對（新增列另列清單；列名稱重複即報錯），其餘逐格
-  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX" --values --by-label || true); echo "$r"
+  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX" --values --by-label ${EXPECT:+--expect=$EXPECT} || true); echo "$r"
   if [[ "$(head -1 <<<"$r")" == "0 differences" ]]; then ok "xl_diff --values --by-label 0 差異"; else bad "xl_diff --values --by-label"; fi
-  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX" --by-label || true); echo "$r"
+  r=$(python3 xl_diff.py "$DIST_XLSX" "$XLSX" --by-label ${EXPECT:+--expect=$EXPECT} || true); echo "$r"
   if [[ "$(head -1 <<<"$r")" == "0 differences" ]]; then ok "xl_diff 公式 --by-label 0 差異"; else bad "xl_diff 公式 --by-label"; fi
 fi
 
