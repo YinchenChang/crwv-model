@@ -124,7 +124,7 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
   cmpT('文字 判斷句', RG+'判斷句', R.judge);
   cmpT('文字 DCF 權重說明', '評價_DCF與目標價|DCF 權重說明', R.note); }
 // v4.3：市場共識（I 區逐筆：數值、文字、擷取日期、標記）與一頁摘要（差距、隱含倍數、結論句／判斷句／隱含倍數句／Q3 句逐字）
-{ const R=targetRange(d,q,VAL_DEFAULTS,p), cv=consensusView(d,p,VAL_DEFAULTS,R), SM='摘要|';
+{ const R=targetRange(d,q,VAL_DEFAULTS,p), cv=consensusView(d,p,VAL_DEFAULTS,R,q), SM='摘要|';
   const cmpT=(label,xlKey,h)=>{ const x=X[xlKey]; if(!x){rows.push([label,'MISSING XL KEY '+xlKey]);return;} rows.push([x[0]===h?'OK ':'XX ',label,JSON.stringify(h),JSON.stringify(x[0])]); };
   for(const it of consensusItems()){ const k='輸入與假設|'+it.label, x=X[k]; if(!x){rows.push(['共識 '+it.label,'MISSING XL KEY '+k]);continue;}
     const okV=it.vals.length?it.vals.every((z,i)=>typeof x[i]==='number'&&Math.abs(z-x[i])<1e-9):x[0]===it.text;
@@ -140,7 +140,33 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
   cmp('隱含 模型上緣',SM+'隱含｜模型方法區間上緣',[cv.mHi]);
   cmp('摘要 點位',SM+'結論｜點位（加權目標價）',[R.pt]); cmp('摘要 空間',SM+'結論｜空間',[cv.up]); cmp('摘要 點位−門檻',SM+'結論｜點位 − 賣出門檻',[cv.gapTh]);
   cmpT('文字 摘要評等',SM+'結論｜評等',p.call.call); cmpT('文字 摘要結論句',SM+'結論｜結論句',cv.head); cmpT('文字 摘要情境判斷句',SM+'結論｜情境判斷句',R.judge);
-  cmpT('文字 共識判斷句',SM+'差異｜判斷句',cv.judge); cmpT('文字 隱含倍數句',SM+'隱含｜隱含倍數句',cv.implied); cmpT('文字 Q3 句',SM+'驗證｜Q3 句',cv.q3); }
+  cmpT('文字 共識判斷句',SM+'差異｜判斷句',cv.judge); cmpT('文字 隱含倍數句',SM+'隱含｜隱含倍數句',cv.implied);
+  // v4.4：年度差異原因（類型＋原因逐字；Excel 每個設定組合一列，未超過門檻時為空白）與原因摘要句
+  cmpT('文字 差異原因摘要',SM+'差異｜差異原因摘要',cv.rsnSum);
+  for(const k of Object.keys(X).filter(k=>k.startsWith(SM+'差異原因｜'))){ const [,yr,nm]=k.split('｜'), h=cv.rsn.find(x=>x.yr===yr&&x.name===nm), x=X[k];
+    rows.push([(x[0]??'')===(h?h.type:'')&&(x[1]??'')===(h?h.text:'')?'OK ':'XX ','差異原因 '+yr+' '+nm,JSON.stringify(h?[h.type,h.text]:['','']),JSON.stringify([x[0],x[1]])]); }
+  cv.rsn.forEach(h=>{ if(!X[SM+'差異原因｜'+h.yr+'｜'+h.name]) rows.push(['XX ','差異原因 '+h.yr+' '+h.name,'HTML 有原因、Excel 無此列（'+h.type+'）','']); });
+  // v4.4：季度層（6 季模型／共識／指引／實際／差距／原因／句；焦點季；期間合計核對；摘要驗證點句）
+  const qv=quarterlyView(d,p,q), QT='季度追蹤|', VSN={consensus:'vs 共識',guidance:'vs 指引中點',actual:'實際 vs 模型'};
+  const cmpMix=(label,key,hs)=>{ const x=X[key]; if(!x){rows.push([label,'MISSING XL KEY '+key]);return;}
+    const ok=hs.every((h,i)=>h==null?typeof x[i]!=='number':typeof h==='number'?typeof x[i]==='number'&&Math.abs(h-x[i])<1e-6:(x[i]??'')===h);
+    rows.push([ok?'OK ':'XX ',label,JSON.stringify(hs.map(h=>typeof h==='number'?+h.toFixed(6):h)),JSON.stringify(x.slice(0,hs.length).map(v=>typeof v==='number'?+v.toFixed(6):v))]); };
+  if(qv){ const n=qv.Qs.length;
+    cmpMix('季度 平均在役MW',QT+'平均在役 MW（Billable，拆分依據）',qv.avgBil); cmpMix('季度 車隊折舊',QT+'車隊折舊（模型）',qv.da);
+    for(const m of qv.rows){ const L=m.label, rq=m.q;
+      cmpMix('季度 '+L+' 模型',QT+L+'（模型）',rq.map(r=>r.model));
+      if(m.consensus) cmpMix('季度 '+L+' 共識',QT+'共識｜'+L+(m.consensus==='derived'?' [Derived]':''),rq.map(r=>r.cons));
+      if(m.consensusSecondary) cmpMix('季度 '+L+' 次要共識',QT+(m.consensusSecondaryLabel||'共識｜'+m.consensusSecondary),rq.map(r=>r.consSec));
+      if(rq.some(r=>r.guide)){ cmpMix('季度 '+L+' 指引低',QT+'指引｜'+L+'（低）',rq.map(r=>r.guide?r.guide[0]:null)); cmpMix('季度 '+L+' 指引高',QT+'指引｜'+L+'（高）',rq.map(r=>r.guide?r.guide[1]:null)); }
+      cmpMix('季度 '+L+' 實際',QT+'實際｜'+(m.actualLabel||L),rq.map(r=>r.actual));
+      for(const [g,t] of [['mc','模型 vs 共識'],['mg','模型 vs 指引中點'],['am','實際 vs 模型'],['ac','實際 vs 共識'],['ag','實際 vs 指引中點']]) cmpMix('季度 '+L+' '+t,QT+'差距｜'+L+'｜'+t,rq.map(r=>r[g]));
+      if(m.unit!=='%') for(const vs of ['consensus','guidance','actual']) cmpMix('季度 '+L+' 原因 '+vs,QT+'原因｜'+L+'｜'+VSN[vs],rq.map(r=>{ const x=r.rsn.find(z=>z.vs===vs); return x?`${L} ${VSN[vs]} ${gapTxtQ(x.gap)}：${x.type}（${x.text}）`:''; }));
+      cmpMix('季度 '+L+' 句',QT+'句｜'+L,rq.map((r,i)=>qv.line(m,i)));
+      const f=rq[qv.fi]; cmpMix('焦點 '+L,QT+'焦點｜'+L,[f.model,f.cons,f.mc,f.guide?f.guide[0]:null,f.guide?f.guide[1]:null,f.mg,f.actual,f.am,f.ac,f.ag]); }
+    cmpMix('季度 差異原因一行',QT+'差異原因（一行）',qv.Qs.map((_,i)=>qv.rsnLine(i)));
+    cmpMix('焦點 季度',QT+'焦點｜季度',[qv.focus.label]); cmpMix('焦點 差異原因',QT+'焦點｜差異原因',[qv.rsnLine(qv.fi)||'無（差距皆在 '+pctQ(qv.tol)+' 以內）']);
+    for(const nm of ['營收','調整後 EBITDA','調整後營業利益','CapEx（毛額）','車隊折舊']) cmpMix('核對 '+nm,QT+'核對｜'+nm,qv.sums.map(()=>0));
+    qv.key.forEach((m,i)=>cmpT('文字 驗證點 '+m.label,SM+'驗證｜'+m.label+'｜句',qv.keyLines[i])); } }
 { const G=evAnchorGrid(d,q,VAL_DEFAULTS); G.mults.forEach((m,i)=>{ cmp('矩陣腿 '+m+'x', V+'錨定×倍數｜EV/EBITDA 腿｜'+m.toFixed(1)+'x', G.leg[i]); cmp('矩陣目標 '+m+'x', V+'錨定×倍數｜加權目標價｜'+m.toFixed(1)+'x', G.tgt[i]); }); }
 for(const r of rows) console.log(r.join(' | '));
 // HTML P&L table FY26 display check

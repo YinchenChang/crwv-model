@@ -872,5 +872,324 @@
     "前瞻：NBIS 前瞻 EV/Sales 約 9.3x（由 9/18 forward PS 推算 [Derived]），CRWV 模型 FY27E 約 3x。此表為市場比較用，不進入目標價（DCF 45%＋EV/EBITDA 55%）。"
    ]
   }
+ },
+ "quarterly": {
+  "_note": "季度層（v4.4）：由年度模型拆分，只用於追蹤，不影響目標價與任何年度數字。拆分方法由下列設定選擇；缺資料（沒有 MW、沒有共識或指引）時顯示「不適用」。",
+  "quarters": [
+   {
+    "key": "2026Q3",
+    "label": "Q3'26",
+    "period": 0,
+    "reportNote": "預計 11/9"
+   },
+   {
+    "key": "2026Q4",
+    "label": "Q4'26",
+    "period": 0
+   },
+   {
+    "key": "2027Q1",
+    "label": "Q1'27",
+    "period": 1
+   },
+   {
+    "key": "2027Q2",
+    "label": "Q2'27",
+    "period": 1
+   },
+   {
+    "key": "2027Q3",
+    "label": "Q3'27",
+    "period": 1
+   },
+   {
+    "key": "2027Q4",
+    "label": "Q4'27",
+    "period": 1
+   }
+  ],
+  "periodNames": [
+   "2H26",
+   "FY27"
+  ],
+  "focus": "2026Q3",
+  "keyMetrics": [
+   "revenue",
+   "adjOpInc",
+   "capex"
+  ],
+  "driver": {
+   "type": "mw",
+   "endStart": 1500,
+   "endStartNote": "6/30 公司公布 active power 約 1.5 GW（callFacts.activeGw）[Verified]"
+  },
+  "revenueSplit": [
+   "anchor",
+   "driverAvg"
+  ],
+  "revenueAnchor": {
+   "value": 2.575,
+   "label": "Q2'26 實際營收",
+   "tag": "Verified"
+  },
+  "metrics": [
+   {
+    "key": "revenue",
+    "label": "營收",
+    "unit": "US$bn",
+    "consensus": "revenue"
+   },
+   {
+    "key": "adjEbitda",
+    "label": "調整後 EBITDA",
+    "unit": "US$bn",
+    "consensus": "ebitda"
+   },
+   {
+    "key": "ebitdaMargin",
+    "label": "EBITDA 率",
+    "unit": "%",
+    "consensus": "derived"
+   },
+   {
+    "key": "adjOpInc",
+    "label": "調整後營業利益",
+    "unit": "US$bn",
+    "consensusSecondary": "ebit",
+    "consensusSecondaryLabel": "共識 EBIT（口徑未揭露）"
+   },
+   {
+    "key": "capex",
+    "label": "CapEx（毛額）",
+    "unit": "US$bn"
+   },
+   {
+    "key": "mw",
+    "label": "季末 Accepted MW",
+    "unit": "MW",
+    "actualLabel": "季末 active power"
+   }
+  ],
+  "guidance": {
+   "2026Q3": {
+    "revenue": [
+     3.45,
+     3.6
+    ],
+    "adjOpInc": [
+     0.2,
+     0.26
+    ],
+    "capex": [
+     11.5,
+     13.5
+    ]
+   }
+  },
+  "guidanceMeta": {
+   "source": "CNBC 報導 2026-08-11 Q2 財報",
+   "tag": "Interested-party"
+  },
+  "periodGuidance": {
+   "0": {
+    "revenue": {
+     "range": [
+      12.4,
+      13.2
+     ],
+     "less": 4.653
+    },
+    "capex": {
+     "range": [
+      35,
+      39
+     ],
+     "less": 16.139
+    }
+   }
+  },
+  "periodGuidanceNote": "全年指引 − 1H 實際＝下半年隱含指引 [Derived]；只用於判斷季度差距是否為「拆法」",
+  "consistency": [
+   [
+    "quarterly.guidance.2026Q3.revenue.0",
+    "callFacts.q3RevLo"
+   ],
+   [
+    "quarterly.guidance.2026Q3.revenue.1",
+    "callFacts.q3RevHi"
+   ],
+   [
+    "quarterly.guidance.2026Q3.adjOpInc.0",
+    "callFacts.q3AdjOpLo"
+   ],
+   [
+    "quarterly.guidance.2026Q3.adjOpInc.1",
+    "callFacts.q3AdjOpHi"
+   ],
+   [
+    "quarterly.guidance.2026Q3.capex.0",
+    "callFacts.q3CapexLo"
+   ],
+   [
+    "quarterly.guidance.2026Q3.capex.1",
+    "callFacts.q3CapexHi"
+   ],
+   [
+    "quarterly.periodGuidance.0.revenue.range.0",
+    "callFacts.revLo"
+   ],
+   [
+    "quarterly.periodGuidance.0.revenue.range.1",
+    "callFacts.revHi"
+   ],
+   [
+    "quarterly.periodGuidance.0.revenue.less",
+    "actual1H.revenue"
+   ],
+   [
+    "quarterly.periodGuidance.0.capex.range.0",
+    "callFacts.capexLo"
+   ],
+   [
+    "quarterly.periodGuidance.0.capex.range.1",
+    "callFacts.capexHi"
+   ],
+   [
+    "quarterly.periodGuidance.0.capex.less",
+    "actual1H.capex"
+   ],
+   [
+    "quarterly.revenueAnchor.value",
+    "latestQuarter.revenue"
+   ],
+   [
+    "quarterly.driver.endStart",
+    "callFacts.activeGw",
+    "1000"
+   ]
+  ],
+  "actuals": {
+   "2026Q3": {
+    "revenue": null,
+    "adjEbitda": null,
+    "adjOpInc": null,
+    "capex": null,
+    "mw": null,
+    "source": null,
+    "date": null,
+    "tag": null
+   },
+   "2026Q4": {
+    "revenue": null,
+    "adjEbitda": null,
+    "adjOpInc": null,
+    "capex": null,
+    "mw": null,
+    "source": null,
+    "date": null,
+    "tag": null
+   },
+   "2027Q1": {
+    "revenue": null,
+    "adjEbitda": null,
+    "adjOpInc": null,
+    "capex": null,
+    "mw": null,
+    "source": null,
+    "date": null,
+    "tag": null
+   },
+   "2027Q2": {
+    "revenue": null,
+    "adjEbitda": null,
+    "adjOpInc": null,
+    "capex": null,
+    "mw": null,
+    "source": null,
+    "date": null,
+    "tag": null
+   },
+   "2027Q3": {
+    "revenue": null,
+    "adjEbitda": null,
+    "adjOpInc": null,
+    "capex": null,
+    "mw": null,
+    "source": null,
+    "date": null,
+    "tag": null
+   },
+   "2027Q4": {
+    "revenue": null,
+    "adjEbitda": null,
+    "adjOpInc": null,
+    "capex": null,
+    "mw": null,
+    "source": null,
+    "date": null,
+    "tag": null
+   }
+  }
+ },
+ "varianceReasons": {
+  "_note": "差異原因（已決定事項 2）：差距超過 methodology.consensusGapTol 的項目必須有原因。「拆法」由程式依條件判定（單季差距超過門檻、所屬期間合計在門檻內）；其餘寫在這裡。{路徑:格式} 由模型數字帶入。",
+  "list": [
+   {
+    "scope": "quarter",
+    "period": "*",
+    "metric": "adjOpInc",
+    "vs": "guidance",
+    "type": "已知限制",
+    "text": "模型車隊折舊 {q.da:2} 高於最新一季實際 {lq.da:2}，營業利益因此偏低；待辦 6 修正"
+   },
+   {
+    "scope": "annual",
+    "period": "FY27",
+    "metric": "ebitda",
+    "vs": "consensus",
+    "type": "觀點",
+    "text": "EBITDA 率 {m.ebM:%1} 對共識 {c.ebM:%1}：模型由 {in.ebStart:%0} 線性爬升至 FY30 穩態 {in.ebSteady:%0}；營收差距 {gap.rev:gap}"
+   },
+   {
+    "scope": "annual",
+    "period": "FY27",
+    "metric": "capex",
+    "vs": "consensus",
+    "type": "觀點",
+    "text": "CapEx 依新增 MW 計算：新增 {y.mwNew:0} MW × 每 MW ${y.costMW:0}m（含次年預建）；共識口徑未揭露"
+   },
+   {
+    "scope": "annual",
+    "period": "FY28",
+    "metric": "rev",
+    "vs": "consensus",
+    "type": "觀點",
+    "text": "營收由模型 MW 路徑決定：FY28 年底 Accepted {y.accepted:0} MW（目前情境）；共識未揭露 MW 假設"
+   },
+   {
+    "scope": "annual",
+    "period": "FY28",
+    "metric": "ebitda",
+    "vs": "consensus",
+    "type": "觀點",
+    "text": "營收差距 {gap.rev:gap}，加上 EBITDA 率 {m.ebM:%1} 對共識 {c.ebM:%1}"
+   },
+   {
+    "scope": "annual",
+    "period": "FY28",
+    "metric": "capex",
+    "vs": "consensus",
+    "type": "觀點",
+    "text": "CapEx 依新增 MW 計算：新增 {y.mwNew:0} MW × 每 MW ${y.costMW:0}m（含次年預建）；共識口徑未揭露"
+   },
+   {
+    "scope": "annual",
+    "period": "*",
+    "metric": "nd",
+    "vs": "consensus",
+    "type": "觀點",
+    "text": "淨負債隨 CapEx 與融資需求而定（模型 CapEx 差距 {gap.capex:gap}）；共識淨負債不含租賃、口徑未揭露"
+   }
+  ]
  }
 }

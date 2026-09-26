@@ -407,7 +407,7 @@ function EM(e, t, n) {
 
 // v4.3：市場共識對照（一頁摘要與「市場共識」分頁共用）。共識數字只讀 company.json → meta.consensusFile（建置時併入 COMPANY_DATA.consensus）。
 // 模型端用目前輸入（預設＝基準情境）；FY26 為全年口徑：營收＝1H 實際＋2H 模型，調整後 EBITDA＝1H 實際調整後 EBITDA＋2H 模型，CapEx＝1H 實際毛額＋2H 模型毛額。
-// 判斷句、隱含倍數句、結論句、Q3 句由此產生；Excel「摘要」頁以文字公式產生同一字串，cmp31 逐字比對。
+// 判斷句、隱含倍數句、結論句由此產生（v4.4：Q3 句改由季度層 quarterlyView 產生）；Excel「摘要」頁以文字公式產生同一字串，cmp31 逐字比對。
 var PRICE_DATE = COMPANY_DATA.meta.priceDate, // 現價收盤日（HTML 畫面文字用；Excel 同讀 meta.priceDate）
   mdQ = x => x.slice(5).split(`-`).map(Number).join(`/`), // 2026-09-21 → 9/21
   CONSENSUS = COMPANY_DATA.consensus,
@@ -417,7 +417,7 @@ var PRICE_DATE = COMPANY_DATA.meta.priceDate, // 現價收盤日（HTML 畫面�
 function gapTxtQ(g, pt) { // 差距文字：比例 → +1.4%；pt＝true 時為百分點 → −2.8pt
   return `${g < 0 ? `−` : `+`}${Y(Math.abs(g) * 100, 1)}${pt ? `pt` : `%`}`
 }
-function consensusView(d, p, o, TR) { // d＝runFunding、p＝runValuation、o＝評價參數、TR＝targetRange
+function consensusView(d, p, o, TR, st) { // d＝runFunding、p＝runValuation、o＝評價參數、TR＝targetRange、st＝目前輸入（v4.4：差異原因的數字）
   let E = CONSENSUS.annualEstimates, y = d.years, f = p.fwd,
     rows = CONS_YEARS.map((yr, i) => {
       let rev = f[i].fyRevenue,
@@ -441,10 +441,133 @@ function consensusView(d, p, o, TR) { // d＝runFunding、p＝runValuation、o�
     rel = x => { let r = Math.round(x * 10) / 10; return r > mHi ? `高於` : r < mHi ? `低於` : `等於` },
     implied = `共識平均目標價 $${Y(PT.mean, 2)} 隱含 ${YN} EV/EBITDA ${Y(impTgt, 1)}x，${rel(impTgt)}模型方法區間上緣 ${multTxt(mHi)}x；現價 $${Y(o.price, 2)} 隱含 ${Y(impPx, 1)}x。`,
     up = TR.pt / o.price - 1, gapTh = TR.pt - TR.th,
-    head = `${p.call.call}：點位 $${Y(TR.pt, 1)}，較現價 $${Y(o.price, 2)} ${up >= 0 ? `高` : `低`} ${hA(Math.abs(up) * 100, 0)}；情境區間 $${Y(TR.A[0], 1)}–$${Y(TR.A[1], 1)}，方法區間 $${Y(TR.B[0], 1)}–$${Y(TR.B[1], 1)}；點位${gapTh < 0 ? `低於` : `高於`}賣出門檻 $${Y(TR.th, 1)} 達 $${Y(Math.abs(gapTh), 1)}。`,
-    Q = CONSENSUS.quarterlyEstimates[`2026Q3`], gLo = CALL_FACTS.q3RevLo, gHi = CALL_FACTS.q3RevHi,
-    q3 = `Q3 共識營收 $${Y(Q.revenue, 2)}bn ${Q.revenue > gHi ? `高於公司指引上緣` : Q.revenue < gLo ? `低於公司指引下緣` : Q.revenue >= (gLo + gHi) / 2 ? `位於公司指引上半部` : `位於公司指引下半部`}（$${Y(gLo, 2)}–$${Y(gHi, 2)}bn）；共識 EBITDA $${Y(Q.ebitda, 2)}bn。`;
-  return { rows, ex, first, judge, impTgt, impPx, mHi, implied, head, q3, up, gapTh }
+    head = `${p.call.call}：點位 $${Y(TR.pt, 1)}，較現價 $${Y(o.price, 2)} ${up >= 0 ? `高` : `低`} ${hA(Math.abs(up) * 100, 0)}；情境區間 $${Y(TR.A[0], 1)}–$${Y(TR.A[1], 1)}，方法區間 $${Y(TR.B[0], 1)}–$${Y(TR.B[1], 1)}；點位${gapTh < 0 ? `低於` : `高於`}賣出門檻 $${Y(TR.th, 1)} 達 $${Y(Math.abs(gapTh), 1)}。`;
+  // v4.4：差距超過門檻的項目附差異原因（已決定事項 2）；原因與類型讀 company.json → varianceReasons，找不到即為「未歸類」
+  let rsn = rows.flatMap((r, i) => ANN_RSN_KEYS.filter(([, k]) => Math.abs(r.gap[k]) > CONS_TOL).map(([n, k]) => {
+      let c = findRsnQ(`annual`, r.yr, k, `consensus`),
+        ctx = { m: r.m, c: r.c, gap: r.gap, y: { mwNew: y[i].mwNew, accepted: d.m.accepted[i], costMW: st ? st.a.costMW[i] : NaN }, in: st || {} };
+      return { yr: r.yr, key: k, name: n, gap: r.gap[k], type: c ? c.type : `未歸類`, text: c ? fillTokQ(c.text, ctx) : `差異原因待補` }
+    })),
+    rsnSum = reasonSumQ(rsn, `原因見「損益與評價 → 市場共識」。`);
+  return { rows, ex, first, judge, impTgt, impPx, mHi, implied, head, up, gapTh, rsn, rsnSum }
+}
+
+// v4.4：差異原因的共用工具（年度共識對照與季度層共用）。類型固定為四種（已決定事項 2）；原因文字中的 {路徑:格式} 由模型數字帶入。
+var RSN_TYPES = [`觀點`, `拆法`, `已知限制`, `未歸類`],
+  ANN_RSN_KEYS = [[`營收`, `rev`], [`EBITDA`, `ebitda`], [`CapEx`, `capex`], [`淨負債`, `nd`]],
+  VAR_RSN = (COMPANY_DATA.varianceReasons || {}).list || [];
+function cfgPathQ(s, root) { // 以「a.b.0」路徑讀值（company.json 或指定物件）
+  return String(s).split(`.`).reduce((x, k) => x == null ? x : x[k], root || COMPANY_DATA)
+}
+function tokFmtQ(x, f) { // 原因文字的數字格式：gap＝差距、%1＝百分比 1 位、2＝數字 2 位；負號用 −
+  if (x == null || !Number.isFinite(x)) return `不適用`;
+  if (f === `gap`) return gapTxtQ(x);
+  return f[0] === `%` ? `${x < 0 ? `−` : ``}${Y(Math.abs(x) * 100, +f.slice(1))}%` : `${x < 0 ? `−` : ``}${Y(Math.abs(x), +f)}`
+}
+function fillTokQ(t, ctx) {
+  return t.replace(/\{([\w.]+):(%?\w+)\}/g, (_, a, f) => tokFmtQ(cfgPathQ(a, ctx), f))
+}
+function findRsnQ(scope, period, metric, vs) {
+  return VAR_RSN.find(x => x.scope === scope && (x.period === `*` || x.period === period) && x.metric === metric && (x.vs === `*` || x.vs === vs))
+}
+function reasonSumQ(rsn, tail) { // 例：超過 5% 的 6 項差距：觀點 6 項；原因見…
+  if (!rsn.length) return ``;
+  return `超過 ${pctQ(CONS_TOL)} 的 ${rsn.length} 項差距：${RSN_TYPES.map(t => [t, rsn.filter(x => x.type === t).length]).filter(([, n]) => n).map(([t, n]) => `${t} ${n} 項`).join(`、`)}；${tail}`
+}
+
+// v4.4：季度層（company.json → quarterly）。由年度模型拆分，只用於追蹤：不回寫任何年度數字、不影響目標價。
+// 拆分：營收依 revenueSplit（anchor＝從最新一季實際線性爬升、driverAvg＝依平均在役 MW、equal＝平分）；調整後 EBITDA＝營收 × EBITDA 率，
+// EBITDA 率為跨季一條直線（兩個期間時同時符合兩期年度 EBITDA；一個期間時為常數）；車隊折舊依期內平均 PP&E（與年度公式相同）；
+// 調整後營業利益＝EBITDA − 折舊；CapEx 依季內新增 Accepted MW（線性內插時等於平分）。沒有 MW 驅動（driver.type≠mw）時一律平分，MW 列為「不適用」。
+var QTR_CFG = COMPANY_DATA.quarterly || null;
+function valTxtQ(x, u) { // 數值文字：US$bn → $1.23bn；MW → 1,500 MW；% → 58.8%；負號用 −
+  if (x == null || !Number.isFinite(x)) return `不適用`;
+  let s = x < 0 ? `−` : ``, a = Math.abs(x);
+  return u === `%` ? `${s}${Y(a * 100, 1)}%` : u === `MW` ? `${s}${Y(a, 0)} MW` : `${s}$${Y(a, 2)}bn`
+}
+function rngTxtQ(g, u) { // 指引區間文字：$3.45–3.60bn
+  let n = x => `${x < 0 ? `−` : ``}${Y(Math.abs(x), u === `MW` ? 0 : 2)}`;
+  return u === `MW` ? `${n(g[0])}–${n(g[1])} MW` : u === `%` ? `${n(g[0] * 100)}–${n(g[1] * 100)}%` : `$${n(g[0])}–${n(g[1])}bn`
+}
+function qPosQ(x, g) { // 相對指引區間的位置
+  return x > g[1] ? `高於上緣` : x < g[0] ? `低於下緣` : x >= (g[0] + g[1]) / 2 ? `區間上半部` : `區間下半部`
+}
+function quarterlyView(d, p, st) { // d＝runFunding、p＝runValuation、st＝目前輸入
+  let C = QTR_CFG;
+  if (!C) return null;
+  let Qs = C.quarters, n = Qs.length, f = p.fwd, y = d.years, drv = !!(C.driver && C.driver.type === `mw`),
+    pers = [...new Set(Qs.map(q => q.period))], inP = P => Qs.map((q, i) => q.period === P ? i : -1).filter(i => i >= 0),
+    endAcc = Array(n).fill(null), avgBil = Array(n).fill(null), rev = Array(n), da = Array(n), capex = Array(n), idx = Qs.map((q, i) => i + 1);
+  pers.forEach(P => {
+    let ix = inP(P), k = ix.length, L = PERIOD_YEARS[P],
+      a0 = P === pers[0] ? C.driver?.endStart : d.m.accepted[P - 1], a1 = d.m.accepted[P],
+      b0 = P === pers[0] ? st.billableOpen : d.m.billable[P - 1], b1 = d.m.billable[P],
+      R = f[P].revenue, how = (C.revenueSplit || [])[pers.indexOf(P)] || `equal`;
+    ix.forEach((i, j) => {
+      if (drv) endAcc[i] = a0 + (a1 - a0) * (j + 1) / k, avgBil[i] = b0 + (b1 - b0) * (2 * j + 1) / (2 * k);
+      da[i] = (y[P].ppeBeg + y[P].capexGrowth * (2 * j + 1) / (2 * k)) / st.gpuLife * L / k;
+    });
+    if (how === `anchor` && C.revenueAnchor) {
+      let A = C.revenueAnchor.value, g = (R - k * A) / (k * (k + 1) / 2);
+      ix.forEach((i, j) => rev[i] = A + (j + 1) * g)
+    } else {
+      let w = ix.map(i => how === `driverAvg` && drv ? avgBil[i] : 1), s = w.reduce((a, b) => a + b, 0);
+      ix.forEach((i, j) => rev[i] = R * w[j] / s)
+    }
+    let adds = ix.map((i, j) => drv ? endAcc[i] - (j === 0 ? a0 : endAcc[ix[j - 1]]) : 1), sa = adds.reduce((a, b) => a + b, 0);
+    ix.forEach((i, j) => capex[i] = y[P].gross * (sa > 0 ? adds[j] / sa : 1 / k))
+  });
+  let S = pers.map(P => inP(P).reduce((s, i) => s + rev[i], 0)), T = pers.map(P => inP(P).reduce((s, i) => s + rev[i] * idx[i], 0)),
+    E = pers.map(P => f[P].ebitda), mg = Array(n);
+  if (pers.length === 2) {
+    let det = S[0] * T[1] - T[0] * S[1], a = (E[0] * T[1] - T[0] * E[1]) / det, b = (S[0] * E[1] - S[1] * E[0]) / det;
+    idx.forEach((x, i) => mg[i] = a + b * x)
+  } else Qs.forEach((q, i) => { let j = pers.indexOf(q.period); mg[i] = E[j] / S[j] });
+  let model = { revenue: rev, adjEbitda: rev.map((r, i) => r * mg[i]), ebitdaMargin: mg, adjOpInc: rev.map((r, i) => r * mg[i] - da[i]), capex, mw: endAcc },
+    annual = { revenue: P => f[P].revenue, adjEbitda: P => f[P].ebitda, adjOpInc: P => f[P].opInc, capex: P => y[P].gross },
+    QE = (typeof CONSENSUS !== `undefined` && CONSENSUS && CONSENSUS.quarterlyEstimates) || {},
+    num = x => typeof x === `number` && Number.isFinite(x) ? x : null,
+    consOf = (m, key) => { let q = QE[key]; if (!q || !m.consensus) return null;
+      if (m.consensus === `derived`) { let a = num(q.ebitda), b = num(q.revenue); return a != null && b ? a / b : null }
+      return num(q[m.consensus]) },
+    actOf = (m, key) => { let a = (C.actuals || {})[key] || {};
+      if (m.key === `ebitdaMargin`) { let x = num(a.adjEbitda), r = num(a.revenue); return x != null && r ? x / r : null }
+      return num(a[m.key]) },
+    gapOf = (x, b, u) => x != null && b != null && b !== 0 ? (u === `%` ? x - b : x / b - 1) : null,
+    tol = CONS_TOL,
+    rows = C.metrics.map(m => ({ ...m, q: Qs.map((q, i) => {
+      let mv = model[m.key] ? model[m.key][i] : null, cv = consOf(m, q.key), gd = ((C.guidance || {})[q.key] || {})[m.key] || null,
+        gmid = gd ? (gd[0] + gd[1]) / 2 : null, av = actOf(m, q.key),
+        cs = m.consensusSecondary && QE[q.key] ? num(QE[q.key][m.consensusSecondary]) : null,
+        r = { model: mv, cons: cv, consSec: cs, guide: gd, gmid, actual: av,
+          mc: gapOf(mv, cv, m.unit), mg: gapOf(mv, gmid, m.unit), am: gapOf(av, mv, m.unit), ac: gapOf(av, cv, m.unit), ag: gapOf(av, gmid, m.unit),
+          posM: gd && mv != null ? qPosQ(mv, gd) : null, posA: gd && av != null ? qPosQ(av, gd) : null, rsn: [] },
+        P = q.period, same = inP(P),
+        aggC = () => { let v = same.map(j => consOf(m, Qs[j].key)); return v.every(x => x != null) && annual[m.key] ? gapOf(annual[m.key](P), v.reduce((a, b) => a + b, 0), m.unit) : null },
+        aggG = () => { let g = ((C.periodGuidance || {})[P] || {})[m.key]; return g && annual[m.key] ? gapOf(annual[m.key](P), (g.range[0] + g.range[1]) / 2 - (g.less || 0), m.unit) : null },
+        ctx = { q: { ...Object.fromEntries(Object.keys(model).map(k => [k, model[k][i]])), da: da[i], mwAvg: avgBil[i] }, lq: LATEST_Q };
+      if (m.unit !== `%`) [[`consensus`, r.mc, aggC], [`guidance`, r.mg, aggG]].forEach(([vs, g, agg]) => {
+        if (g == null || Math.abs(g) <= tol) return;
+        let ag = agg(), c = findRsnQ(`quarter`, q.key, m.key, vs);
+        r.rsn.push(ag != null && Math.abs(ag) <= tol ? { vs, gap: g, type: `拆法`, text: `${C.periodNames[pers.indexOf(P)]} 合計差距 ${gapTxtQ(ag)}` }
+          : c ? { vs, gap: g, type: c.type, text: fillTokQ(c.text, ctx) } : { vs, gap: g, type: `未歸類`, text: `差異原因待補` })
+      });
+      [[`actual`, r.am]].forEach(([vs, g]) => { let c = g != null && Math.abs(g) > tol ? findRsnQ(`quarter`, q.key, m.key, vs) : null;
+        if (c) r.rsn.push({ vs, gap: g, type: c.type, text: fillTokQ(c.text, ctx) }) });
+      return r
+    }) })),
+    fi = Math.max(0, Qs.findIndex(q => q.key === C.focus)),
+    VS = { consensus: `vs 共識`, guidance: `vs 指引中點`, actual: `實際 vs 模型` },
+    rsnLine = i => rows.flatMap(m => m.q[i].rsn.map(x => `${m.label} ${VS[x.vs]} ${gapTxtQ(x.gap)}：${x.type}（${x.text}）`)).join(`；`),
+    line = (m, i) => { let r = m.q[i], u = m.unit, pt = u === `%`;
+      return `${m.label}：模型 ${valTxtQ(r.model, u)}` + (r.cons != null ? `｜共識 ${valTxtQ(r.cons, u)}（${gapTxtQ(r.mc, pt)}）` : ``) +
+        (r.guide ? `｜指引 ${rngTxtQ(r.guide, u)}（中點 ${gapTxtQ(r.mg, pt)}，${r.posM}）` : ``) +
+        (r.actual != null ? `｜實際 ${valTxtQ(r.actual, u)}（較模型 ${gapTxtQ(r.am, pt)}${r.cons != null ? `、較共識 ${gapTxtQ(r.ac, pt)}` : ``}${r.guide ? `、${r.posA}` : ``}）` : ``) +
+        (r.rsn.length ? `〔${[...new Set(r.rsn.map(x => x.type))].join(`、`)}〕` : ``) },
+    key = (C.keyMetrics || []).map(k => rows.find(m => m.key === k)).filter(Boolean),
+    sums = pers.map((P, j) => ({ P, name: C.periodNames[j], ...Object.fromEntries(Object.keys(annual).map(k => [k, { q: inP(P).reduce((s, i) => s + model[k][i], 0), a: annual[k](P) }])),
+      da: { q: inP(P).reduce((s, i) => s + da[i], 0), a: y[P].daFleet } }));
+  return { Qs, rows, model, da, avgBil, endAcc, fi, focus: Qs[fi], rsnLine, line, key, keyLines: key.map(m => line(m, fi)), sums, drv, tol }
 }
 
 // v4.3：共識資料逐筆清單（HTML「市場共識」分頁與 Excel「輸入與假設」I 區同一組列；標籤即 Excel A 欄，cmp31 以標籤逐列比對數值、擷取日期、標記）。
@@ -475,10 +598,12 @@ function consensusItems() {
   add(SB, `S&P 對照｜調整後 EPS`, [AL.FY26.epsAdjusted, AL.FY27.epsAdjusted], `US$`, 2, AL);
   add(SB, `S&P 對照｜FY26 調整後 EPS 區間（低／高）`, [AL.FY26.epsAdjustedLow, AL.FY26.epsAdjustedHigh], `US$`, 2, AL);
   add(SB, `S&P 對照｜FY26 分析師家數`, [AL.FY26.analysts], `家`, 0, AL, { note: AL.note });
-  let SQ = `季度共識（2026Q3／2026Q4）`;
-  [[`營收`, `revenue`], [`EBITDA`, `ebitda`], [`EBIT`, `ebit`], [`淨利`, `netIncome`]]
-    .forEach(([a, k]) => add(SQ, `季度｜${a}`, [QE[`2026Q3`][k], QE[`2026Q4`][k]], `US$bn`, 3, QE));
-  add(SQ, `季度｜說明`, [], ``, 0, QE, { text: QE.note });
+  let QK = Object.keys(QE || {}).filter(k => /^\d{4}Q\d$/.test(k)), SQ = `季度共識（${QK.join(`／`)}）`; // v4.4：季度依共識檔實際列出的季別（沒有季度共識時不列）
+  if (QK.length) {
+    [[`營收`, `revenue`], [`EBITDA`, `ebitda`], [`EBIT`, `ebit`], [`淨利`, `netIncome`]]
+      .forEach(([a, k]) => add(SQ, `季度｜${a}`, QK.map(q => QE[q][k]), `US$bn`, 3, QE));
+    add(SQ, `季度｜說明`, [], ``, 0, QE, { text: QE.note });
+  }
   let SG = `公司指引（管理層預估）`, GM = { ...CG, tag: CG.tag };
   add(SG, `公司指引｜FY26 營收（低／高）`, [CG.FY26.revenueLow, CG.FY26.revenueHigh], `US$bn`, 2, GM);
   add(SG, `公司指引｜FY26 調整後營業利益（低／高）`, [CG.FY26.adjOpIncomeLow, CG.FY26.adjOpIncomeHigh], `US$bn`, 2, GM);
