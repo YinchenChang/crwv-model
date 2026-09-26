@@ -9,6 +9,8 @@ import re
 import calendar_q as _calq  # v4.5：期間與日期由 company.json → calendar 推算（與 HTML 共用）
 CO = _calq.load(_osrv.path.dirname(_osrv.path.abspath(__file__)))  # 公司資料單一來源（與 HTML 共用）
 CAL = CO['cal']
+PYEAR = [2000 + int(p[2:]) for p in CO['periods']]  # 5a：各期財年年份由日曆推算
+MW_Y0 = PYEAR[0] - 1  # 首期前一財年（期初主動電力）
 _n = lambda x: f'{x:g}'  # 5a：company.json 的數字寫入公式或說明（整數不帶小數）
 YA = CO['ytdActual']
 LQ_DEBT, CONV_PR = CO['latestQuarter']['debtPrincipal'], CO['debt']['convertible']['principal']  # 5a：評價日債務本金、評價日後新發可轉債
@@ -16,7 +18,7 @@ PREV_FY = f"FY{int(CO['periods'][0][2:]) - 1:02d}"  # 5a：首期的前一財年
 PREV_FY_REV = next(h['revenue'] for h in CO['historicalPL'] if h['year'] == PREV_FY)  # v4.5：年初至今實際（原 actual1H）；數值與逐列備註都讀 company.json，滾動時隨資料更新
 # v4.3：市場共識資料檔（只讀；路徑在 company.json → meta.consensusFile）。與 HTML 相同的一致性檢查見 build_html_portable.py
 CONS = _jco.load(open(_osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), CO['meta']['consensusFile']), encoding='utf-8'))
-assert (CONS['companyGuidance']['2026Q3']['revenueLow'], CONS['companyGuidance']['2026Q3']['revenueHigh']) == (CO['callFacts']['q3RevLo'], CO['callFacts']['q3RevHi']), 'Q3 營收指引：company.json 與共識檔不一致'
+assert (CONS['companyGuidance']['2026Q3']['revenueLow'], CONS['companyGuidance']['2026Q3']['revenueHigh']) == (CO['callFacts']['nextQRevLo'], CO['callFacts']['nextQRevHi']), 'Q3 營收指引：company.json 與共識檔不一致'
 assert abs(CO['ytdActual']['adjEbitda'] - CO['ytdActual']['adjEbitdaMeta']['q1'] - CO['ytdActual']['adjEbitdaMeta']['q2']) < 1e-9, '1H 調整後 EBITDA ≠ Q1＋Q2'
 D, V, M = CO['defaults'], CO['valuation'], CO['defaults']['m']
 PCT_ = lambda xs: [x / 100 for x in xs]  # HTML 以百分點存、Excel 以比例存
@@ -322,7 +324,8 @@ RPO0 = gi(r, "«VMD» RPO", "US$bn", D['rpoOpen'], "10-Q 103.7（backlog 104.2 �
 RPOADD = gi(r, "Q3 初新增承諾", "US$bn", D['rpoPendingAdd'], "法說「>25」，尚未入 RPO [Interested-party]"); r += 1
 RP = gi(r, "五期認列比例（至 2030 末）", "%", D['rp'] / 100, "10-Q 桶 41／39／20 線性分攤後五期合計 84% [Derived]", PCT, True); r += 1
 WSUM = gi(r, "RPO 桶權重合計", "%", CO['rpo']['scheduledShare'], "下方權重列的合計，用於歸一化", PCT); r += 1
-MW_YE25 = gi(r, "2025-12-31 主動電力", "MW", D['mwYE25'], "Q4 2025 法說：年底 >850 MW、43 座資料中心 [Verified]", NUM0); r += 1
+MWY = {}  # 5a：各年底主動電力（company.json → defaults.mwYearEnd，以年份為鍵；說明在 texts.mwYearEndNotes）
+MWY[MW_Y0] = MW_YE25 = gi(r, f"{CAL['prevFYE']} 主動電力", "MW", D['mwYearEnd'][str(MW_Y0)], CO['texts']['mwYearEndNotes'][str(MW_Y0)], NUM0); r += 1
 MW0 = gi(r, "«VMD» Billable MW", "MW", D['billableOpen'], "主動電力 1.5 GW 扣爬坡中 [Assumed]", NUM0); r += 1
 AVGON = gi(r, "收入用平均在役 MW（1=是）", "", int(D['useAvgMw']), "0＝用期末存量全期化。CRWV 交付後載（6 月 +300MW），建議 1", NUM0); r += 1
 REVSC = gi(r, "每 MW 年收入倍數（整體）", "%", D['revScale'], "反向 DCF 與壓力測試用；預設 100%。以『目標搜尋』調整此格即可反解市價隱含單價", PCT); r += 1
@@ -369,10 +372,9 @@ MW31 = gi(r, "FY31 新增 MW（FY30 預建用）", "MW",
           f"=CHOOSE({SEL},I{sc_rows['保守 4.2 GW']},I{sc_rows['基準 5.6 GW']},I{sc_rows['積極 8 GW']})",
           "隨情境：保守 0／基準 500／積極 1,000 [Assumed]", NUM0); r += 1
 FLOOR = gi(r, "FY26 CapEx 下限（已承諾）", "US$bn", D['capexFloorFY0'], "全年指引下緣：2026 年支出多已下單 [Interested-party]"); r += 1
-PYEAR = [2000 + int(p[2:]) for p in PERIODS]  # 5a：各期財年年份由日曆推算
 LIFE = gi(r, "GPU 經濟壽命（年）", "年", D['gpuLife'], "公司對伺服器與網路設備的折舊年限；決定汰換時點與車隊折舊 [Verified]", NUM0); r += 1
-MW23 = gi(r, "2023 年底主動電力", "MW", D['mwYE23'], "由 2023 CapEx 約 3.1bn ÷ 約 $30m/MW 推估 [Assumed]", NUM0); r += 1
-MW24 = gi(r, "2024 年底主動電力", "MW", D['mwYE24'], "S-1：2024 年底 >360 MW [Verified]", NUM0); r += 1
+for _y in sorted(int(y) for y in D['mwYearEnd'] if int(y) != MW_Y0):
+    MWY[_y] = gi(r, f"{_y} 年底主動電力", "MW", D['mwYearEnd'][str(_y)], CO['texts']['mwYearEndNotes'][str(_y)], NUM0); r += 1
 PPE0 = gi(r, "6/30 毛 PP&E", "US$bn", D['ppeOpen'], "10-Q（含 CIP 11.9）[Verified]"); r += 1
 CAPSC = gi(r, "每 MW 建置成本倍數（整體）", "%", D['capexScale'], "同時影響 CapEx、汰換與車隊折舊；反向 DCF 用；預設 100%", PCT); r += 1
 r = phdr(r)
@@ -393,7 +395,7 @@ for i in range(5):
     ws.cell(row=IN["JV／策略投資出資"], column=3 + i, value=f"={L}{IN['JV 已承諾餘額出資']}+{L}{IN['JV 後續增資＋策略投資']}")
 r = section(ws, r, "CapEx 推導明細（由 Accepted MW 連動）", level=2, collapsed=True)
 accr = _acc
-r = prow(r, "期初主動電力", "MW", [f"={MW_YE25}"] + [f"={COLS[i-1]}{accr}" for i in range(1, 5)], NUM0, "FY26 期初＝2025 年底 850 MW", BLACK)
+r = prow(r, "期初主動電力", "MW", [f"={MW_YE25}"] + [f"={COLS[i-1]}{accr}" for i in range(1, 5)], NUM0, f"{PERIODS[0]} 期初＝{MW_Y0} 年底 {D['mwYearEnd'][str(MW_Y0)]} MW", BLACK)
 r = prow(r, "本期新增 MW", "MW", [f"={COLS[i]}{accr}-{COLS[i]}{r-1}" for i in range(5)], NUM0, None, BLACK)
 r = prow(r, "次期新增 MW", "MW", [f"={COLS[i+1]}{accr}-{COLS[i]}{accr}" for i in range(4)] + [f"={MW31}"], NUM0, None, BLACK)
 r = prow(r, "全年毛 CapEx（公式）", "US$bn",
@@ -402,8 +404,13 @@ r = prow(r, "全年毛 CapEx（公式）", "US$bn",
 r = prow(r, "成長型 CapEx（模型期）", "US$bn",
          [f"=MAX({COLS[0]}{r-1},{FLOOR})-§H_CAPEX§"] + [f"={COLS[i]}{r-1}" for i in range(1, 5)], NUM,
          "FY26＝MAX(全年公式, 下限) − 1H 已認列 16.139", BLACK)
+def _vintage(i):
+    ys, x = sorted(MWY), "0"
+    for y in reversed(ys):
+        x = f"IF({PYEAR[i]}-{LIFE}={y},{MWY[y]}{'-' + MWY[y - 1] if y - 1 in MWY else ''},{x})"
+    return x
 r = prow(r, "GPU 汰換 CapEx", "US$bn",
-         [f"=IF({PYEAR[i]}-{LIFE}=2023,{MW23},IF({PYEAR[i]}-{LIFE}=2024,{MW24}-{MW23},IF({PYEAR[i]}-{LIFE}=2025,{MW_YE25}-{MW24},0)))"
+         [f"={_vintage(i)}"
           f"*{COLS[i]}{IN['每 MW 建置成本']}*{CAPSC}/1000" for i in range(5)], NUM,
          "＝(本年 − 壽命) 那年新增的 MW × 每 MW 成本；取代已折舊完的設備", BLACK)
 r = prow(r, "期初毛 PP&E", "US$bn", [f"={PPE0}"] + ["=0"] * 4, NUM, "之後＝前期期初＋前期成長型 CapEx（汰換不增加基礎）", BLACK)
@@ -1968,7 +1975,7 @@ for j, h in enumerate(["檢查項目", "實際值", "標準", "結果", "說明"
 r += 1
 CK, CFq = CO['methodology']['checks'], CO['callFacts']  # 5a：檢查門檻讀 company.json → methodology.checks；指引區間讀 callFacts
 _CXLO, _CXHI, _RVLO, _RVHI = (_n(CFq[k]) for k in ('capexLo', 'capexHi', 'revLo', 'revHi'))
-_INT_MIN = _n(round(YA['interest'] + CAL['stubMonths'] // 3 * CFq['q3IntLo'], 1))  # 首期利息下限＝年初至今實際＋剩餘季數 × 下一季指引下緣
+_INT_MIN = _n(round(YA['interest'] + CAL['stubMonths'] // 3 * CFq['nextQIntLo'], 1))  # 首期利息下限＝年初至今實際＋剩餘季數 × 下一季指引下緣
 _JV0 = _n(round(sum(D['jvCommit']), 6))
 _YR0 = CAL['periodEnd'][0][:4]
 checks = [
@@ -1996,7 +2003,7 @@ checks = [
     ("«P0» 利息（«YTD» 實際＋«STUB»）", f"='各期收支'!C{FRR['memo_int']}", f"≥{_INT_MIN}",
      "=IF(B{r}>=" + _INT_MIN + ",\"通過\",\"觀察\")", NUM,
      # v4.5：首期模型部分的存量利息讀「各期收支」③ 列（文字公式，滾動後隨模型值更新）
-     f'="«YTD» 實際 {YA["interest"]}＋«STUB» 模型 "&TEXT(\'各期收支\'!C{FR["③ 存量債務利息（備忘，«YTD» 已含在 CFO）"]},"0.0")&"；Q3 指引 {CO["callFacts"]["q3IntLo"]}–{CO["callFacts"]["q3IntHi"]}／季"'),
+     f'="«YTD» 實際 {YA["interest"]}＋«STUB» 模型 "&TEXT(\'各期收支\'!C{FR["③ 存量債務利息（備忘，«YTD» 已含在 CFO）"]},"0.0")&"；Q3 指引 {CO["callFacts"]["nextQIntLo"]}–{CO["callFacts"]["nextQIntHi"]}／季"'),
     ("FY28 起收入是否依賴未簽約", None, f"<{_n(CK['unsignedRevShareMax'] * 100)}% 較穩健",
      "=IF(B{r}<" + _n(CK['unsignedRevShareMax']) + ",\"通過\",\"觀察\")", PCT,
      "FY28–30 新簽約收入 ÷ 同期總算力收入。高＝8 GW 敘事的風險集中點"),
@@ -2232,7 +2239,7 @@ def cons_items():
     add(SG, "公司指引｜FY26 營收（低／高）", [CG['FY26']['revenueLow'], CG['FY26']['revenueHigh']], "US$bn", CG)
     add(SG, "公司指引｜FY26 調整後營業利益（低／高）", [CG['FY26']['adjOpIncomeLow'], CG['FY26']['adjOpIncomeHigh']], "US$bn", CG)
     add(SG, "公司指引｜FY26 CapEx（低／高）", [CG['FY26']['capexLow'], CG['FY26']['capexHigh']], "US$bn", CG)
-    add(SG, "公司指引｜Q3 營收（低／高）", [CO['callFacts']['q3RevLo'], CO['callFacts']['q3RevHi']], "US$bn", CG, note=CG['tagNote'])  # 以 company.json 為準（建置時已檢查與共識檔一致）
+    add(SG, "公司指引｜Q3 營收（低／高）", [CO['callFacts']['nextQRevLo'], CO['callFacts']['nextQRevHi']], "US$bn", CG, note=CG['tagNote'])  # 以 company.json 為準（建置時已檢查與共識檔一致）
     SL, LM = f"獨立對照（{IC['provider']}）", {**IC, 'source': f"{IC['provider']}（經 {IC['source']}）"}
     add(SL, f"{IC['provider']} 對照｜FY26 營收（Q2 前）", [IC['FY26RevenuePreQ2']], "US$bn", LM)
     add(SL, f"{IC['provider']} 對照｜Q3 營收（Q2 前）", [IC['2026Q3RevenuePreQ2']], "US$bn", LM, note=IC['note'])

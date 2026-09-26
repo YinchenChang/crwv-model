@@ -7,6 +7,7 @@ var PERIODS = COMPANY_DATA.periods,
   SOURCE_ORDER_NOTE = COMPANY_DATA.meta.sourceOrderNote,
   ACTUAL_1H = COMPANY_DATA.ytdActual, // v4.5：年初至今實際（原 actual1H）
   CALQ = COMPANY_DATA.cal, // v4.5：期間與日期（calendar_q.py 推算）
+  PERIOD_FY = PERIODS.map(p => 2000 + +p.slice(2)), // 5a：各期財年年份（FYyy → 20yy）
   RPO_SCHEDULED_SHARE = COMPANY_DATA.rpo.scheduledShare,
   RPO_BUCKET_W = COMPANY_DATA.rpo.bucketWeights,
   RPO_Q3ADD_W = RPO_BUCKET_W.map(e => e / RPO_SCHEDULED_SHARE),
@@ -215,16 +216,12 @@ function runFunding(e) {
     r = eA(e.sites),
     i = e.rp / 100,
     a = e.cash,
-    MB = [e.mwYE25, ...t.accepted.slice(0, 4)],
+    MB = [e.mwYearEnd[PERIOD_FY[0] - 1], ...t.accepted.slice(0, 4)], // 5a：期初＝首期前一財年末主動電力（defaults.mwYearEnd 以年份為鍵）
     MN = t.accepted.map((e, n) => e - MB[n]),
     MX = t.accepted.map((n, r) => r < 4 ? t.accepted[r + 1] - n : e.mw31),
     CXF = MN.map((t, n) => (t * (1 - e.lambda) + MX[n] * e.lambda) * e.a.costMW[n] * (e.capexScale ?? 1) / 1e3),
-    VIN = {
-      2023: e.mwYE23,
-      2024: e.mwYE24 - e.mwYE23,
-      2025: e.mwYE25 - e.mwYE24
-    },
-    REF = PERIODS.map(p => 2000 + +p.slice(2)).map( // 5a：期間的財年年份由日曆推算（滾動後不寫死）
+    VIN = Object.fromEntries(Object.entries(e.mwYearEnd).map(([y, m]) => [y, m - (e.mwYearEnd[y - 1] ?? 0)])), // 各年新增 MW（汰換批次）
+    REF = PERIOD_FY.map( // 5a：期間的財年年份由日曆推算（滾動後不寫死）
       (t, n) => (VIN[t - e.gpuLife] || 0) * e.a.costMW[n] * (e.capexScale ?? 1) / 1e3),
     CXG = CXF.map((t, n) => n === 0 ? Math.max(t, e.capexFloorFY0 ?? 0) - ACTUAL_1H.capex : t),
     CX = CXG.map((e, t) => e + REF[t]),
@@ -528,7 +525,7 @@ function runFunding(e) {
     ok: o[0].capexFull >= 35 && o[0].capexFull <= 39,
     severity: o[0].capexFull >= 35 && o[0].capexFull <= 39 ? `ok` : `watch`,
     title: `毛 CapEx 由 MW 推導：FY26 全年 ${o[0].capexFull.toFixed(1)}（指引 35–39）`,
-    detail: `公式＝(本期新增 MW×(1−λ)＋次期新增 MW×λ)×每 MW 成本。YE25 ${e.mwYE25} MW（Q4 法說 >850）→ YE26 ${t.accepted[0]} MW、λ ${(e.lambda*100).toFixed(0)}%、每 MW $${e.a.costMW[0]}m。五期（FY26 為下半年）合計 ${CX.reduce((e,t)=>e+t,0).toFixed(1)}，v1.4 手動值 ${CX_OLD.reduce((e,t)=>e+t,0)}，差 ${(CX.reduce((e,t)=>e+t,0)-CX_OLD.reduce((e,t)=>e+t,0)).toFixed(1)}——舊值對 FY28–30 每年 +1.5–1.7 GW 明顯不足。FY26 指引把每 MW 成本釘在約 $32–37m（λ 25–45%）；GPU 汰換的維持性 CapEx 未納入。`
+    detail: `公式＝(本期新增 MW×(1−λ)＋次期新增 MW×λ)×每 MW 成本。YE25 ${e.mwYearEnd[PERIOD_FY[0] - 1]} MW（Q4 法說 >850）→ YE26 ${t.accepted[0]} MW、λ ${(e.lambda*100).toFixed(0)}%、每 MW $${e.a.costMW[0]}m。五期（FY26 為下半年）合計 ${CX.reduce((e,t)=>e+t,0).toFixed(1)}，v1.4 手動值 ${CX_OLD.reduce((e,t)=>e+t,0)}，差 ${(CX.reduce((e,t)=>e+t,0)-CX_OLD.reduce((e,t)=>e+t,0)).toFixed(1)}——舊值對 FY28–30 每年 +1.5–1.7 GW 明顯不足。FY26 指引把每 MW 成本釘在約 $32–37m（λ 25–45%）；GPU 汰換的維持性 CapEx 未納入。`
   }), _({
     id: `fleet-da`,
     ok: !0,
@@ -540,7 +537,7 @@ function runFunding(e) {
     ok: !0,
     severity: `watch`,
     title: `GPU 汰換 CapEx：FY29 ${o[3].refresh.toFixed(1)}、FY30 ${o[4].refresh.toFixed(1)}`,
-    detail: `2023／2024 年批次在第 ${e.gpuLife} 年汰換（YE24 360 MW 為 S-1 揭露，YE23 ${e.mwYE23} MW 為推估）。汰換取代已折舊完的設備，不增加折舊基礎。法說稱 A100 續約至 2029——舊世代可延長使用，汰換可能遞延，此處取壽命年限為基準。`
+    detail: `2023／2024 年批次在第 ${e.gpuLife} 年汰換（YE24 360 MW 為 S-1 揭露，YE23 ${Object.values(e.mwYearEnd)[0]} MW 為推估）。汰換取代已折舊完的設備，不增加折舊基礎。法說稱 A100 續約至 2029——舊世代可延長使用，汰換可能遞延，此處取壽命年限為基準。`
   }), _({
     id: `capex-floor`,
     ok: o[0].capexFull < (e.capexFloorFY0 ?? 0) ? !1 : !0,

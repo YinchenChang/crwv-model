@@ -38,7 +38,8 @@
   "defaults.billableOpen": "FY26Q2",
   "defaults.rpoOpen": "FY26Q2",
   "defaults.rpoPendingAdd": "FY26Q2",
-  "defaults.eqCapShares": "FY26Q2"
+  "defaults.eqCapShares": "FY26Q2",
+  "defaults.mwYearEnd": "FY26Q2"
  },
  "ytdActual": {
   "throughQuarter": "FY26Q2",
@@ -418,21 +419,21 @@
   "dataCenters": 51,
   "capexLo": 35,
   "capexHi": 39,
-  "q3CapexLo": 11.5,
-  "q3CapexHi": 13.5,
-  "q3IntLo": 0.86,
-  "q3IntHi": 0.94,
+  "nextQCapexLo": 11.5,
+  "nextQCapexHi": 13.5,
+  "nextQIntLo": 0.86,
+  "nextQIntHi": 0.94,
   "revLo": 12.4,
   "revHi": 13.2,
-  "q3RevLo": 3.45,
-  "q3RevHi": 3.6,
+  "nextQRevLo": 3.45,
+  "nextQRevHi": 3.6,
   "adjOpLo": 0.96,
   "adjOpHi": 1.15,
-  "q3AdjOpLo": 0.2,
-  "q3AdjOpHi": 0.26,
+  "nextQAdjOpLo": 0.2,
+  "nextQAdjOpHi": 0.26,
   "arrLo": 18.5,
   "arrHi": 19.5,
-  "q3NewCommit": 25,
+  "postQNewCommit": 25,
   "priceUp": 0.25,
   "marginStep": "5–10 pt",
   "backlogStarted": 0.5,
@@ -457,7 +458,7 @@
   "price0918": 80.2,
   "priceLast": 90.13,
   "priceDate": "2026-09-24",
-  "q3ShortDated": "2026-09-16 公告：6/30 後持續以更高價格簽約，Q3 已簽短天期客戶合約",
+  "postQShortDated": "2026-09-16 公告：6/30 後持續以更高價格簽約，Q3 已簽短天期客戶合約",
   "ttmRev": 7.59,
   "ttmOpInc": -0.231,
   "ttmDa": 3.991,
@@ -566,7 +567,11 @@
  "defaults": {
   "scenario": "base",
   "lambda": 0.35,
-  "mwYE25": 850,
+  "mwYearEnd": {
+   "2023": 100,
+   "2024": 360,
+   "2025": 850
+  },
   "mw31": 500,
   "capexFloorFY0": 35,
   "gpuLife": 6,
@@ -589,8 +594,6 @@
   "eqCapPct": 0.2,
   "eqCapShares": 0.5865,
   "junkRate": 0.12,
-  "mwYE23": 100,
-  "mwYE24": 360,
   "ppeOpen": 46.736,
   "jvCommit": [
    1.15,
@@ -1081,27 +1084,27 @@
   "consistency": [
    [
     "quarterly.guidance.2026Q3.revenue.0",
-    "callFacts.q3RevLo"
+    "callFacts.nextQRevLo"
    ],
    [
     "quarterly.guidance.2026Q3.revenue.1",
-    "callFacts.q3RevHi"
+    "callFacts.nextQRevHi"
    ],
    [
     "quarterly.guidance.2026Q3.adjOpInc.0",
-    "callFacts.q3AdjOpLo"
+    "callFacts.nextQAdjOpLo"
    ],
    [
     "quarterly.guidance.2026Q3.adjOpInc.1",
-    "callFacts.q3AdjOpHi"
+    "callFacts.nextQAdjOpHi"
    ],
    [
     "quarterly.guidance.2026Q3.capex.0",
-    "callFacts.q3CapexLo"
+    "callFacts.nextQCapexLo"
    ],
    [
     "quarterly.guidance.2026Q3.capex.1",
-    "callFacts.q3CapexHi"
+    "callFacts.nextQCapexHi"
    ],
    [
     "quarterly.periodGuidance.0.revenue.range.0",
@@ -1274,6 +1277,11 @@
  "texts": {
   "fy0EquityNote": "«P0»＝«YTD» 私募股權 2.982＋«STUB» 可轉債淨現金 3.2＋ATM 上限 3.0",
   "cashTaxNote": "H1 現金稅約 0.1bn",
-  "sourceLine": "Q2 2026 10-Q + 法說 + 9/17 8-K · 口徑分層"
+  "sourceLine": "Q2 2026 10-Q + 法說 + 9/17 8-K · 口徑分層",
+  "mwYearEndNotes": {
+   "2023": "由 2023 CapEx 約 3.1bn ÷ 約 $30m/MW 推估 [Assumed]",
+   "2024": "S-1：2024 年底 >360 MW [Verified]",
+   "2025": "Q4 2025 法說：年底 >850 MW、43 座資料中心 [Verified]"
+  }
  }
 }
