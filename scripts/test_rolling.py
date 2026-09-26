@@ -4,6 +4,7 @@
 #    建 HTML 與 Excel（重算），擷取第一屏（scripts/first_screen.py），舊日曆特有的字樣（評價日、年初至今／首期標籤等）不得出現。
 #    例外：版本紀錄與來源（有日期的紀錄）；以及字樣整段落在 company.json／共識檔的資料字串內（資料隨資料更新，不是程式寫死）。
 # B. 日曆推算：12 月財年首期 0.25／0.5／0.75／1、5 月財年（Oracle 型）、無已申報季度（OpenAI 型），檢查期間長度、折現年數與標籤。
+# C. 滾動檢查：只滾日曆、未更新 company.json → asOf 時建置必須失敗（首期一次性金額與期初餘額不得沿用舊季度）。
 # 用法：python3 scripts/test_rolling.py（verify.sh 步驟 8b）
 import os, sys, json, re, shutil, subprocess
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,6 +48,14 @@ co['calendar']['latestQuarterFiled'] = co['calendar']['latestQuarterReported'] =
 new = calendar_q.derive(co)
 co['ytdActual'].update(throughQuarter=nq, months=new['ytdMonths'], label=co['ytdActual']['label'].replace(old['ytdLabel'], new['ytdLabel'] or ''))
 co['historicalPL'][-1]['year'] = new['ytdLabel']  # 資料更新時一併更新的標籤（數字不動）
+# C. 滾動檢查（首期一次性金額與期初餘額的所屬季度）：只滾日曆、未更新 asOf 時必須失敗，且逐項列出全部欄位
+try:
+    calendar_q.apply(json.loads(json.dumps(co))); fails.append('C 滾動後 asOf 未更新卻沒有失敗')
+except AssertionError as e:
+    n = sum(1 for ln in str(e).splitlines() if '尚未依最新已申報季度更新' in ln)
+    if n != len(calendar_q.ROLL_FIELDS): fails.append(f'C 滾動檢查只列出 {n} 項，應為 {len(calendar_q.ROLL_FIELDS)} 項')
+    print(f'C 滾動檢查：只滾日曆、未更新 asOf → 建置失敗並列出 {n} 項（清單 {len(calendar_q.ROLL_FIELDS)} 項）')
+co['asOf'].update({p: nq for _, p, _ in calendar_q.ROLL_FIELDS})  # 本測試只測文字：數值不動、只標為已檢視
 json.dump(co, open(os.path.join(d, 'company.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 os.makedirs(os.path.join(d, 'out'), exist_ok=True)
 env = dict(os.environ, LC_ALL='C.UTF-8', LANG='C.UTF-8', CRWV_SKIP_QCHECK='1')  # 只改日曆、不改數字：季度層一致性檢查必然不符，測試副本略過

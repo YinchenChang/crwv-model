@@ -105,6 +105,12 @@ def tokens(c):
     }
 
 
+def months_between(iso_from, iso_to):
+    """兩個月底日期（YYYY-MM-DD）相隔的月數（評價日後移月數；目標價變動拆解 (a) 用）。"""
+    (y1, m1), (y2, m2) = (tuple(int(x) for x in s[:7].split('-')) for s in (iso_from, iso_to))
+    return (y2 - y1) * 12 + (m2 - m1)
+
+
 def _next_day(iso):
     import datetime as _dt
     return (_dt.date.fromisoformat(iso) + _dt.timedelta(days=1)).isoformat()
@@ -116,6 +122,56 @@ def fill(s, tk):
     for k in sorted(tk, key=len, reverse=True): s = s.replace(k, str(tk[k]))
     assert '«' not in s, f'未定義的期間佔位符：{s[:80]}'
     return s
+
+
+# 滾動檢查（Andy 決定，2026-09-26）：首期一次性金額與期初餘額都是「最新已申報季末」時點的輸入，程式不會自動推到新評價日。
+# 每季 10-Q 後須逐項更新，並把 company.json → asOf 中對應的季度改為 calendar.latestQuarterFiled；任一項缺漏或季度不符即建置失敗。
+# 這份清單是引擎的輸入結構（每家公司都有同樣的欄位），不是公司資料，所以寫在程式裡；路徑以「.」分層、[i] 指陣列第 i 格。
+ROLL_FIELDS = [
+    # (分類, 路徑, 說明)
+    ('首期一次性金額', 'defaults.capexFloor26', '毛 CapEx：首期＝全年下限 − 年初至今實際認列'),
+    ('首期一次性金額', 'leases.onBalanceCash[0]', '在帳租金現金（首期）'),
+    ('首期一次性金額', 'leases.operatingPayments[0]', '營業租賃付款（首期；到期表）'),
+    ('首期一次性金額', 'leases.financePayments[0]', '融資租賃付款（首期；到期表）'),
+    ('首期一次性金額', 'debt.amortization[0]', '既有債務到期（首期）'),
+    ('首期一次性金額', 'defaults.jvCommit[0]', 'JV 出資承諾（首期）'),
+    ('首期一次性金額', 'scenarios.capexTemplate.div[0]', 'JV 後續增資＋策略投資（首期）'),
+    ('首期一次性金額', 'defaults.intCal', '利息校正（只加在首期）'),
+    ('首期一次性金額', 'defaults.services[0]', '非算力服務收入（首期）'),
+    ('首期一次性金額', 'defaults.atm', 'ATM 募資（首期）'),
+    ('首期一次性金額', 'scenarios.leaseHighPath[0]', '表外現金租金（首期；三情境依此路徑按比例）'),
+    ('首期一次性金額', 'rpo.bucketWeights[0]', 'RPO 排程權重（首期）'),
+    ('期初餘額', 'defaults.cash', '期初現金'),
+    ('期初餘額', 'debt.instruments', '既有債務本金（各工具餘額）'),
+    ('期初餘額', 'debt.convertible', '評價日後新發可轉債本金'),
+    ('期初餘額', 'valuation.netDebt', '淨負債（DCF 用）'),
+    ('期初餘額', 'valuation.shares', '股數'),
+    ('期初餘額', 'defaults.ppe630', '期初 PP&E'),
+    ('期初餘額', 'defaults.billableOpen', '期初可計費 MW'),
+    ('期初餘額', 'defaults.rpoFy26', '期初 RPO'),
+    ('期初餘額', 'defaults.rpoQ1Add', '尚未入 RPO 的新增承諾'),
+]
+
+
+def _get_path(co, path):
+    x = co
+    for part in re.findall(r'[^.\[\]]+|\[\d+\]', path):
+        x = x[int(part[1:-1])] if part.startswith('[') else x[part]
+    return x
+
+
+def check_roll_fields(co, quarter):
+    """company.json → asOf 須逐項列出 ROLL_FIELDS，且季度＝最新已申報季度；回傳問題清單（空＝通過）。"""
+    tags, bad = co.get('asOf') or {}, []
+    for kind, path, label in ROLL_FIELDS:
+        try: _get_path(co, path)
+        except (KeyError, IndexError, TypeError): bad.append(f'{kind}「{label}」：company.json 找不到 {path}'); continue
+        q = tags.get(path)
+        if q is None: bad.append(f'{kind}「{label}」：asOf 缺 {path}')
+        elif q != quarter: bad.append(f'{kind}「{label}」：asOf 為 {q}，應為 {quarter}（{path} 尚未依最新已申報季度更新）')
+    extra = sorted(k for k in tags if not k.startswith('_') and k not in {p for _, p, _ in ROLL_FIELDS})
+    if extra: bad.append(f'asOf 有清單以外的項目：{extra}')
+    return bad
 
 
 def load(root=None):
@@ -137,6 +193,9 @@ def apply(co):
     if cal['ytdLabel']:
         assert co['historicalPL'][-1]['year'] == cal['ytdLabel'], f"historicalPL 最後一格（{co['historicalPL'][-1]['year']}）須為年初至今 {cal['ytdLabel']}"
         assert ya['label'].startswith(cal['ytdLabel']), f"ytdActual.label（{ya['label']}）須以 {cal['ytdLabel']} 開頭"
+    if cal['latestQuarterFiled']:  # 沒有已申報季度（未上市公司）時，期初餘額由 Andy 另行設定，不做季度比對
+        bad = check_roll_fields(co, cal['latestQuarterFiled'])
+        assert not bad, '滾動檢查未通過（首期一次性金額與期初餘額須依最新已申報季度更新，見交接檔每季更新流程）：\n  ' + '\n  '.join(bad)
     co['cal'] = cal
     co['periods'], co['periodYears'] = cal['periods'], cal['periodYears']
     co['valuation']['optT'] = cal['tEnd'][-1]
