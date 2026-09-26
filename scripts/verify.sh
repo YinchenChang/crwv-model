@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 一次跑完建置與核對：季度層檢查 → 建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 三情境 xlx＋cmp31 → FY27 錨定 cmp31 → 季度層測試（v4.4）。
+# 一次跑完建置與核對：季度層檢查 → 建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 離線開啟檢查 → 三情境 xlx＋cmp31 → FY27 錨定 cmp31 → 季度層測試（v4.4）。
 # 任何一項失敗即以非零代碼結束。產物放在 repo 根目錄的 out/（不納入版控）。
 # 用法：scripts/verify.sh [--vs-dist]
 #   --vs-dist  另與 dist/ 內現行成品比對：crawl.py 畫面文字與 xl_diff.py --by-label（值與公式）皆須 0 差異（純結構修改的驗收）。
@@ -68,6 +68,10 @@ if python3 fix_datatable.py "$XLSX"; then ok "fix_datatable"; else bad "fix_data
 
 step "5. verify_ooxml"
 if python3 verify_ooxml.py "$XLSX"; then ok "verify_ooxml：OOXML OK"; else bad "verify_ooxml"; fi
+
+step "5c. 離線開啟檢查（已決定事項 11：單一檔案、無網路請求、console 無錯誤、關鍵數字正常顯示）"
+if python3 scripts/check_offline.py "$HTML" "$XLSX"; then ok "離線開啟：新建 HTML"; else bad "離線開啟：新建 HTML"; fi
+if python3 scripts/check_offline.py "$DIST_HTML" "$DIST_XLSX"; then ok "離線開啟：dist/ 成品"; else bad "離線開啟：dist/ 成品"; fi
 
 step "6. 三情境 xlx＋cmp31（預設錨定）"
 declare -A SC=([1]=low [2]=base [3]=high)
