@@ -468,7 +468,7 @@ function zM() {
                     scenario: e.scenario
                   }),
                   label: `計入 9/17 可轉債淨現金 $3.2bn ＋ ATM 上限約 $3.0bn`,
-                  hint: `可轉債 3.7bn 定價（9/22 交割），扣承銷費後淨額約 3.6bn，再扣 capped call 成本約 0.45bn（比照 Q2 4.0bn 可轉債的 0.492bn）→ 可用現金約 3.2bn；ATM 35m 股 × $85.43（9/21 收盤）≈ 3.0bn 為上限，實際未必用盡。合計 ${e.atm}bn 記於 2H26，不算進「營運缺口」。可轉債同時是負債（2.875%，2033 到期，不在五期還本表內）。`
+                  hint: `可轉債 3.7bn 定價（9/22 交割），扣承銷費後淨額約 3.6bn，再扣 capped call 成本約 0.45bn（比照 Q2 4.0bn 可轉債的 0.492bn）→ 可用現金約 3.2bn；ATM 35m 股 × $85.43（9/21 收盤；v4.3 現價更新後此金額維持不變）≈ 3.0bn 為上限，實際未必用盡。合計 ${e.atm}bn 記於 2H26，不算進「營運缺口」。可轉債同時是負債（2.875%，2033 到期，不在五期還本表內）。`
                 }),
 (0, $.jsx)(LM, {
                   label: `股權／可轉債金額（US$bn）`,
@@ -532,7 +532,7 @@ function zM() {
                 }),
 (0, $.jsx)(LM, {
                   label: `股權發行價（US$）`,
-                  hint: `預設 9/21 收盤 85.43`,
+                  hint: `預設 ${mdQ(PRICE_DATE)} 收盤 ${Y(COMPANY_DATA.defaults.eqPx, 2)}`,
                   children: (0, $.jsx)(IM, {
                     value: e.eqPx,
                     onChange: e => w({
@@ -1544,7 +1544,10 @@ function zM() {
                   text: `9/17 可轉債投資人簡報：Q2 pro forma 總債務 38.6bn；加權利率 FY23 14.9% → Q2 8.3% → pro forma 7.8%（不含 DDTL 5.5）；總債務／backlog 0.4x；歷年 backlog 9.9／15.1／66.8／104.2；「多數 CapEx 由資產層融資支應」；契約貢獻率同時爬坡壓縮、穩定後 mid-20%s。`
                 }), (0, $.jsx)(VM, {
                   tag: `Verified`,
-                  text: `可比公司市值（2026-09-21 收盤，S&P Global via stockanalysis.com）：CRWV $85.43、市值 47.12bn、流通 551.54m、目標價均值 144.46（38 家；9/21 Rothschild Redburn 首評 Sell $54、BTG Pactual Buy $125）；NBIS 63.81；IREN 18.61；APLD 8.22；CORZ 5.90。淨負債取各公司最新申報（NBIS 現金 8.04／債務 10.20；IREN 1.70；APLD 3.37；CORZ 2.53）。`
+                  text: consSourceTxtQ().peers
+                }), (0, $.jsx)(VM, {
+                  tag: CONSENSUS.priceTarget.tag,
+                  text: consSourceTxtQ().targets
                 }), (0, $.jsx)(VM, {
                   tag: `Interested-party`,
                   text: `房東揭露（站點租賃檢驗用）：Galaxy Helios 526 MW critical IT、15 年＋2×5 年延長、年均租金 >$1bn（2026-07-06；Phase I 133 MW 於 2026Q2 起租）；Applied Digital Polaris Forge 1 三份租約合計 400 MW、約 $11bn、約 15 年（2025-08-29）；Core Scientific 約 590 MW、$10.2bn、12 年（2025-02-26）。具名合計 1,516 MW、36.2bn，加權每 MW 年租金約 $1.70m。Q4 2025 法說：年底主動電力 >850 MW、2025 CapEx 14.9bn。`

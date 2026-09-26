@@ -6,6 +6,10 @@ from vlog import VLOG as _VL
 VLOG_X = [list(r) for r in _VL]
 import json as _jco
 CO = _jco.load(open(_osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), 'company.json'), encoding='utf-8'))  # 公司資料單一來源（與 HTML 共用）
+# v4.3：市場共識資料檔（只讀；路徑在 company.json → meta.consensusFile）。與 HTML 相同的一致性檢查見 build_html_portable.py
+CONS = _jco.load(open(_osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), CO['meta']['consensusFile']), encoding='utf-8'))
+assert (CONS['companyGuidance']['2026Q3']['revenueLow'], CONS['companyGuidance']['2026Q3']['revenueHigh']) == (CO['callFacts']['q3RevLo'], CO['callFacts']['q3RevHi']), 'Q3 營收指引：company.json 與共識檔不一致'
+assert abs(CO['actual1H']['adjEbitda'] - CO['actual1H']['adjEbitdaMeta']['q1'] - CO['actual1H']['adjEbitdaMeta']['q2']) < 1e-9, '1H 調整後 EBITDA ≠ Q1＋Q2'
 D, V, M = CO['defaults'], CO['valuation'], CO['defaults']['m']
 PCT_ = lambda xs: [x / 100 for x in xs]  # HTML 以百分點存、Excel 以比例存
   # 版本紀錄單一來源：vlog.py（HTML 端為 tail.js 的 VLOG）
@@ -129,7 +133,7 @@ ws = wb.active
 ws.title = "導覽"
 ws.column_dimensions["A"].width = 118
 r = 1
-ws["A1"] = "CoreWeave 收支與評價模型 — Excel 版 v4.0（更新 2026-09-24；與 HTML v4.0 同步；市價截至 2026-09-21 收盤）"
+ws["A1"] = f"CoreWeave 收支與評價模型 — Excel 版 {VLOG_X[-1][0]}（更新 {CO['meta']['updateDate']}；與 HTML {VLOG_X[-1][0]} 同步；市價截至 {CO['meta']['priceDate']} 收盤）"  # v4.3：版本、日期改讀 vlog.py 與 company.json
 ws["A1"].font = TITLE
 r = 3
 guide = [
@@ -138,7 +142,8 @@ guide = [
     ("差額就是必須向外籌措的金額。所有分頁用同一組數字，改任何一個輸入，後面全部會跟著動。", None),
     ("", None),
     ("分頁結構（依模組分組，分頁標籤顏色相同者為同一模組）", None),
-    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G 1H 實際）。", None),
+    ("摘要            一頁摘要：結論、與市場共識的差異、現價隱含什麼、驗證點（v4.3；全部活公式）。", None),
+    ("輸入與假設      所有可調參數（A 情境 → B 產能與收入 → C 利潤率 → D 支出 → E 融資 → F 評價 → G 1H 實際 → H 情境區間運算表 → I 市場共識）。", None),
     ("各期收支        類現金流量：來源、用途、融資前缺口、期前融資瀑布。", None),
     ("運營_產能與收入  合約排程 vs 機房產能 → 收入 → 現金；運營_站點：房東揭露與租金檢驗。", None),
     ("資產負債_既有債務／新債與新股／租賃承諾  類資產負債表：10-Q 債務明細、每期現金與總債務與股數、租賃承諾。", None),
@@ -233,7 +238,7 @@ ws.column_dimensions["I"].width = 92
 ws.column_dimensions["J"].width = 60
 ws["A1"] = "輸入（依類別排序；點左側 ＋／− 展開或收合。藍字可改；黃底為最關鍵假設）"
 ws["A1"].font = TITLE
-ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：1H26 實際。灰底『▸』為明細子區，預設收合"
+ws["A2"] = "A 情境 → B 產能與收入 → C 利潤率 → D 支出（CapEx／折舊／租賃／JV）→ E 融資 → F 評價 → G 參考：1H26 實際 → H 情境區間運算表 → I 市場共識。灰底『▸』為明細子區，預設收合"
 ws["A2"].font = SMALL
 IN = {}
 
@@ -407,7 +412,7 @@ r += 1
 # ---------------- E 融資 ----------------
 r = section(ws, r, "E｜融資（期初現金、既有債務、瀑布參數）")
 CASH0 = gi(r, "期初現金（2026-06-30）", "US$bn", D['cash'], "10-Q：現金 5.524＋有價證券 0.015；受限現金 1.38 不計 [Verified]"); r += 1
-ATM = gi(r, "股權／可轉債金額", "US$bn", D['atm'], "9/17 可轉債淨現金約 3.2＋ATM 上限 35m 股 × $85.43 ≈ 3.0 [Verified]"); r += 1
+ATM = gi(r, "股權／可轉債金額", "US$bn", D['atm'], "9/17 可轉債淨現金約 3.2＋ATM 上限 35m 股 × $85.43（9/21 收盤；v4.3 現價更新後維持）≈ 3.0 [Verified]"); r += 1
 ATMON = gi(r, "計入股權／可轉債（1=是）", "", int(D['includeAtm']), "關閉則 FY26 少 6.2bn 來源", NUM0); r += 1
 FAC = gi(r, "未動用信用額度", "US$bn", D['facility'], "10-Q 可用額度 10.014（RCF＋DDTL 未動用）[Verified]"); r += 1
 FACON = gi(r, "瀑布可動用未動用額度（1=是）", "", int(D['useFacility']), "瀑布第一順位；已承諾額度，不受 債務／backlog 上限限制", NUM0); r += 1
@@ -415,7 +420,7 @@ DEBTON = gi(r, "債務排程攤還（1=開）", "", int(D['includeDebt']), "10-Q
 KBL = gi(r, "債務／backlog 上限", "x", D['debtBacklog'], "預設 1.0x：依 2026 年實際融資組合（債務約 77%、股權約 23%）校準；公司簡報當前約 0.4x（敏感度）[Derived]", '0.00', True); r += 1
 TERM = gi(r, "新簽合約年期", "年", D['ctrTerm'], "Q4 法說：加權平均合約約 5 年；決定 backlog 補入量 [Interested-party]", NUM0); r += 1
 MINC = gi(r, "最低現金", "US$bn", D['minCash'], "期前融資的現金底線 [Assumed]"); r += 1
-EQPX = gi(r, "股權發行價", "US$", D['eqPx'], "預設 2026-09-21 收盤 [Verified]", USD); r += 1
+EQPX = gi(r, "股權發行價", "US$", D['eqPx'], f"預設＝現價（{CO['meta']['priceDate']} 收盤）[Verified]", USD); r += 1
 EQDISC = gi(r, "股權發行折價", "%", D['eqDisc'], "大額增資的折讓 [Assumed]", PCT); r += 1
 EQCAP = gi(r, "每年股權吸收上限（占現市值）", "%", D['eqCapPct'], "2026 年實際約 13%；輸入 ≥900% 視為無上限 [Assumed]", PCT); r += 1
 JRATE = gi(r, "高息債利率（股權上限溢出）", "%", D['junkRate'], "高於 2031 票據 9.75%；CDS 中價 720bps [Assumed]", PCT); r += 1
@@ -430,7 +435,7 @@ r += 1
 
 # ---------------- F 評價 ----------------
 r = section(ws, r, "F｜評價（價格、股數、折現、倍數、權重）")
-PX = gi(r, "現價（2026-09-21 收盤）", "US$", V['price'], "S&P Global via stockanalysis.com；9/17 收盤 79.88 [Verified]", USD); r += 1
+PX = gi(r, f"現價（{CO['meta']['priceDate']} 收盤）", "US$", V['price'], f"{CONS['priceReference']['source']}（{CONS['priceReference']['url']}）；9/17 收盤 79.88 [Verified]", USD); r += 1
 SH = gi(r, "股數（含 ATM 上限）", "bn", V['shares'], "7/31 流通 0.5515＋ATM 35m [Verified]", '0.000'); r += 1
 ND = gi(r, "淨負債（6/30）", "US$bn", V['netDebt'], "本金 35.551 − 現金 5.524 [Verified]"); r += 1
 WACC = gi(r, "WACC", "%", V['wacc'], "[Assumed]", PCT); r += 1
@@ -491,13 +496,18 @@ h1_rows = [
     ("SBC", "US$bn", 0.318, "現金流量表 [Verified]"),
     ("GAAP EPS", "US$", -2.53, "淨損 −1.366 ÷ 加權股數約 0.539 [Verified]"),
     ("EPS（加回 SBC）", "US$", -1.94, "(−1.366＋0.318)÷0.539 [Derived]"),
+    # v4.3：只用於「摘要」頁與市場共識的 FY26 調整後 EBITDA 比較；模型 GAAP 損益與評價不使用
+    ("調整後 EBITDA（Q1＋Q2）", "US$bn", CO['actual1H']['adjEbitda'],
+     f"Q1 {CO['actual1H']['adjEbitdaMeta']['q1']:.3f}＋Q2 {CO['actual1H']['adjEbitdaMeta']['q2']:.3f}；"
+     + "；".join(f"{x['quarter']} {x['name']}" for x in CO['actual1H']['adjEbitdaMeta']['sources'])
+     + f"；{CO['actual1H']['adjEbitdaMeta']['crossCheck']}。{CO['actual1H']['adjEbitdaMeta']['note']} [{CO['actual1H']['adjEbitdaMeta']['tag']}]"),
 ]
 start_h1 = r
 for nm, un, v, nt in h1_rows:
     gi(r, nm, un, v, nt)
     r += 1
 (H_CASH1231, H_CFO, H_CCAPEX, H_CAPEX, H_JV, H_BORROW, H_REPAY, H_CAP, H_EQ,
- H_INT, H_LEASE, H_REV, H_OPINC, H_NI, H_PREPAY, H_DA, H_SBC, H_EPS, H_NGEPS) = [f"'輸入與假設'!$C${start_h1 + i}" for i in range(len(h1_rows))]
+ H_INT, H_LEASE, H_REV, H_OPINC, H_NI, H_PREPAY, H_DA, H_SBC, H_EPS, H_NGEPS, H_ADJEB) = [f"'輸入與假設'!$C${start_h1 + i}" for i in range(len(h1_rows))]
 # resolve forward references
 for row in ws.iter_rows():
     for cc in row:
@@ -1648,7 +1658,9 @@ text_rg = [
                        f'"情境區間上緣 $"&{_T1(_A1)}&" 不低於現價 $"&TEXT({PX},"0.00")&"：賣出並非在三個擴張情境下都成立")&"。"'
                        + "".join("&" + _mg(j, k) for j, k in enumerate(DT_SC)))),
 ]
+TRROW = {}  # v4.3：文字列的列號（「摘要」頁引用）
 for nm, f in text_rg:
+    TRROW[nm] = r
     ws.cell(row=r, column=1, value=nm).font = BOLD if nm.endswith("判斷句") else BLACK
     ws.cell(row=r, column=3, value=f).font = BLACK
     r += 1
@@ -1865,6 +1877,7 @@ _rows = [
     ("穩態 EBITDA 率（FY30）", rv["eb30"], rv["Eb"], rv["Eb"] - rv["eb30"], "Q2 實際 59%；由下而上上緣約 67–71%（變動為百分點）"),
     ("（對照）加權目標價＝現價所需每 MW 年收入", rv["rev30"], rv["rev30"] * rv["Rt"], rv["Rt"] - 1, "含 EV/EBITDA 6x（FY29 錨定） 腿；非純反向 DCF"),
 ]
+RV_R0 = r  # v4.3：單一槓桿快照第一列（「摘要」頁引用）
 for k, (nm, a, b, d, note) in enumerate(_rows):
     ws.cell(row=r, column=1, value=nm).font = BLACK
     fm = PCT if k == 2 else NUM1
@@ -2069,6 +2082,17 @@ for j, h in enumerate(["標籤", "內容"]):
     c.font = HEAD
     c.fill = FILL_HEAD
 r += 1
+# v4.3：同業市值讀 company.json → peers／callFacts；目標價讀共識資料檔。與 HTML consSourceTxtQ() 同一字串
+_PE, _PT = CO['peers'], CONS['priceTarget']
+_SRC_TXT = {
+    "peers": (f"市值（{_PE['priceDate']} 收盤，{_PE['priceSource']}）：CRWV 現價 ${CO['callFacts']['priceLast']:,.2f}（{CO['callFacts']['priceDate']} 收盤）、"
+              f"市值 {CO['callFacts']['mktCapLast']:,.2f}bn（{_PE['priceDate']}）、流通 {CO['latestQuarter']['sharesOut'] * 1e3:,.2f}m；"
+              + "；".join(f"{p['ticker']} {p['mkt']:,.2f}" for p in _PE['list']) + "。淨負債取各公司最新申報："
+              + "、".join(f"{p['ticker']} {p['netDebt']:,.2f}" for p in _PE['list']) + "。"),
+    "targets": (f"賣方目標價（{_PT['source']}，擷取 {_PT['retrieved']}）：平均 ${_PT['mean']:,.2f}、中位數 ${_PT['median']:,.2f}、區間 ${_PT['low']:,.2f}–${_PT['high']:,.2f}（{_PT['analysts']} 家）；"
+                f"共識評等 {_PT['consensusRating']}。對照 {_PT['crossCheck']['source']}：平均 ${_PT['crossCheck']['mean']:,.2f}（{_PT['crossCheck']['analysts']} 家，{_PT['crossCheck']['consensusRating']}）。"
+                "數字為賣方意見；逐筆來源與日期見『輸入與假設』I 區。"),
+}
 src = [
     ("Verified", "Q2 2026 10-Q（期末 2026-06-30，2026-08-12 申報，Non-accelerated filer，Q3 期限 11/16）：營收 2.575bn +112%（H1 4.653）；"
      "GAAP 營損 −0.049；利息費用 0.640（H1 1.176，現金 0.806、資本化 0.176）；淨損 −0.626；Adj. EBITDA 1.510（59%）；"
@@ -2082,8 +2106,8 @@ src = [
     ("Verified", "現金流（H1）：CFO 3.663；現金購置 PP&E 14.117；借款 16.747、還款 5.219；capped call 0.492；"
      "私募股權 2.982。CapEx 認列口徑 Q2 9.352、H1 16.139。"),
     ("Verified", "9/17 8-K：2033 可轉債 3.7bn、2.875%、轉換價 $97.85、capped call 上限 $199.70；股權分銷最多 35m 股；9/17 收盤 $79.88。"),
-    ("Verified", "市值（2026-09-21 收盤，S&P Global via stockanalysis.com）：CRWV $85.43、47.12bn、流通 551.54m；NBIS 63.81；IREN 18.61；APLD 8.22；CORZ 5.90。"
-     "淨負債取最新申報：NBIS 2.16、IREN 1.70、APLD 3.37、CORZ 2.53。目標價均值 144.46（38 家）；9/21 Rothschild Redburn 首評 Sell $54、BTG Pactual Buy $125。"),
+    ("Verified", _SRC_TXT["peers"]),
+    (CONS['priceTarget']['tag'], _SRC_TXT["targets"]),
     ("Interested-party", "法說（8/11）：主動電力 1.5 GW（Q2 +近 500 MW，6 月 +300 MW）；簽約 4.2 GW；2030 ≥8 GW；"
      "近期產能實質售罄；7 月 SKU 漲價約 25%；全年營收 12.4–13.2、調整後營益 0.96–1.15、CapEx 35–39、期末 ARR 18.5–19.5；"
      "Q3 營收 3.45–3.6、利息 0.86–0.94、CapEx 11.5–13.5。"),
@@ -2128,15 +2152,217 @@ ws.cell(row=DT_H + 1, column=4, value=_DTF(ref=f"D{DT_H+1}:E{DT_H+3}", dt2D=Fals
 for rr in range(DT_H + 1, DT_H + 4):
     ws.cell(row=rr, column=4).number_format = USD; ws.cell(row=rr, column=5).number_format = NUM0
 
+# =====================================================================
+# v4.3：I｜市場共識（「輸入與假設」底部，接在 H 區模擬運算表之後，以免移動運算表）
+# 逐筆與 HTML consensusItems() 同一組列（標籤相同；cmp31 以標籤比對數值、擷取日期、標記）。數字只讀共識資料檔，不增補、不修改。
+# 欄位：A 項目｜B 單位｜C–E 數值（年度列＝FY26–FY28、季度列＝Q3／Q4、區間列＝低／高）｜F 擷取日期｜G 標記｜I 來源｜J 備註
+# =====================================================================
+def cons_items():
+    C = CONS; it = []
+    def add(sec, label, vals, unit, m, **ex):
+        it.append(dict(sec=sec, label=f"共識｜{label}", vals=vals, unit=unit, src=m.get('source', ''), url=m.get('url', ''),
+                       date=m.get('retrieved') or m.get('date') or '未列', tag=m.get('tag', ''), note=ex.get('note', ''), text=ex.get('text', '')))
+    PR, PT, RA, AE, AL = C['priceReference'], C['priceTarget'], C['ratings'], C['annualEstimates'], C['annualEstimatesAlt']
+    XC, QE, CG, IC, RM = PT['crossCheck'], C['quarterlyEstimates'], C['companyGuidance'], C['independentCrossCheck'], C['recentActionsMeta']
+    S1 = "價格與目標價"
+    add(S1, "現價參考（收盤）", [PR['close']], "US$", {**PR, 'retrieved': PR['date']}, note=f"收盤日 {PR['date']}")
+    for a, x in [("平均", PT['mean']), ("中位數", PT['median']), ("最低", PT['low']), ("最高", PT['high'])]:
+        add(S1, f"目標價｜{a}", [x], "US$", PT)
+    add(S1, "目標價｜分析師家數", [PT['analysts']], "家", PT)
+    add(S1, "目標價｜共識評等", [], "", PT, text=PT['consensusRating'])
+    XM = {**XC, 'tag': PT['tag']}
+    add(S1, "目標價｜MarketScreener 對照平均", [XC['mean']], "US$", XM)
+    add(S1, "目標價｜MarketScreener 對照家數", [XC['analysts']], "家", XM)
+    add(S1, "目標價｜MarketScreener 對照評等", [], "", XM, text=XC['consensusRating'])
+    for a, k in [("強力買進", 'strongBuy'), ("買進", 'buy'), ("持有", 'hold'), ("賣出", 'sell'), ("強力賣出", 'strongSell'), ("合計", 'total')]:
+        add(f"評等分布（{RA['month']}）", f"評等分布｜{a}", [RA[k]], "家", RA)
+    SA, YR = "年度共識（FY26／FY27／FY28）", ["FY26", "FY27", "FY28"]
+    for a, k, u in [("營收", 'revenue', "US$bn"), ("調整後 EBITDA", 'ebitda', "US$bn"), ("EBITDA 率", 'ebitdaMargin', "%"), ("EBIT", 'ebit', "US$bn"),
+                    ("利息費用", 'interest', "US$bn"), ("淨利", 'netIncome', "US$bn"), ("GAAP EPS", 'epsGaap', "US$"), ("CapEx", 'capex', "US$bn"),
+                    ("自由現金流", 'fcf', "US$bn"), ("淨負債", 'netDebt', "US$bn")]:
+        add(SA, f"年度｜{a}", [AE[y][k] for y in YR], u, AE)
+    add(SA, "年度｜口徑說明", [], "", AE, text=AE['definition'])
+    SB = "S&P 對照（經 StockAnalysis.com；FY26／FY27）"
+    add(SB, "S&P 對照｜營收", [AL['FY26']['revenue'], AL['FY27']['revenue']], "US$bn", AL)
+    add(SB, "S&P 對照｜FY26 營收區間（低／高）", [AL['FY26']['revenueLow'], AL['FY26']['revenueHigh']], "US$bn", AL)
+    add(SB, "S&P 對照｜調整後 EPS", [AL['FY26']['epsAdjusted'], AL['FY27']['epsAdjusted']], "US$", AL)
+    add(SB, "S&P 對照｜FY26 調整後 EPS 區間（低／高）", [AL['FY26']['epsAdjustedLow'], AL['FY26']['epsAdjustedHigh']], "US$", AL)
+    add(SB, "S&P 對照｜FY26 分析師家數", [AL['FY26']['analysts']], "家", AL, note=AL['note'])
+    SQ = "季度共識（2026Q3／2026Q4）"
+    for a, k in [("營收", 'revenue'), ("EBITDA", 'ebitda'), ("EBIT", 'ebit'), ("淨利", 'netIncome')]:
+        add(SQ, f"季度｜{a}", [QE['2026Q3'][k], QE['2026Q4'][k]], "US$bn", QE)
+    add(SQ, "季度｜說明", [], "", QE, text=QE['note'])
+    SG = "公司指引（管理層預估）"
+    add(SG, "公司指引｜FY26 營收（低／高）", [CG['FY26']['revenueLow'], CG['FY26']['revenueHigh']], "US$bn", CG)
+    add(SG, "公司指引｜FY26 調整後營業利益（低／高）", [CG['FY26']['adjOpIncomeLow'], CG['FY26']['adjOpIncomeHigh']], "US$bn", CG)
+    add(SG, "公司指引｜FY26 CapEx（低／高）", [CG['FY26']['capexLow'], CG['FY26']['capexHigh']], "US$bn", CG)
+    add(SG, "公司指引｜Q3 營收（低／高）", [CO['callFacts']['q3RevLo'], CO['callFacts']['q3RevHi']], "US$bn", CG, note=CG['tagNote'])  # 以 company.json 為準（建置時已檢查與共識檔一致）
+    SL, LM = f"獨立對照（{IC['provider']}）", {**IC, 'source': f"{IC['provider']}（經 {IC['source']}）"}
+    add(SL, f"{IC['provider']} 對照｜FY26 營收（Q2 前）", [IC['FY26RevenuePreQ2']], "US$bn", LM)
+    add(SL, f"{IC['provider']} 對照｜Q3 營收（Q2 前）", [IC['2026Q3RevenuePreQ2']], "US$bn", LM, note=IC['note'])
+    for x in C['recentActions']:
+        add("最新分析師動作", f"分析師動作｜{x['date']} {x['firm']}", [] if x['target'] is None else [x['target']], "US$", RM,
+            text="目標價未列" if x['target'] is None else "", note=x['rating'] + (f"；{x['note']}" if x.get('note') else ""))
+    add("來源與限制", "來源獨立性", [], "", {'source': "資料檔說明", 'retrieved': C['asOf']}, text=C['sourceIndependence'])
+    for i, t in enumerate(C['notFound']):
+        add("來源與限制", f"未取得｜{i + 1}", [], "", {'source': "資料檔說明", 'retrieved': C['asOf']}, text=t)
+    return it
+
+
+ws = wb["輸入與假設"]
+r = DT_H + 5
+r = section(ws, r, f"I｜市場共識（{CO['meta']['consensusFile']}；只讀，不增補數字；下游只引用本區）")
+ws.cell(row=r - 1, column=9, value=f"標記：Verified＝{CONS['tagLegend']['Verified']}；Interested-party＝{CONS['tagLegend']['Interested-party']}").font = SMALL
+ws.column_dimensions["G"].width = 16
+CI = {}
+_sec = None
+_FMT = {"US$": USD, "US$bn": '#,##0.000', "%": PCT, "家": NUM0, "": NUM}
+for x in cons_items():
+    if x['sec'] != _sec:
+        _sec = x['sec']
+        for j, h in enumerate([_sec, "單位", "數值", "", "", "擷取日期", "標記", "", "來源", "備註"]):
+            c = ws.cell(row=r, column=1 + j, value=h or None); c.font = HEAD; c.fill = FILL_HEAD
+        r += 1
+    CI[x['label']] = r
+    ws.cell(row=r, column=1, value=x['label']).font = BLACK
+    ws.cell(row=r, column=2, value=x['unit'] or None).font = SMALL
+    if x['vals']:
+        for j, v in enumerate(x['vals']):
+            c = ws.cell(row=r, column=3 + j, value=v); c.font = BLUE; c.number_format = _FMT[x['unit']]; c.border = BOX
+    else:
+        ws.cell(row=r, column=3, value=x['text']).font = BLACK
+    ws.cell(row=r, column=6, value=x['date']).font = SMALL
+    ws.cell(row=r, column=7, value=x['tag'] or None).font = SMALL
+    ws.cell(row=r, column=9, value=x['src'] + (f"｜{x['url']}" if x['url'] else "")).font = SMALL
+    ws.cell(row=r, column=10, value=x['note'] or None).font = SMALL
+    r += 1
+CIR = lambda label, j=0: f"'輸入與假設'!${'CDE'[j]}${CI['共識｜' + label]}"
+CONS_TOL = gi(r, "判斷句門檻：與共識差距（營收、EBITDA、CapEx）", "%", CO['methodology']['consensusGapTol'],
+              "任一項差距絕對值超過此比例即視為分歧（company.json → methodology.consensusGapTol）[Assumed]", PCT); r += 1
+
+# =====================================================================
+# v4.3：摘要（一頁摘要；放在「導覽」之後）。全部活公式，與 HTML 總結頁第 1 頁同一組數字與字串（cmp31 逐項比對）
+# 模型端為目前情境（預設＝基準）；FY26 為全年口徑：營收＝1H 實際＋2H 模型，調整後 EBITDA＝1H 實際調整後 EBITDA＋2H 模型，CapEx＝1H 實際毛額＋2H 模型毛額
+# =====================================================================
+ws = wb.create_sheet("摘要")
+ws.column_dimensions["A"].width = 40
+ws.column_dimensions["B"].width = 10
+for c in "CDEFG":
+    ws.column_dimensions[c].width = 13
+ws.column_dimensions["I"].width = 70
+ws["A1"] = "一頁摘要 — 結論、與市場的差異、現價隱含什麼、驗證點（全部依輸入連動）"
+ws["A1"].font = TITLE
+ws["A2"] = f'="模型端＝目前情境：" & CHOOSE({SEL},"{DT_NM["low"]}","{DT_NM["base"]}","{DT_NM["high"]}") & "（預設＝基準）；共識＝{CO["meta"]["consensusFile"]}（{CONS["asOf"]}）"'
+ws["A2"].font = SMALL
+VQ = "'評價_DCF與目標價'!"
+SM = {}
+def srow(name, unit, vals, fmt=NUM, note=None, bold=False):
+    global r
+    SM[name] = r
+    ws.cell(row=r, column=1, value=name).font = BOLD if bold else BLACK
+    if unit: ws.cell(row=r, column=2, value=unit).font = SMALL
+    for j, v in enumerate(vals):
+        c = ws.cell(row=r, column=3 + j, value=v); c.number_format = fmt; c.font = BLACK
+    if note: ws.cell(row=r, column=9, value=note).font = SMALL
+    r += 1
+_G = lambda x, pt=False: f'IF({x}<0,"−","+")&TEXT(ABS({x})*100,"0.0")&"{"pt" if pt else "%"}"'  # 與 HTML gapTxtQ 同格式
+r = 4
+r = section(ws, r, "1｜結論")
+srow("結論｜評等代碼（1＝買進、0＝中立、−1＝賣出）", "", [f"={VQ}{RG_PT_CODE}"], NUM0)
+srow("結論｜評等", "", [f"=CHOOSE(C{SM['結論｜評等代碼（1＝買進、0＝中立、−1＝賣出）']}+2,\"賣出\",\"中立\",\"買進\")"])
+srow("結論｜點位（加權目標價）", "US$", [f"={VQ}{TGT}"], USD, bold=True)
+srow("結論｜現價", "US$", [f"={PX}"], USD)
+srow("結論｜空間", "%", [f"=C{r-2}/C{r-1}-1"], PCT)
+srow("結論｜情境區間（下緣／上緣）", "US$", [f"={VQ}{_A0}", f"={VQ}{_A1}"], USD)
+srow("結論｜方法區間（下緣／上緣）", "US$", [f"={VQ}{_B0}", f"={VQ}{_B1}"], USD)
+srow("結論｜賣出門檻價", "US$", [f"={VQ}{_TH}"], USD)
+srow("結論｜點位 − 賣出門檻", "US$", [f"=C{SM['結論｜點位（加權目標價）']}-C{r-1}"], USD)
+_s = lambda k: SM["結論｜" + k]
+srow("結論｜結論句", "", [(f'=C{_s("評等")}&"：點位 $"&TEXT(C{_s("點位（加權目標價）")},"0.0")&"，較現價 $"&TEXT(C{_s("現價")},"0.00")&" "'
+                         f'&IF(C{_s("空間")}>=0,"高","低")&" "&TEXT(ABS(C{_s("空間")})*100,"0")&"%；情境區間 $"&TEXT(C{_s("情境區間（下緣／上緣）")},"0.0")&"–$"&TEXT(D{_s("情境區間（下緣／上緣）")},"0.0")'
+                         f'&"，方法區間 $"&TEXT(C{_s("方法區間（下緣／上緣）")},"0.0")&"–$"&TEXT(D{_s("方法區間（下緣／上緣）")},"0.0")'
+                         f'&"；點位"&IF(C{_s("點位 − 賣出門檻")}<0,"低於","高於")&"賣出門檻 $"&TEXT(C{_s("賣出門檻價")},"0.0")&" 達 $"&TEXT(ABS(C{_s("點位 − 賣出門檻")}),"0.0")&"。"')],
+     bold=True)
+srow("結論｜情境判斷句", "", [f"={VQ}C{TRROW['目標價區間｜判斷句']}"])
+
+r += 1
+r = section(ws, r, "2｜與市場的差異（模型：目前情境 vs 共識；FY26–FY28）")
+for j, h in enumerate(["項目", "單位", "FY26", "FY27", "FY28"]):
+    c = ws.cell(row=r, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
+r += 1
+_NB = "'資產負債_新債與新股'!"
+_MOD = {
+    "營收": [f"={PL}{COLS[i]}{fy_rev}" for i in range(3)],
+    "調整後 EBITDA": [f"={H_ADJEB}+{PL}C{ebitda_v}"] + [f"={PL}{COLS[i]}{VR['全年 EBITDA']}" for i in (1, 2)],
+    "CapEx（毛額）": [f"={H_CAPEX}+'輸入與假設'!C${IN['毛 CapEx']}"] + [f"='輸入與假設'!{COLS[i]}${IN['毛 CapEx']}" for i in (1, 2)],
+    "淨負債": [f"={_NB}{COLS[i]}{BR['淨負債（總債務 − 期末現金）']}" for i in range(3)],
+}
+_CON = {"營收": "年度｜營收", "調整後 EBITDA": "年度｜調整後 EBITDA", "CapEx（毛額）": "年度｜CapEx", "淨負債": "年度｜淨負債"}
+for k in ["營收", "調整後 EBITDA", "EBITDA 率", "CapEx（毛額）", "淨負債"]:
+    if k == "EBITDA 率":
+        srow("差異｜EBITDA 率｜模型", "%", [f"={c}{SM['差異｜調整後 EBITDA｜模型']}/{c}{SM['差異｜營收｜模型']}" for c in "CDE"], PCT)
+        srow("差異｜EBITDA 率｜共識", "%", [f"={CIR('年度｜EBITDA 率', j)}" for j in range(3)], PCT)
+        srow("差異｜EBITDA 率｜差距（百分點）", "pt", [f"={c}{r-2}-{c}{r-1}" for c in "CDE"], PCT, "EBITDA 率以百分點列差距，不納入判斷")
+        continue
+    srow(f"差異｜{k}｜模型", "US$bn", _MOD[k], NUM)
+    srow(f"差異｜{k}｜共識", "US$bn", [f"={CIR(_CON[k], j)}" for j in range(3)], NUM)
+    srow(f"差異｜{k}｜差距", "%", [f"={c}{r-2}/{c}{r-1}-1" for c in "CDE"], PCT,
+         "共識淨負債不含租賃、口徑未揭露：只列不判斷" if k == "淨負債" else ("共識 CapEx 口徑未揭露；FY26＝1H 實際毛額＋2H 模型毛額" if k.startswith("CapEx") else
+         ("FY26 模型＝1H 實際調整後 EBITDA（輸入與假設 G 區，報導轉述 [Verified]）＋2H 模型" if k == "調整後 EBITDA" else None)))
+_gr = {"營收": SM["差異｜營收｜差距"], "EBITDA": SM["差異｜調整後 EBITDA｜差距"], "CapEx": SM["差異｜CapEx（毛額）｜差距"]}
+srow("差異｜分歧項目（超過門檻者）", "", [("=MID(" + "&".join(f'IF(ABS({c}{_gr[n]})>{CONS_TOL},"、{n} "&{_G(f"{c}{_gr[n]}")},"")' for n in ("營收", "EBITDA", "CapEx")) + ",2,999)") for c in "CDE"],
+     NUM, "營收、EBITDA、CapEx 任一項差距絕對值超過門檻即列出（與 HTML 判斷句同一規則）")
+_L = SM["差異｜分歧項目（超過門檻者）"]
+srow("差異｜分歧起始年（1＝FY26…3＝FY28；0＝無）", "", [f'=IF(C{_L}<>"",1,IF(D{_L}<>"",2,IF(E{_L}<>"",3,0)))'], NUM0)
+_F, _T = f"C{r-1}", _PC(CONS_TOL)
+_nx = lambda c, y: f'"；{y} "&IF({c}{_L}="","回到 "&{_T}&" 以內",{c}{_L})'
+srow("差異｜判斷句", "", [(f'=CHOOSE({_F}+1,"FY26–FY28 營收、EBITDA、CapEx 與共識差距皆在 "&{_T}&" 以內。",'
+                          f'"分歧始於 FY26（"&C{_L}&"）"&{_nx("D", "FY27")}&{_nx("E", "FY28")}&"。",'
+                          f'"FY26 營收、EBITDA、CapEx 與共識差距在 "&{_T}&" 以內；分歧始於 FY27（"&D{_L}&"）"&{_nx("E", "FY28")}&"。",'
+                          f'"FY26–FY27 營收、EBITDA、CapEx 與共識差距在 "&{_T}&" 以內；分歧始於 FY28（"&E{_L}&"）。")')], bold=True)
+
+r += 1
+r = section(ws, r, "3｜現價隱含什麼")
+_E28, _N28, _PTM = CIR("年度｜調整後 EBITDA", 2), CIR("年度｜淨負債", 2), CIR("目標價｜平均")
+srow("隱含｜共識平均目標價隱含 FY28 EV/EBITDA", "x", [f"=({_PTM}*{SH}+{_N28})/{_E28}"], MULT, "＝（共識平均目標價 × 股數＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA")
+srow("隱含｜現價隱含 FY28 EV/EBITDA", "x", [f"=({PX}*{SH}+{_N28})/{_E28}"], MULT, "同一共識 FY28 數字，價格換成現價")
+srow("隱含｜模型方法區間上緣", "x", [f"=MAX({RM_LO},{RM_HI})"], MULT, "模型 EV/EBITDA 腿錨定 FY29 並折回 FY27 末，錨定年度與此不同")
+_i1, _i2, _mh = f"C{SM['隱含｜共識平均目標價隱含 FY28 EV/EBITDA']}", f"C{SM['隱含｜現價隱含 FY28 EV/EBITDA']}", f"C{SM['隱含｜模型方法區間上緣']}"
+srow("隱含｜隱含倍數句", "", [(f'="共識平均目標價 $"&TEXT({_PTM},"0.00")&" 隱含 FY28 EV/EBITDA "&TEXT({_i1},"0.0")&"x，"'
+                            f'&IF(ROUND({_i1},1)>{_mh},"高於",IF(ROUND({_i1},1)<{_mh},"低於","等於"))&"模型方法區間上緣 "&{_MT(_mh)}&"x；現價 $"&TEXT({PX},"0.00")&" 隱含 "&TEXT({_i2},"0.0")&"x。"')], bold=True)
+_RV = "'評價_反向DCF'!"
+for k, nm in enumerate(["反向 DCF｜FY30 每 MW 年收入（目前／隱含／變動）", "反向 DCF｜每 MW 建置成本（目前／隱含／變動）",
+                        "反向 DCF｜穩態 EBITDA 率（目前／隱含／變動 pt）", "反向 DCF｜加權目標價＝現價所需每 MW 年收入（目前／隱含／變動）"]):
+    srow(nm, "", [f"={_RV}B{RV_R0 + k}", f"={_RV}C{RV_R0 + k}", f"={_RV}D{RV_R0 + k}"], PCT if k == 2 else NUM1,
+         "快照（預設輸入）：見『評價_反向DCF』；改輸入後請以目標搜尋重算" if k == 0 else None)
+    ws.cell(row=r - 1, column=5).number_format = PCT
+
+r += 1
+r = section(ws, r, "4｜驗證點與市場看法（賣方與管理層數字標記 Interested-party）")
+_q, _qe, _glo, _ghi = CIR("季度｜營收", 0), CIR("季度｜EBITDA", 0), CIR("公司指引｜Q3 營收（低／高）", 0), CIR("公司指引｜Q3 營收（低／高）", 1)
+srow("驗證｜Q3 共識營收／EBITDA", "US$bn", [f"={_q}", f"={_qe}"], '#,##0.000', "Q3 財報預計 11/9 [Interested-party]")
+srow("驗證｜公司 Q3 營收指引（低／高）", "US$bn", [f"={_glo}", f"={_ghi}"], NUM, "管理層預估 [Interested-party]")
+srow("驗證｜Q3 句", "", [(f'="Q3 共識營收 $"&TEXT({_q},"0.00")&"bn "&IF({_q}>{_ghi},"高於公司指引上緣",IF({_q}<{_glo},"低於公司指引下緣",IF({_q}>=({_glo}+{_ghi})/2,"位於公司指引上半部","位於公司指引下半部")))'
+                        f'&"（$"&TEXT({_glo},"0.00")&"–$"&TEXT({_ghi},"0.00")&"bn）；共識 EBITDA $"&TEXT({_qe},"0.00")&"bn。"')], bold=True)
+srow("驗證｜評等分布（強力買進／買進／持有／賣出／強力賣出）", "家", [f"={CIR('評等分布｜' + a)}" for a in ("強力買進", "買進", "持有", "賣出", "強力賣出")], NUM0,
+     f"{CONS['ratings']['month']}，合計 {CONS['ratings']['total']} 家 [Interested-party]")
+srow("驗證｜目標價（平均／中位數／最低／最高）", "US$", [f"={CIR('目標價｜' + a)}" for a in ("平均", "中位數", "最低", "最高")], USD,
+     f"{CONS['priceTarget']['analysts']} 家；{CONS['priceTarget']['source']}，擷取 {CONS['priceTarget']['retrieved']} [Interested-party]")
+for x in CONS['recentActions']:
+    k = f"分析師動作｜{x['date']} {x['firm']}"
+    srow(f"驗證｜{k}", "US$", [f"={CIR(k)}" if x['target'] is not None else "目標價未列"], USD, x['rating'] + " [Interested-party]")
+ws.cell(row=r + 1, column=1, value="來源獨立性：" + CONS['sourceIndependence']).font = SMALL
+ws.cell(row=r + 2, column=1, value=f"共識來源：{CONS['annualEstimates']['source']}、{CONS['priceTarget']['source']}、{CONS['recentActionsMeta']['source']}；擷取 {CONS['annualEstimates']['retrieved']}。逐筆來源、日期與標記見『輸入與假設』I 區。").font = SMALL
+
 for s in wb.worksheets:
     s.sheet_view.showGridLines = False
-    if s.title not in ("導覽", "來源"):
+    if s.title not in ("導覽", "來源", "摘要"):
         s.freeze_panes = "C5"
 
-_order = ["導覽", "輸入與假設", "各期收支", "運營_產能與收入", "運營_站點", "資產負債_既有債務", "資產負債_新債與新股",
+_order = ["導覽", "摘要", "輸入與假設", "各期收支", "運營_產能與收入", "運營_站點", "資產負債_既有債務", "資產負債_新債與新股",
           "資產負債_租賃承諾", "損益", "評價_DCF與目標價", "評價_反向DCF", "評價_可比公司", "檢查_連動", "檢查_版本紀錄", "來源"]
 wb._sheets = [wb[n] for n in _order] + [w for w in wb.worksheets if w.title not in _order]
-_tab = {"輸入與假設": "1F3864", "各期收支": "0F6B4C", "運營_產能與收入": "0F5C61", "運營_站點": "0F5C61",
+_tab = {"摘要": "C00000", "輸入與假設": "1F3864", "各期收支": "0F6B4C", "運營_產能與收入": "0F5C61", "運營_站點": "0F5C61",
         "資產負債_既有債務": "5B5778", "資產負債_新債與新股": "5B5778", "資產負債_租賃承諾": "5B5778",
         "損益": "C4A35A", "評價_DCF與目標價": "9F1239", "評價_可比公司": "9F1239", "評價_反向DCF": "9F1239", "檢查_連動": "808080", "檢查_版本紀錄": "808080", "來源": "808080"}
 for _n, _c in _tab.items():
@@ -2147,7 +2373,7 @@ import json as _json
 # 輸出位置相對於 repo 根目錄：預設 out/；可用第 1 個參數指定 xlsx 路徑（outline.json 一律寫在 out/）
 _OUT_DIR = _osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), "out")
 _osrv.makedirs(_OUT_DIR, exist_ok=True)
-_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_2.xlsx")
+_xlsx = _sysv.argv[1] if len(_sysv.argv) > 1 else _osrv.path.join(_OUT_DIR, "20260925_CoreWeave收支模型_v4_3.xlsx")
 _json.dump({k: v for k, v in OUTLINE.items()}, open(_osrv.path.join(_OUT_DIR, "outline.json"), "w"), ensure_ascii=False)
 wb.save(_xlsx)
 print("saved", _xlsx)

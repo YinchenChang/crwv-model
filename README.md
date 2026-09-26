@@ -1,4 +1,4 @@
-# CoreWeave 收支模型 v4.2 原始碼包
+# CoreWeave 收支模型 v4.3 原始碼包
 
 HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo 根目錄；建置產物寫到 `out/`（不納入版控），交付成品放 `dist/`。HTML 的函式庫模板為 `docs/template_v3_3.html`。
 
@@ -12,23 +12,24 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | 檔案 | 用途 |
 |---|---|
 | segA.js | 資金引擎：情境、產能與收入、CapEx／折舊、租金、期前融資瀑布、連動檢查、敏感性、反向 DCF（rvQ） |
-| segB.js | 評價引擎：損益、DCF（0 截斷／選擇權、失效條件）、EV/EBITDA、加權目標價、目標價區間（`targetRange`，v4.1）、評等規則 `rateCall`（門檻讀 `methodology.rating`，v4.2）；同業資料 `lM` 由 `company.json` → `peers` 產生（v4.2） |
-| segC.js | 「損益與評價」頁 UI（損益簡表、Comps、DCF、目標價、反向 DCF） |
-| segE.js | 「總結」簡報頁 UI（v3.4 新增）：8 張 1280×720 投影片、簡報模式、列印 CSS；數字即時取自 dA／TM／rvQ／pA |
+| segB.js | 評價引擎：損益、DCF（0 截斷／選擇權、失效條件）、EV/EBITDA、加權目標價、目標價區間（`targetRange`，v4.1）、評等規則 `rateCall`（門檻讀 `methodology.rating`，v4.2）；同業資料 `lM` 由 `company.json` → `peers` 產生（v4.2）；市場共識對照 `consensusView`、共識逐筆清單 `consensusItems`、來源頁引用句 `consSourceTxtQ`（v4.3） |
+| segC.js | 「損益與評價」頁 UI（損益簡表、Comps、DCF、目標價、反向 DCF；v4.3「市場共識」分頁＝segE 的 `ConsTabQ`） |
+| segE.js | 「總結」簡報頁 UI（v3.4 新增）：10 張 1280×720 投影片（v4.3 第 1 張為一頁摘要 `onePageQ`，其餘 9 張為附錄）、簡報模式、列印 CSS；「市場共識」分頁 `ConsTabQ`（v4.3）；數字即時取自 runFunding／runValuation／reverseDcf／sensitivities |
 | segD.js | 頁首與頁籤（總結｜資金模型｜損益與評價）、「資金模型」頁 UI（標題摘要、左欄分類選單、各模組分頁、新債與新股、版本紀錄） |
 | tail.js | 共用元件：Excel 式表格 BM、浮動說明 tipQ、分類選單 accQ、兩層選單 navQ、FMODS／VMODS、VLOG |
 | app_pretty.js | 原 Oracle 模板的美化程式碼（取其中三段共用 UI） |
 | rm_andy.js | Andy 修改過的開關元件（說明改為浮動提示） |
 | build_html_portable.py | 組裝 HTML：`python3 build_html_portable.py 4.0 out/輸出.html 2026-09-24 [模板 HTML]`（模板省略時用 `docs/template_v3_3.html`；組裝順序：segA、模板段、segB、模板段、segC、模板段、segD、tail、segE） |
-| build_xlsx.py | 產生 Excel：`python3 build_xlsx.py [輸出.xlsx]`（預設 `out/20260925_CoreWeave收支模型_v4_2.xlsx`；版本號寫在導覽 A1；自同目錄讀取 vlog.py、rv_snap.json、company.json；群組資訊寫到 `out/outline.json`） |
+| build_xlsx.py | 產生 Excel：`python3 build_xlsx.py [輸出.xlsx]`（預設 `out/20260925_CoreWeave收支模型_v4_3.xlsx`；版本號、更新日、市價日寫在導覽 A1（v4.3 起讀 vlog.py 與 company.json）；自同目錄讀取 vlog.py、rv_snap.json、company.json 與 `meta.consensusFile` 指定的共識資料檔；群組資訊寫到 `out/outline.json`） |
 | fix_outline.py | LibreOffice 重算後，補回 Excel 群組按鈕位置與收合狀態：`python3 fix_outline.py 檔案.xlsx [outline.json]`（預設讀 `out/outline.json`；v3.4 修正：outlinePr 依 schema 放在 tabColor 之後） |
 | fix_datatable.py | v4.1：LibreOffice 重算後，把模擬運算表（情境區間）由 `TABLE()` 一般公式還原為 Excel 的 `dataTable` 公式，保留算出的值：`python3 fix_datatable.py 檔案.xlsx` |
 | verify_ooxml.py | Excel 嚴格結構檢查（XML 格式、工作表與 sheetPr 子元素順序；v4.1 起另檢查模擬運算表存在且無殘留 `TABLE()`）；v3.4 新增 |
 | vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
-| rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」頁使用；以 node 執行 segA+segB 的 rvQ 重算） |
-| xl_diff.py | Excel 比對：`python3 xl_diff.py 舊.xlsx 新.xlsx [--values] [--by-label]`（v4.2 `--by-label`：新增列造成位移時以「區段＋列名稱」配對，見「v4.2 核對方式」） |
+| rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」與「摘要」頁使用）；現價或預設輸入改變後以 `node scripts/rv_snap.js` 重新產生（v4.3） |
+| data/consensus_crwv_20260925.json | 市場共識資料檔（v4.3；Andy 查證後提供，只讀，不得增補或修改數字）；路徑寫在 `company.json` → `meta.consensusFile`，HTML 建置時併入 `COMPANY_DATA.consensus`，Excel 直接讀取 |
+| xl_diff.py | Excel 比對：`python3 xl_diff.py 舊.xlsx 新.xlsx [--values] [--by-label] [--ignore=工作表,…]`（v4.2 `--by-label`：新增列造成位移時以「區段＋列名稱」配對，見「v4.2 核對方式」；v4.3 `--ignore`：兩檔都略過指定工作表） |
 | scripts/fields_doc.py | v4.2：產生下方「company.json 欄位說明」的表格（`python3 scripts/fields_doc.py > out/fields.md`）；company.json 有欄位沒寫說明即報錯 |
-| xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值（暫存檔在 `out/`，以 `scripts/recalc.py` 重算）；cmp31.js 以 HTML 引擎逐列比對（三情境各 120 項，含 v4.1 目標價區間與判斷句等文字逐字比對；讀取目前目錄的 `xl17_*.json`） |
+| xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值（暫存檔在 `out/`，以 `scripts/recalc.py` 重算）；cmp31.js 以 HTML 引擎逐列比對（三情境各 200 項，含 v4.1 目標價區間與判斷句、v4.3 市場共識逐筆與一頁摘要的差距、隱含倍數與四個句子逐字比對；讀取目前目錄的 `xl17_*.json`） |
 | scripts/recalc.py | LibreOffice headless 重算：`python3 scripts/recalc.py 檔案.xlsx [逾時秒數]`＝開啟、全部重算、原地存檔，輸出 JSON 並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）；有錯誤或失敗時代碼 1 |
 | scripts/verify.sh | 一次跑完建置與核對（見下節） |
 | scripts/cloud_setup.sh | 雲端環境 setup script（只裝 Python 套件；LibreOffice Calc 於工作階段內補裝，見 CLAUDE.md） |
@@ -51,10 +52,10 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - LibreOffice 不支援 NORM.S.DIST，Excel 公式請用 NORMSDIST。
 
 - 列印：總結頁的列印 CSS 依賴 segD 的 `sumQ-np`（頁首、頁籤）與 `sumQ-main`（主容器）兩個 class，修改 segD 時請保留。
-- 目視檢查可用 Playwright：開啟 HTML、`page.pdf(prefer_css_page_size=True)` 應得 8 頁。
+- 目視檢查可用 Playwright：開啟 HTML、`page.pdf(prefer_css_page_size=True)` 應得 10 頁（v4.3：一頁摘要＋附錄 9 頁）。
 
 ## v3.5 核對方式（EV/EBITDA 錨定年度）
-- 預設三情境：`python3 xlx.py <xlsx> 1|2|3 xl17_<n>.json`，再 `node cmp31.js low|base|high`（目前各 120 項）。
+- 預設三情境：`python3 xlx.py <xlsx> 1|2|3 xl17_<n>.json`，再 `node cmp31.js low|base|high`（目前各 200 項）。
 - 其他錨定年度：`python3 xlx.py <xlsx> 2 out/xl17_2_a3.json 3` 後於 `out/` 內 `node ../cmp31.js base 3`（第 4 個參數＝錨定年度 1–4）。
 - 矩陣：HTML `evGrid()`（segB）與 Excel「評價_DCF與目標價」的「錨定×倍數｜…」列逐格比對（40 格）。
 
@@ -78,6 +79,16 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - 公式比對時，舊版公式的列號（含跨工作表引用）依列對照換算後再比。另有兩類變更列清單、不計為差異：「常數改為引用輸入格」（把引用換回該格常數後與舊版公式相同）、「文字改為活公式」（重算後的值與舊版文字相同）。
 - 以不同門檻測試過連動：把 `methodology.rating` 改成其他值後重建，cmp31 三情境＋FY27 錨定仍全部一致（HTML 與 Excel 同步改變）。
 
+## v4.3 一頁摘要與市場共識
+- **共識資料**：只讀 `data/consensus_crwv_20260925.json`（路徑在 `company.json` → `meta.consensusFile`）；不增補、不修改數字，資料檔沒有的欄位顯示「未列」。建置時檢查兩件事，不符即停止：共識檔的 Q3 營收指引與 `callFacts.q3RevLo／q3RevHi` 相同（以 company.json 為準）；`actual1H.adjEbitda`＝Q1＋Q2。
+- **逐筆顯示**：`consensusItems()`（segB）與 build_xlsx 的 `cons_items()` 產生同一組列（標籤以「共識｜」開頭）：HTML「損益與評價 → 市場共識」分頁、Excel「輸入與假設」I 區（C–E 數值、F 擷取日期、G 標記、I 來源、J 備註）。另揭露 `sourceIndependence`（兩網站的數字都來自 S&P，不是獨立交叉驗證）與「未取得」清單。
+- **與市場的差異**（`consensusView()`）：模型用目前情境（預設＝基準）；FY26 為全年口徑：營收＝1H 實際＋2H 模型、調整後 EBITDA＝1H 實際調整後 EBITDA 2.667（Q1 1.157＋Q2 1.510，報導轉述 [Verified]，只用於此比較）＋2H 模型、CapEx＝1H 實際毛額 16.139＋2H 模型毛額。差距＝模型 ÷ 共識 − 1；EBITDA 率以百分點列；淨負債只列不判斷（共識口徑未揭露）。
+- **判斷句**：營收、EBITDA、CapEx 任一項差距絕對值超過 `methodology.consensusGapTol`（5%）即為分歧；句子寫出分歧起始年與之後各年超過門檻的項目。
+- **隱含倍數**：（價格 × 模型股數 0.587bn＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA，價格分別用共識平均目標價與現價；與方法區間上緣（6x）並列。
+- **一頁摘要**：HTML 總結頁第 1 頁（`onePageQ`；原 9 頁順延為附錄，列印 10 頁）；Excel「摘要」分頁（「導覽」之後，全部活公式）。四個句子（結論句、共識判斷句、隱含倍數句、Q3 句）由 HTML 函式與 Excel 文字公式各自產生，cmp31 逐字比對。反向 DCF 在 Excel 引用快照（`rv_snap.json`）。
+- **現價**：$90.13（2026-09-24 收盤）；股權發行參考價同步。Comps 表的 CRWV 市值維持 9/21（與同業同一天）；股權／可轉債金額維持 6.2bn（Andy 決定）。
+- **核對**：B＋C（現價不變）先與 v4.2 比對：Excel 用 `xl_diff.py --by-label --ignore=來源,摘要`（值與公式 0 差異，新增列 64）；畫面文字差異限於新頁、Street 列刪除、來源句、附錄前綴與頁碼。再做 A（改現價）並列出數字對照（見 `docs/reports/20260925_一頁摘要與市場共識.md`）。
+
 ## company.json 欄位說明（換公司填表指引）
 換成 Nebius、Oracle、OpenAI 等公司時，照這一節逐欄填寫 `company.json`；HTML 與 Excel 都從這個檔讀資料，改完執行 `scripts/verify.sh`。
 
@@ -87,15 +98,16 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - 「清單」依模型期順序填：FY26 下半年、FY27、FY28、FY29、FY30，共 5 格（除非另有說明）。
 - 文字中的來源標記沿用 [Verified]（已公開可查）、[Interested-party]（利害關係人說法）、[Derived]（由其他數字換算）、[Assumed]（判斷值）。
 - 「換公司」欄：**必改**＝公司特有的資料；**檢查**＝判斷值，要依新公司重新評估；**可沿用**＝口徑或方法，通常不必改。
-- 下表的「目前數值」是 CoreWeave v4.2 的值；過長的文字只顯示開頭。表格由 `scripts/fields_doc.py` 產生，新增欄位時先在該檔補說明，再重新產生。
+- 下表的「目前數值」是 CoreWeave v4.3 的值；過長的文字只顯示開頭。表格由 `scripts/fields_doc.py` 產生，新增欄位時先在該檔補說明，再重新產生。
 ### `meta`：基本資料
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
 | `meta.company` | 公司名稱 | 文字 | CoreWeave | 必改 |
 | `meta.ticker` | 股票代號 | 文字 | CRWV | 必改 |
-| `meta.updateDate` | 資料更新日 | 日期 | 2026-09-24 | 必改 |
-| `meta.priceDate` | 股價日期（現價、市值的收盤日） | 日期 | 2026-09-21 | 必改 |
+| `meta.updateDate` | 資料更新日 | 日期 | 2026-09-25 | 必改 |
+| `meta.priceDate` | 股價日期（現價的收盤日；畫面與 Excel 的現價日期都讀這格） | 日期 | 2026-09-24 | 必改 |
+| `meta.consensusFile` | 市場共識資料檔路徑（v4.3；只讀，由使用者查證後提供；建置時併入 HTML、Excel 讀同一檔） | 路徑 | data/consensus_crwv_202609… | 必改 |
 | `meta.sourceOrderNote` | 資料來源的先後與衝突時的取捨原則（畫面說明文字） | 文字 | 時序先法說（8/11）、後 10-Q（8/12）、再… | 必改 |
 
 ### `periods`：模型期
@@ -129,6 +141,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `actual1H.ni` | 上半年淨損益 | US$bn | -1.366 | 必改 |
 | `actual1H.eps` | 上半年 GAAP 每股盈餘 | US$ | -2.53 | 必改 |
 | `actual1H.ngEps` | 上半年每股盈餘（加回股份基礎薪酬） | US$ | -1.94 | 必改 |
+| `actual1H.adjEbitda` | 上半年調整後 EBITDA（v4.3；只用於與市場共識比較 FY26，不進模型損益與評價） | US$bn | 2.667 | 必改 |
+| `actual1H.adjEbitdaMeta` | 上述數字的 Q1／Q2 拆分、來源、標記與備註（建置時檢查 Q1＋Q2＝合計） | 物件 | 物件（q1、q2、tag、sources、crossCheck、note、usage） | 必改 |
 
 ### `historicalPL`：歷年損益
 
@@ -205,7 +219,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `notesOut` | 票據與可轉債未償餘額 | US$bn | 16.6 | 否 |
 | `sharesA` | A 股流通股數 | bn 股 | 0.458872 | 否 |
 | `sharesB` | B 股流通股數 | bn 股 | 0.0926649 | 否 |
-| `sharesOut` | 流通股數合計 | bn 股 | 0.551537 | 否 |
+| `sharesOut` | 流通股數合計 | bn 股 | 0.551537 | 是 |
 | `basicWaso` | 加權平均流通股數 | bn 股 | 0.551 | 否 |
 | `capexQ2` | 當季資本支出 | US$bn | 9.352 | 是 |
 | `capexH1` | 上半年資本支出 | US$bn | 16.139 | 是 |
@@ -262,8 +276,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `q3IntHi` | 下一季利息指引上緣 | US$bn | 0.94 | 否 |
 | `revLo` | 全年營收指引下緣 | US$bn | 12.4 | 否 |
 | `revHi` | 全年營收指引上緣 | US$bn | 13.2 | 否 |
-| `q3RevLo` | 下一季營收指引下緣 | US$bn | 3.45 | 否 |
-| `q3RevHi` | 下一季營收指引上緣 | US$bn | 3.6 | 否 |
+| `q3RevLo` | 下一季營收指引下緣 | US$bn | 3.45 | 是 |
+| `q3RevHi` | 下一季營收指引上緣 | US$bn | 3.6 | 是 |
 | `adjOpLo` | 全年調整後營業利益指引下緣 | US$bn | 0.96 | 否 |
 | `adjOpHi` | 全年調整後營業利益指引上緣 | US$bn | 1.15 | 否 |
 | `q3AdjOpLo` | 下一季調整後營業利益指引下緣 | US$bn | 0.2 | 否 |
@@ -282,9 +296,6 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `convertPx` | 轉換價 | US$ | 97.85 | 否 |
 | `atmShares` | 股權分銷（ATM）上限 | m 股 | 35 | 否 |
 | `price0917` | 9/17 收盤價 | US$ | 79.88 | 是 |
-| `streetTarget` | 賣方目標價均值（Street 參考；留待市場共識任務整理） | US$ | 144.46 | 是 |
-| `streetN` | 上述均值的家數 | 家 | 38 | 是 |
-| `bernstein` | Bernstein 目標價（Underperform；Street 參考，留待市場共識任務整理） | US$ | 74 | 是 |
 | `tier34Active` | 主動電力位於 Tier 3/4 市場比例 | 比例 | 0.25 | 否 |
 | `tier34Contracted` | 簽約電力位於 Tier 3/4 市場比例 | 比例 | 0.74 | 否 |
 | `cdsMid` | CDS 中價 | bps | 720 | 否 |
@@ -296,14 +307,14 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `cdsLowDate` | CDS 低點日期 | 日期 | 2026-06 | 否 |
 | `availability` | 未動用信用額度 | US$bn | 10.014 | 否 |
 | `price0918` | 9/18 收盤價 | US$ | 80.2 | 否 |
-| `priceLast` | 最新收盤價 | US$ | 85.43 | 是 |
-| `priceDate` | 最新收盤價日期 | 日期 | 2026-09-21 | 是 |
+| `priceLast` | 最新收盤價 | US$ | 90.13 | 是 |
+| `priceDate` | 最新收盤價日期 | 日期 | 2026-09-24 | 是 |
 | `q3ShortDated` | 期後公告摘要 | 文字 | 2026-09-16 公告：6/30 後持續以更高價… | 否 |
 | `ttmRev` | 近十二個月營收 | US$bn | 7.59 | 是 |
 | `ttmOpInc` | 近十二個月 GAAP 營業損益 | US$bn | -0.231 | 是 |
 | `ttmDa` | 近十二個月折舊攤銷 | US$bn | 3.991 | 是 |
 | `ttmOpLease` | 近十二個月營業租賃成本 | US$bn | 1.377 | 否 |
-| `mktCapLast` | 最新市值 | US$bn | 47.12 | 是 |
+| `mktCapLast` | CRWV 市值（Comps 用；與同業同一收盤日 peers.priceDate，v4.3 起不隨現價更新） | US$bn | 47.12 | 是 |
 | `nextEarn` | 下次財報時間 | 文字 | 2026-11 (10-Q 期限 11/16) | 否 |
 
 ### `scenarios`：三個擴張情境
@@ -352,7 +363,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `defaults.debtBacklog` | 新債上限：總債務不超過 backlog 的倍數 | 倍 | 1 | 檢查 |
 | `defaults.ctrTerm` | 新簽合約的平均年期（決定 backlog 補入量） | 年 | 5 | 檢查 |
 | `defaults.minCash` | 最低現金：每期融資後期末現金不低於此值 | US$bn | 2 | 檢查 |
-| `defaults.eqPx` | 新股發行參考價（預設＝現價） | US$ | 85.43 | 必改 |
+| `defaults.eqPx` | 新股發行參考價（預設＝現價） | US$ | 90.13 | 必改 |
 | `defaults.eqDisc` | 新股發行折價 | 比例 | 0.1 | 檢查 |
 | `defaults.eqCapPct` | 每年股權募資上限（占現市值）；輸入 9 以上視為無上限 | 比例 | 0.2 | 檢查 |
 | `defaults.junkRate` | 股權上限用完後的高息債利率 | 比例 | 0.12 | 檢查 |
@@ -404,7 +415,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `valuation.price` | 現價 | US$ | 85.43 | 必改 |
+| `valuation.price` | 現價 | US$ | 90.13 | 必改 |
 | `valuation.shares` | 評價股數（含期後股權發行上限） | bn 股 | 0.587 | 必改 |
 | `valuation.netDebt` | 淨負債（最新季末本金 − 現金） | US$bn | 30 | 必改 |
 | `valuation.tax` | 稅率 | 比例 | 0.21 | 檢查 |
@@ -427,6 +438,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `methodology.blendWeights.dcf` | 加權目標價中 DCF 的權重 | 比例 | 0.45 | 可沿用 |
 | `methodology.blendWeights.pe` | 加權目標價中 EV/EBITDA 的權重（兩者合計 1） | 比例 | 0.55 | 可沿用 |
 | `methodology.rangeMultiples` | 方法區間的 EV/EBITDA 倍數下端與上端 | 倍 清單 | 5、6 | 檢查 |
+| `methodology.consensusGapTol` | 與市場共識比較的判斷句門檻：營收、EBITDA、CapEx 差距絕對值超過此比例即視為分歧（v4.3） | 比例 | 0.05 | 可沿用 |
 | `methodology.rating.buyUpsideMin` | 買進：空間（加權目標價 ÷ 現價 − 1）至少要達到的值 | 比例 | 0.25 | 可沿用 |
 | `methodology.rating.buyTvShareMax` | 買進：終值占企業價值須低於此值 | 比例 | 0.9 | 可沿用 |
 | `methodology.rating.sellUpsideMax` | 賣出：空間小於或等於此值即賣出；賣出門檻價＝現價 ×（1＋此值） | 比例（負數） | -0.15 | 可沿用 |
@@ -516,7 +528,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 尚未改名（用途未逐一確認，留待後續）：segA 的 eA、tA、nA、rA、iA、aA、sA、cA、lA、uA、fA；segB 的 uM、dM、mM、mR、wM、EM；segC 的 AM；segD 的 zM；tail 的 BM、VM；格式化函式 Y、mA、hA（模板片段也使用，不可改）。
 
 ### 尚未移入 company.json
-「來源」頁與站點說明、法說對照表等長文字（含同業市值與 Street 目標價的來源引用句），以及 `latestQuarter`／`callFacts` 中「程式使用：否」的數字在畫面上的文字寫法。換公司時仍需手動改這些地方。同業 Comps 與評等門檻已於 v4.2 移入（`peers`、`methodology.rating`）。
+「來源」頁與站點說明、法說對照表等長文字（同業市值與賣方目標價的來源引用句已於 v4.3 改讀 company.json 與共識檔），以及 `latestQuarter`／`callFacts` 中「程式使用：否」的數字在畫面上的文字寫法。換公司時仍需手動改這些地方。同業 Comps 與評等門檻已於 v4.2 移入（`peers`、`methodology.rating`）。
 
 ### v4.0 核對工具
 - `load_engine.js`：在 node 載入 company.json＋segA＋segB（cmp31.js 使用）。
