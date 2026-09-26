@@ -318,12 +318,12 @@ function zM() {
                   hint: `關掉則用期末存量全期化。打開用（6/30 ${e.billableOpen} + 當期期末）/2。CoreWeave 交付後載（6 月 300 MW），預設打開。`
                 }),
 (0, $.jsx)(LM, {
-                  label: `2025 年底主動電力 MW`,
+                  label: `${PERIOD_FY[0] - 1} 年底主動電力 MW`,
                   hint: `Q4 法說 >850 [Verified]`,
                   children: (0, $.jsx)(IM, {
-                    value: e.mwYE25,
-                    onChange: e => w({
-                      mwYE25: e
+                    value: e.mwYearEnd[PERIOD_FY[0] - 1],
+                    onChange: v => w({
+                      mwYearEnd: { ...e.mwYearEnd, [PERIOD_FY[0] - 1]: v }
                     }),
                     step: 10
                   })
@@ -437,12 +437,12 @@ function zM() {
                   })
                 }),
 (0, $.jsx)(LM, {
-                  label: `2023 年底主動電力 MW`,
+                  label: `${Object.keys(e.mwYearEnd)[0]} 年底主動電力 MW`,
                   hint: `[Assumed] 由 2023 CapEx 約 3.1bn ÷ $30m 推估`,
                   children: (0, $.jsx)(IM, {
-                    value: e.mwYE23,
-                    onChange: e => w({
-                      mwYE23: e
+                    value: Object.values(e.mwYearEnd)[0],
+                    onChange: v => w({
+                      mwYearEnd: { ...e.mwYearEnd, [Object.keys(e.mwYearEnd)[0]]: v }
                     }),
                     step: 10
                   })
@@ -768,7 +768,7 @@ function zM() {
                     [`　次期新增 MW`, d.years.map(e => e.mwNext), void 0, void 0, `calc`, `下一期新增量；FY30 欄取左欄「FY31 新增 MW」。`, `MW`],
                     [`　全年毛 CapEx（公式）`, d.years.map(e => e.capexFull), void 0, void 0, `calc`, `＝(本期新增×(1−λ)＋次期新增×λ)×每 MW 成本。FY26 應落在公司全年指引 35–39。`],
                     [`　成長型 CapEx（模型期）`, d.years.map(e => e.capexGrowth), void 0, void 0, `calc`, `FY26 欄＝MAX(全年公式, FY26 下限 ${e.capexFloorFY0}) − 1H 已認列 16.139。下限代表 2026 年已下單、無論情境都會發生的支出；保守情境的公式值低於下限，差額即「轉向太晚」的成本。`],
-                    [`　GPU 汰換 CapEx`, d.years.map(e => e.refresh), void 0, void 0, `calc`, `＝(本年 − 經濟壽命) 那一年新增的 MW × 每 MW 成本。壽命 ${e.gpuLife} 年：FY29 汰換 2023 年批次（${e.mwYE23} MW，推估）、FY30 汰換 2024 年批次（${e.mwYE24 - e.mwYE23} MW；YE24 ${e.mwYE24} MW 為 S-1 揭露）。三情境相同。`],
+                    [`　GPU 汰換 CapEx`, d.years.map(e => e.refresh), void 0, void 0, `calc`, `＝(本年 − 經濟壽命) 那一年新增的 MW × 每 MW 成本。壽命 ${e.gpuLife} 年：FY29 汰換 2023 年批次（${Object.values(e.mwYearEnd)[0]} MW，推估）、FY30 汰換 2024 年批次（${Object.values(e.mwYearEnd)[1] - Object.values(e.mwYearEnd)[0]} MW；YE24 ${Object.values(e.mwYearEnd)[1]} MW 為 S-1 揭露）。三情境相同。`],
                     [`① 毛 CapEx（模型期）`, d.years.map(e => e.gross), void 0, void 0, `tot`, `＝成長型＋汰換。含 OEM 融資的非現金部分。`],
                     [`　對照：v1.4 手動值`, d.years.map(e => e.capexOld), void 0, void 0, void 0, `舊版未與 MW 連動，FY28–30 對每年 +1.5–1.7 GW 明顯不足。`],
                     [`　客戶預付率`, e.a.customerFund.map(e => e * 100), (e, t) => E(`customerFund`, e, t / 100), void 0, void 0, `H1 遞延收入淨流入 1.365 ÷ H1 CapEx 16.139 ＝ 8.5%。只降當期現金流出、形成遞延收入，不降專案總成本。`, `%`],

@@ -149,6 +149,7 @@ ROLL_FIELDS = [
     ('期初餘額', 'defaults.eqCapShares', '股權年上限的股數基礎（現市值＝發行參考價 × 此股數）'),
     ('期初餘額', 'defaults.ppeOpen', '期初 PP&E'),
     ('期初餘額', 'defaults.billableOpen', '期初可計費 MW'),
+    ('期初餘額', 'defaults.mwYearEnd', '各年底主動電力（首期期初＝前一財年末；GPU 汰換批次）'),
     ('期初餘額', 'defaults.rpoOpen', '期初 RPO'),
     ('期初餘額', 'defaults.rpoPendingAdd', '尚未入 RPO 的新增承諾'),
 ]
