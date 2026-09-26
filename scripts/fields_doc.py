@@ -25,6 +25,7 @@ F = [
  ('calendar.firstModelFY', '沒有已申報季度時（例如未上市公司）的首個模型財年，例如 FY26；有已申報季度時填 null（v4.5）', '文字', C),
  ('calendar.modelYears', '首期之後的完整財年數（固定期數滾動；Excel 欄位固定 5 期，所以為 4）（v4.5）', '年', K),
  ('calendar.targetHorizon', '目標價時點：firstFullYearEnd＝首期之後第一個完整財年末；valuationPlus12m＝評價日＋12 個月（v4.5）', '代碼', K),
+ ('asOf', '滾動檢查：首期一次性金額與期初餘額所屬的已申報季度（鍵＝欄位路徑，清單定義在 calendar_q.py → ROLL_FIELDS）。每季 10-Q 後逐項更新數值，並把季度改為 calendar.latestQuarterFiled；缺漏或季度不符即建置失敗', '物件（季度）', M),
  ('ytdActual.throughQuarter', '年初至今實際數的截止財季，須等於 calendar.latestQuarterFiled（v4.5，原 actual1H）', '文字', M),
  ('ytdActual.months', '年初至今的月數，須等於日曆推算值（v4.5）', '月', M),
  ('ytdActual.label', '「年初至今實際數」的標題', '文字', M),
@@ -255,7 +256,7 @@ missing = [q for q in leaves(CO) if q not in doc]
 assert not missing, f'未說明的欄位：{missing}'
 for q in doc: get(q)  # 說明了不存在的欄位會在此報錯
 
-SECT = [('meta', '基本資料'), ('calendar', '期間與日期（v4.5）'), ('ytdActual', '年初至今實際數（10-Q；v4.5 前為 actual1H）'), ('historicalPL', '歷年損益'),
+SECT = [('meta', '基本資料'), ('calendar', '期間與日期（v4.5）'), ('asOf', '滾動檢查（首期一次性金額與期初餘額的所屬季度）'), ('ytdActual', '年初至今實際數（10-Q；v4.5 前為 actual1H）'), ('historicalPL', '歷年損益'),
         ('rpo', '已簽約未認列營收（RPO）'), ('leases', '租約'), ('debt', '既有債務'), ('latestQuarter', '最新一季財報數字（10-Q）'),
         ('callFacts', '法說會與期後事項'), ('scenarios', '三個擴張情境'), ('legacy', '舊版對照值'),
         ('defaults', '預設假設（畫面上可調的輸入）'), ('valuation', '評價參數'), ('methodology', '評價方法與評等門檻'), ('peers', '同業比較（Comps）'),

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 一次跑完建置與核對：季度層檢查 → 建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 離線開啟檢查 → 三情境 xlx＋cmp31 → FY27 錨定 cmp31 → 季度層測試（v4.4）。
+# 一次跑完建置與核對：季度層檢查 → 建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 離線開啟檢查 → 三情境 xlx＋cmp31 → FY27 錨定 cmp31 → 季度層測試（v4.4）→ 期間滾動測試 → 目標價變動拆解工具測試。
 # 任何一項失敗即以非零代碼結束。產物放在 repo 根目錄的 out/（不納入版控）。
 # 用法：scripts/verify.sh [--vs-dist]
 #   --vs-dist  另與 dist/ 內現行成品比對：crawl.py 畫面文字與 xl_diff.py --by-label（值與公式）皆須 0 差異（純結構修改的驗收）。
@@ -101,6 +101,10 @@ else bad "test_quarterly（見 $OUT/test_quarterly.log）"; tail -20 "$OUT/test_
 step "8b. 期間滾動測試（暫存副本：日曆推算 6 種情況、滾動後第一屏無過期日期與期間字樣；v4.5）"
 if python3 scripts/test_rolling.py > "$OUT/test_rolling.log" 2>&1; then ok "test_rolling：日曆推算與滾動後第一屏"; tail -3 "$OUT/test_rolling.log"
 else bad "test_rolling（見 $OUT/test_rolling.log）"; tail -30 "$OUT/test_rolling.log"; fi
+
+step "8c. 目標價變動拆解工具測試（scripts/attrib.py：(a)＝(1＋WACC)^(月數÷12)，WACC 讀 Excel、月數讀 calendar_q；四項相加＝總變動）"
+if python3 scripts/test_attrib.py "$XLSX" > "$OUT/test_attrib.log" 2>&1; then ok "test_attrib：拆解工具（月數、同版 0、滾動一季與 WACC 12%）"; tail -1 "$OUT/test_attrib.log"
+else bad "test_attrib（見 $OUT/test_attrib.log）"; tail -20 "$OUT/test_attrib.log"; fi
 
 if (( VS_DIST )); then
   step "9. 與 dist/ 成品比對"

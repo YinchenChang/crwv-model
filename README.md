@@ -35,7 +35,9 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | scripts/recalc.py | LibreOffice headless 重算：`python3 scripts/recalc.py 檔案.xlsx [逾時秒數]`＝開啟、全部重算、原地存檔，輸出 JSON 並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）；有錯誤或失敗時代碼 1 |
 | scripts/verify.sh | 一次跑完建置與核對（見下節） |
 | scripts/first_screen.py | v4.5：擷取「第一屏」文字——HTML 各頁面／分頁在 1440×900 視窗、捲動到頂端時可見的文字；Excel 各工作表前 40 個可見列（A–J 欄，重算後的值）。`python3 scripts/first_screen.py 檔案.html｜檔案.xlsx [輸出.json]` |
-| scripts/test_rolling.py | v4.5：期間滾動測試（暫存副本）。B：日曆推算 6 種情況（12 月財年 Q1–Q4 已申報、5 月財年、無已申報季度）× 2 種目標價時點；A：把副本滾動到下一個已申報季度（只改日曆與標籤、不改數字），建 HTML 與 Excel，第一屏不得出現舊日曆特有的字樣（評價日、年初至今／首期標籤、已申報季度）。例外：版本紀錄與來源頁、整段落在 company.json／共識檔資料字串內的字樣。verify.sh 步驟 8b |
+| scripts/attrib.py | 目標價變動拆解：輸入前一版與各步驟（.xlsx、company.json 或 repo 目錄），以 Excel 求值，輸出三情境兩條腿與加權目標價的 (a)(b)(c)(d)，檢查四項相加＝總變動 |
+| scripts/test_attrib.py | 拆解工具測試：月數推算、同版對同版全為 0、滾動一季且 WACC 改為 12% 時 (a) 係數＝(1.12)^(3/12)。verify.sh 步驟 8c |
+| scripts/test_rolling.py | v4.5：期間滾動測試（暫存副本）。B：日曆推算 6 種情況（12 月財年 Q1–Q4 已申報、5 月財年、無已申報季度）× 2 種目標價時點；C：只滾日曆、未更新 `asOf` 時建置必須失敗並逐項列出；A：把副本滾動到下一個已申報季度（只改日曆與標籤、不改數字），建 HTML 與 Excel，第一屏不得出現舊日曆特有的字樣（評價日、年初至今／首期標籤、已申報季度）。例外：版本紀錄與來源頁、整段落在 company.json／共識檔資料字串內的字樣。verify.sh 步驟 8b |
 | scripts/check_offline.py | 離線開啟檢查（已決定事項 11）：`python3 scripts/check_offline.py 檔案.html 同版.xlsx`。HTML 單獨複製到空資料夾，Playwright 阻斷網路、以 file:// 開啟；(a) 除 HTML 本身外的請求數＝0（網路與旁邊的本機檔案都算）、(b) console 無錯誤與例外、(c) 5 個分頁 10 項關鍵數字（依 A 欄列名稱取自同版 Excel）出現在畫面且無 NaN／undefined／Infinity；v4.5 另比對第一屏（視窗內）的資料更新日、模型期間、現價日與評價日（`CHECKS_FIRST`；列名稱中的期間佔位符以任意文字比對，新舊版 Excel 皆可）。verify.sh 步驟 5c 對新建 HTML 與 dist/ 成品各跑一次 |
 | scripts/check_quarterly.js | v4.4：季度加總＝年度（三情境）、`quarterly.consistency` 一致性、超過門檻的差距都有原因；`build_html_portable.py` 建置時呼叫，verify.sh 步驟 0 |
 | scripts/test_quarterly.py | v4.4：暫存副本測試——(A) 假設 Q3 實際數，Python 獨立計算差距並與 HTML、Excel 比對；(B) 可移植性（無 MW、無季度指引與共識）。verify.sh 步驟 8 |
@@ -119,7 +121,11 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - **期間字樣**：說明文字以佔位符書寫，建置時換成目前日曆的字樣；期間特有的敘述與數字放 `texts`、`ytdActual.notes`。滾動後第一屏不得出現舊日曆字樣（`test_rolling.py` A；離線檢查另比對第一屏的資料更新日、模型期間、現價日與評價日）。
 - **反向 DCF**：`scripts/rv_solve.py` 以 Excel（LibreOffice UNO）求解，取代 JS 快照（verify.sh 步驟 3b）。
 - **目標價變動拆解**（已決定事項 12）：每次升版把目標價變動拆成 (a) 時間推移、(b) 實際數更新、(c) 假設變更、(d) 方法變更，依序重算，四項相加＝總變動，並列於版本紀錄。v4.5 全部屬 (d)。
-- **每季滾動流程**（已決定事項 10）：(1) 財報當天（新聞稿）：填 `quarterly.actuals`、`calendar.latestQuarterReported` 加一季、焦點季改為下一季；年度首期不動。(2) 10-Q／10-K 申報後：`calendar.latestQuarterFiled` 加一季；更新 `ytdActual`（含 `throughQuarter`、`months`、`label`、`notes`、`jvSplit`）、`historicalPL` 最後一格、`latestQuarter`、RPO 桶、債務與租賃到期表、`texts`（頁首來源一行、現金稅、首期股權組成）與各期清單（首期縮短一季）；建置時 `calendar_q.py` 檢查截止季與月數、`historicalPL` 與 `ytdActual.label` 的標籤是否一致。(3) 財年最後一季（10-K）後：首期為下一財年全年模型，模型期延長一年，需補新一年的假設（Andy 決定）。
+  - (a) 時間推移是**定義值**（純時間價值，以 WACC 累積；2026-09-26 Andy 決定）：前一版兩條腿（0 截斷前）×（1＋WACC）^（評價日後移月數 ÷ 12），再做 0 截斷與加權。WACC 讀前一版 Excel 的 WACC 輸入格，月數由 `calendar_q.py` 推算的評價日計算（`calendar_q.months_between`），不寫死。等同「離開模型期的季度以模型值當作暫定實際數、淨負債與股數推到新評價日、其餘路徑不變」。不可用「只滾動日曆、不改其他資料」重算：那樣會刪掉該季流入、保留流出，淨負債與股數停在舊評價日，結果偏低。
+  - (b) 實際數更新含兩個來源：該季實際與模型的差異；以及融資時點殘差（(a) 以 WACC 累積淨負債，實際以債務成本累積；該季實際發股）。
+  - 只拆解目標價採用的 0 截斷口徑；選擇權模式的 DCF 腿只列前後值（Andy 決定）。
+  - 工具：`scripts/attrib.py`（數值取自 Excel；三情境以「情境選擇」切換）。測試：`scripts/test_attrib.py`（verify.sh 步驟 8c）。
+- **每季滾動流程**（已決定事項 10）：(1) 財報當天（新聞稿）：填 `quarterly.actuals`、`calendar.latestQuarterReported` 加一季、焦點季改為下一季；年度首期不動。(2) 10-Q／10-K 申報後：`calendar.latestQuarterFiled` 加一季；更新 `ytdActual`（含 `throughQuarter`、`months`、`label`、`notes`、`jvSplit`）、`historicalPL` 最後一格、`latestQuarter`、RPO 桶、債務與租賃到期表、`texts`（頁首來源一行、現金稅、首期股權組成）與各期清單（首期縮短一季）；更新首期一次性金額與期初餘額，並把 `asOf` 對應季度改為新的 `latestQuarterFiled`（滾動檢查，清單見下方「asOf」欄位說明）；建置時 `calendar_q.py` 檢查截止季與月數、`historicalPL` 與 `ytdActual.label` 的標籤是否一致，以及 `asOf` 各項的所屬季度。(3) 財年最後一季（10-K）後：首期為下一財年全年模型，模型期延長一年，需補新一年的假設（Andy 決定）。
 
 ## company.json 欄位說明（換公司填表指引）
 換成 Nebius、Oracle、OpenAI 等公司時，照這一節逐欄填寫 `company.json`；HTML 與 Excel 都從這個檔讀資料，改完執行 `scripts/verify.sh`。
@@ -151,7 +157,13 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `calendar.latestQuarterReported` | 最新已公布（財報新聞稿）的財季；驅動季度層，年度首期不受影響（v4.5） | 文字 | FY26Q2 | 必改 |
 | `calendar.firstModelFY` | 沒有已申報季度時（例如未上市公司）的首個模型財年，例如 FY26；有已申報季度時填 null（v4.5） | 文字 | None | 檢查 |
 | `calendar.modelYears` | 首期之後的完整財年數（固定期數滾動；Excel 欄位固定 5 期，所以為 4）（v4.5） | 年 | 4 | 可沿用 |
-| `calendar.targetHorizon` | 目標價時點：firstFullYearEnd＝首期之後第一個完整財年末；valuationPlus12m＝評價日＋12 個月（v4.5） | 代碼 | firstFullYearEnd | 可沿用 |
+| `calendar.targetHorizon` | 目標價時點：firstFullYearEnd＝首期之後第一個完整財年末；valuationPlus12m＝評價日＋12 個月（v4.5） | 代碼 | valuationPlus12m | 可沿用 |
+
+### `asOf`：滾動檢查（首期一次性金額與期初餘額的所屬季度）
+
+| 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
+|---|---|---|---|---|
+| `asOf` | 滾動檢查：首期一次性金額與期初餘額所屬的已申報季度（鍵＝欄位路徑，清單定義在 calendar_q.py → ROLL_FIELDS）。每季 10-Q 後逐項更新數值，並把季度改為 calendar.latestQuarterFiled；缺漏或季度不符即建置失敗 | 物件（季度） | 物件（_note、defaults.capexFloor26、leases.onBalanceCash[0]、leases.operatingPayments[0]、leases.financePayments[0]、debt.amortization[0]、defaults.jvCommit[0]、scenarios.capexTemplate.div[0]、defaults.intCal、defaults.services[0]、defaults.atm、scenarios.leaseHighPath[0]、rpo.bucketWeights[0]、defaults.cash、debt.instruments、debt.convertible、valuation.netDebt、valuation.shares、defaults.ppe630、defaults.billableOpen、defaults.rpoFy26、defaults.rpoQ1Add） | 必改 |
 
 ### `ytdActual`：年初至今實際數（10-Q；v4.5 前為 actual1H）
 
@@ -534,6 +546,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
 | `texts.fy0EquityNote` | 首期股權／可轉債的組成說明（含年初至今與首期模型的金額；v4.5；可用期間佔位符 «P0»、«YTD»、«STUB»） | 文字 | «P0»＝«YTD» 私募股權 2.982＋«STU… | 必改 |
+| `texts.sourceLine` | 頁首的資料來源一行（例如最新 10-Q、法說、期後 8-K；v4.5） | 文字 | Q2 2026 10-Q + 法說 + 9/17 8… | 必改 |
 | `texts.cashTaxNote` | 年初至今現金稅的說明（損益與評價頁；v4.5） | 文字 | H1 現金稅約 0.1bn | 必改 |
 
 ## v4.0 架構：公司資料單一來源
