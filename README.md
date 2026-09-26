@@ -136,7 +136,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - 「清單」依模型期順序填：FY26 下半年、FY27、FY28、FY29、FY30，共 5 格（除非另有說明）。
 - 文字中的來源標記沿用 [Verified]（已公開可查）、[Interested-party]（利害關係人說法）、[Derived]（由其他數字換算）、[Assumed]（判斷值）。
 - 「換公司」欄：**必改**＝公司特有的資料；**檢查**＝判斷值，要依新公司重新評估；**可沿用**＝口徑或方法，通常不必改。
-- 下表的「目前數值」是 CoreWeave v4.4 的值；過長的文字只顯示開頭。表格由 `scripts/fields_doc.py` 產生，新增欄位時先在該檔補說明，再重新產生。
+- 下表的「目前數值」是 CoreWeave v4.5 的值（版本號讀 `vlog.py`、期間讀 `calendar_q.py`，由本檔自動帶入）；過長的文字只顯示開頭。表格由 `scripts/fields_doc.py` 產生，新增欄位時先在該檔補說明，再重新產生。
+
 ### `meta`：基本資料
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
@@ -163,7 +164,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 
 | 欄位 | 意義 | 單位 | 目前數值 | 換公司 |
 |---|---|---|---|---|
-| `asOf` | 滾動檢查：首期一次性金額與期初餘額所屬的已申報季度（鍵＝欄位路徑，清單定義在 calendar_q.py → ROLL_FIELDS）。每季 10-Q 後逐項更新數值，並把季度改為 calendar.latestQuarterFiled；缺漏或季度不符即建置失敗 | 物件（季度） | 物件（_note、defaults.capexFloor26、leases.onBalanceCash[0]、leases.operatingPayments[0]、leases.financePayments[0]、debt.amortization[0]、defaults.jvCommit[0]、scenarios.capexTemplate.div[0]、defaults.intCal、defaults.services[0]、defaults.atm、scenarios.leaseHighPath[0]、rpo.bucketWeights[0]、defaults.cash、debt.instruments、debt.convertible、valuation.netDebt、valuation.shares、defaults.ppe630、defaults.billableOpen、defaults.rpoFy26、defaults.rpoQ1Add） | 必改 |
+| `asOf` | 滾動檢查：首期一次性金額與期初餘額所屬的已申報季度（鍵＝欄位路徑，清單定義在 calendar_q.py → ROLL_FIELDS）。每季 10-Q 後逐項更新數值，並把季度改為 calendar.latestQuarterFiled；缺漏或季度不符即建置失敗 | 物件（季度） | 物件（_note、defaults.capexFloorFY0、leases.onBalanceCash[0]、leases.operatingPayments[0]、leases.financePayments[0]、debt.amortization[0]、defaults.jvCommit[0]、scenarios.capexTemplate.div[0]、defaults.intCal、defaults.services[0]、defaults.atm、scenarios.leaseHighPath[0]、rpo.bucketWeights[0]、defaults.cash、debt.instruments、debt.convertible、valuation.netDebt、valuation.shares、defaults.ppeOpen、defaults.billableOpen、defaults.rpoOpen、defaults.rpoPendingAdd、defaults.eqCapShares） | 必改 |
 
 ### `ytdActual`：年初至今實際數（10-Q；v4.5 前為 actual1H）
 
@@ -405,7 +406,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `defaults.lambda` | 提前支出比例：次年才上線的 MW，其建置支出落在前一年的比例 | 比例 | 0.35 | 檢查 |
 | `defaults.mwYE25` | 上一年底主動電力（第一期期初） | MW | 850 | 必改 |
 | `defaults.mw31` | 模型期後一年新增 MW 的預設值（情境切換時改用 scenarios.mw31） | MW | 500 | 檢查 |
-| `defaults.capexFloor26` | 第一年資本支出下限（已下單的承諾，取公司指引下緣） | US$bn | 35 | 必改 |
+| `defaults.capexFloorFY0` | 首期所屬財年的全年資本支出下限（已下單的承諾，取公司指引下緣；首期＝下限 − 年初至今實際認列） | US$bn | 35 | 必改 |
 | `defaults.gpuLife` | GPU 經濟壽命（決定汰換時點與折舊） | 年 | 6 | 檢查 |
 | `defaults.revScale` | 每 MW 年收入整體倍數（反向 DCF 與壓力測試用，1＝不調整） | 倍 | 1 | 可沿用 |
 | `defaults.capexScale` | 每 MW 建置成本整體倍數（1＝不調整） | 倍 | 1 | 可沿用 |
@@ -418,14 +419,15 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `defaults.eqPx` | 新股發行參考價（預設＝現價） | US$ | 90.13 | 必改 |
 | `defaults.eqDisc` | 新股發行折價 | 比例 | 0.1 | 檢查 |
 | `defaults.eqCapPct` | 每年股權募資上限（占現市值）；輸入 9 以上視為無上限 | 比例 | 0.2 | 檢查 |
+| `defaults.eqCapShares` | 股權年上限的股數基礎：現市值＝發行參考價 × 此股數（5a；評價日時點，列入滾動檢查） | bn | 0.5865 | 必改 |
 | `defaults.junkRate` | 股權上限用完後的高息債利率 | 比例 | 0.12 | 檢查 |
 | `defaults.mwYE23` | 兩年前年底主動電力（推算車隊折舊用） | MW | 100 | 必改 |
 | `defaults.mwYE24` | 一年前年底主動電力 | MW | 360 | 必改 |
-| `defaults.ppe630` | 最新季末固定資產毛額 | US$bn | 46.736 | 必改 |
+| `defaults.ppeOpen` | 最新季末固定資產毛額 | US$bn | 46.736 | 必改 |
 | `defaults.jvCommit` | 已承諾的 JV 出資餘額，各期 | US$bn 清單 | 1.15、0、0、0、0 | 必改 |
 | `defaults.intCal` | 第一期利息校準值（讓模型利息對上公司季度指引） | US$bn | 0.35 | 必改 |
-| `defaults.rpoFy26` | 最新季末 RPO | US$bn | 103.7 | 必改 |
-| `defaults.rpoQ1Add` | 季末後新簽、尚未進 RPO 的承諾 | US$bn | 25 | 必改 |
+| `defaults.rpoOpen` | 最新季末 RPO | US$bn | 103.7 | 必改 |
+| `defaults.rpoPendingAdd` | 季末後新簽、尚未進 RPO 的承諾 | US$bn | 25 | 必改 |
 | `defaults.rp` | RPO 在模型期內認列的比例（百分點；應與 rpo.scheduledShare 一致） | % | 84 | 必改 |
 | `defaults.cash` | 最新季末現金（第一期期初現金） | US$bn | 5.5 | 必改 |
 | `defaults.includeDebt` | 是否依到期表攤還既有債務（true＝是；false＝假設全數再融資） | 是／否 | 是 | 可沿用 |
@@ -433,6 +435,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `defaults.atm` | 期後股權／可轉債募資淨額（記在第一期） | US$bn | 6.2 | 必改 |
 | `defaults.overlay` | 電力／維護成本另計（預設關；EBITDA 率已含電費，開啟會重複扣除） | 是／否 | 否 | 可沿用 |
 | `defaults.cdsLink` | CDS 利差是否傳入新債利率（預設關） | 是／否 | 否 | 可沿用 |
+| `defaults.cdsBaseBp` | CDS 傳入新債利率的門檻：超過此值的部分才傳入（5a） | bps | 450 | 檢查 |
+| `defaults.cdsPassThrough` | CDS 超額傳入新債利率的比例（每 1bp 傳入的 bp；5a） | 比例 | 0.4 | 檢查 |
 | `defaults.linkSites` | 具名站點的 MW 是否連動第一期產能下限 | 是／否 | 是 | 可沿用 |
 | `defaults.linkLeaseTail` | 舊模板遺留開關，目前程式未使用 | 是／否 | 是 | 可沿用 |
 | `defaults.useAvgMw` | 收入以平均在役 MW 計（true）或期末存量計（false） | 是／否 | 是 | 可沿用 |
@@ -473,6 +477,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `valuation.tax` | 稅率 | 比例 | 0.21 | 檢查 |
 | `valuation.nol` | 期初可扣抵虧損（NOL） | US$bn | 4 | 必改 |
 | `valuation.wacc` | 加權平均資金成本 WACC | 比例 | 0.11 | 檢查 |
+| `valuation.nolUsePct` | NOL 每年可抵用上限占應稅所得的比例（美國 80%；依公司稅籍調整；5a） | 比例 | 0.8 | 檢查 |
+| `valuation.wcPctOfRevGrowth` | 營運資金變動占營收增量的比例（DCF 自由現金流；5a） | 比例 | 0.02 | 檢查 |
 | `valuation.g` | 永續成長率 | 比例 | 0.03 | 檢查 |
 | `valuation.sbc` | 年度股份基礎薪酬 | US$bn | 0.7 | 必改 |
 | `valuation.maintRatio` | 終值的維持性資本支出占折舊比例 | 比例 | 0.8 | 檢查 |
@@ -498,6 +504,11 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `methodology.rating.sellUpsideMaxIfEquityOver` | 股權募資超標時，空間小於或等於此值即賣出 | 比例（負數） | -0.08 | 可沿用 |
 | `methodology.rating.sellMarginAlert` | 任一情境與賣出門檻的距離小於「現價 × 此值」時，判斷句另外揭露 | 比例 | 0.05 | 可沿用 |
 | `methodology.rating.tvShareWarn` | 終值占企業價值超過此值時提出警示（融資說明、檢查頁） | 比例 | 0.85 | 可沿用 |
+| `methodology.checks.capexPerMwBand` | 檢查頁：模型期 CapEx 強度（每 MW 百萬美元）的合理區間下端與上端（5a） | US$m/MW 清單 | 20、45 | 檢查 |
+| `methodology.checks.leaseVsCommitMin` | 檢查頁：表外租金路徑 ÷ 已承諾租約至少要達到的倍數（5a） | 倍 | 0.8 | 檢查 |
+| `methodology.checks.unsignedRevShareMax` | 檢查頁：後段年度依賴未簽約收入的比例上限（5a） | 比例 | 0.5 | 檢查 |
+| `methodology.checks.siteRentGapMax` | 檢查頁：站點租賃五期租金可能低估的金額上限（5a） | US$bn | 10 | 檢查 |
+| `methodology.checks.rentVsBenchMin` | 檢查頁：模型每 MW 年租金至少要達到「市場基準 × 第三方占比」的比例（5a） | 比例 | 0.8 | 檢查 |
 
 ### `peers`：同業比較（Comps）
 

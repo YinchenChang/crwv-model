@@ -129,7 +129,7 @@ def fill(s, tk):
 # 這份清單是引擎的輸入結構（每家公司都有同樣的欄位），不是公司資料，所以寫在程式裡；路徑以「.」分層、[i] 指陣列第 i 格。
 ROLL_FIELDS = [
     # (分類, 路徑, 說明)
-    ('首期一次性金額', 'defaults.capexFloor26', '毛 CapEx：首期＝全年下限 − 年初至今實際認列'),
+    ('首期一次性金額', 'defaults.capexFloorFY0', '毛 CapEx：首期＝全年下限 − 年初至今實際認列'),
     ('首期一次性金額', 'leases.onBalanceCash[0]', '在帳租金現金（首期）'),
     ('首期一次性金額', 'leases.operatingPayments[0]', '營業租賃付款（首期；到期表）'),
     ('首期一次性金額', 'leases.financePayments[0]', '融資租賃付款（首期；到期表）'),
@@ -146,10 +146,11 @@ ROLL_FIELDS = [
     ('期初餘額', 'debt.convertible', '評價日後新發可轉債本金'),
     ('期初餘額', 'valuation.netDebt', '淨負債（DCF 用）'),
     ('期初餘額', 'valuation.shares', '股數'),
-    ('期初餘額', 'defaults.ppe630', '期初 PP&E'),
+    ('期初餘額', 'defaults.eqCapShares', '股權年上限的股數基礎（現市值＝發行參考價 × 此股數）'),
+    ('期初餘額', 'defaults.ppeOpen', '期初 PP&E'),
     ('期初餘額', 'defaults.billableOpen', '期初可計費 MW'),
-    ('期初餘額', 'defaults.rpoFy26', '期初 RPO'),
-    ('期初餘額', 'defaults.rpoQ1Add', '尚未入 RPO 的新增承諾'),
+    ('期初餘額', 'defaults.rpoOpen', '期初 RPO'),
+    ('期初餘額', 'defaults.rpoPendingAdd', '尚未入 RPO 的新增承諾'),
 ]
 
 

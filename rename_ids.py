@@ -1,5 +1,7 @@
 # 以詞法分析只改「程式碼」中的識別字，不改字串／樣板字串的文字部分（${...} 內仍視為程式碼）。
 # 用法：python3 rename_ids.py  → 依 RENAMES 對 FILES 就地改名；若舊名出現在建置用的模板函式庫片段中則中止。
+#       python3 rename_ids.py --fields 舊=新 …  → 改資料欄位名稱（屬性存取 .name、物件鍵 name:、解構與變數皆改；字串文字不改）。
+#       新舊名稱都不得出現在模板函式庫片段；新名稱不得已存在於 FILES（5a，2026-09-26）。
 import re, sys, os
 H = os.path.dirname(os.path.abspath(__file__))
 RENAMES = {
@@ -60,6 +62,30 @@ def rename(s, mp):
             t = pat.sub(lambda m: m.group(1) if re.match(r'\s*:(?!:)', t[m.end():m.end()+3]) and not t[:m.start()].rstrip().endswith('?') else mp[m.group(1)], t)
         res.append(t)
     return ''.join(res)
+
+def rename_fields(s, mp):
+    """資料欄位改名：程式碼中的完整識別字一律替換（含 .name 與 name:），字串與樣板字串的文字部分不動。"""
+    pat = re.compile(r'(?<![\w$])(' + '|'.join(sorted(map(re.escape, mp), key=len, reverse=True)) + r')(?![\w$])')
+    return ''.join(pat.sub(lambda m: mp[m.group(1)], t) if k else t for k, t in split_code(s))
+
+
+def lib_code():
+    L = open(os.path.join(H, 'app_pretty.js'), encoding='utf-8').read().split('\n')
+    return ''.join(t for k, t in split_code('\n'.join(L[685:2518] + L[2940:2976] + L[3649:3751])) if k)
+
+
+if __name__ == '__main__' and sys.argv[1:2] == ['--fields']:
+    mp = dict(a.split('=') for a in sys.argv[2:])
+    code = lib_code()
+    bad = [n for pair in mp.items() for n in pair if re.search(r'(?<![\w$])' + re.escape(n) + r'(?![\w$])', code)]
+    if bad: sys.exit(f'模板函式庫片段使用了這些名稱，中止：{bad}')
+    clash = [nw for nw in mp.values() if any(re.search(r'(?<![\w$])' + re.escape(nw) + r'(?![\w$])', open(os.path.join(H, f), encoding='utf-8').read()) for f in FILES)]
+    if clash: sys.exit(f'新名稱已存在，中止：{clash}')
+    for f in FILES:
+        p = os.path.join(H, f); s = open(p, encoding='utf-8').read()
+        assert ''.join(t for _, t in split_code(s)) == s, f'lexer 重組失敗 {f}'
+        open(p, 'w', encoding='utf-8').write(rename_fields(s, mp))
+    print('renamed fields', mp); sys.exit(0)
 
 if __name__ == '__main__':
     L = open(os.path.join(H, 'app_pretty.js'), encoding='utf-8').read().split('\n')

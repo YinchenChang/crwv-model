@@ -17,7 +17,7 @@
  },
  "asOf": {
   "_note": "滾動檢查：首期一次性金額與期初餘額所屬的已申報季度（清單見 calendar_q.py → ROLL_FIELDS）。每季 10-Q 後逐項更新數值，並把季度改為 calendar.latestQuarterFiled；缺漏或季度不符即建置失敗。",
-  "defaults.capexFloor26": "FY26Q2",
+  "defaults.capexFloorFY0": "FY26Q2",
   "leases.onBalanceCash[0]": "FY26Q2",
   "leases.operatingPayments[0]": "FY26Q2",
   "leases.financePayments[0]": "FY26Q2",
@@ -34,10 +34,11 @@
   "debt.convertible": "FY26Q2",
   "valuation.netDebt": "FY26Q2",
   "valuation.shares": "FY26Q2",
-  "defaults.ppe630": "FY26Q2",
+  "defaults.ppeOpen": "FY26Q2",
   "defaults.billableOpen": "FY26Q2",
-  "defaults.rpoFy26": "FY26Q2",
-  "defaults.rpoQ1Add": "FY26Q2"
+  "defaults.rpoOpen": "FY26Q2",
+  "defaults.rpoPendingAdd": "FY26Q2",
+  "defaults.eqCapShares": "FY26Q2"
  },
  "ytdActual": {
   "throughQuarter": "FY26Q2",
@@ -567,7 +568,7 @@
   "lambda": 0.35,
   "mwYE25": 850,
   "mw31": 500,
-  "capexFloor26": 35,
+  "capexFloorFY0": 35,
   "gpuLife": 6,
   "revScale": 1,
   "capexScale": 1,
@@ -586,10 +587,11 @@
   "eqPx": 90.13,
   "eqDisc": 0.1,
   "eqCapPct": 0.2,
+  "eqCapShares": 0.5865,
   "junkRate": 0.12,
   "mwYE23": 100,
   "mwYE24": 360,
-  "ppe630": 46.736,
+  "ppeOpen": 46.736,
   "jvCommit": [
    1.15,
    0,
@@ -598,8 +600,8 @@
    0
   ],
   "intCal": 0.35,
-  "rpoFy26": 103.7,
-  "rpoQ1Add": 25,
+  "rpoOpen": 103.7,
+  "rpoPendingAdd": 25,
   "rp": 84,
   "cash": 5.5,
   "includeDebt": true,
@@ -607,6 +609,8 @@
   "atm": 6.2,
   "overlay": false,
   "cdsLink": false,
+  "cdsBaseBp": 450,
+  "cdsPassThrough": 0.4,
   "linkSites": true,
   "linkLeaseTail": true,
   "useAvgMw": true,
@@ -804,6 +808,8 @@
   "netDebt": 30,
   "tax": 0.21,
   "nol": 4,
+  "nolUsePct": 0.8,
+  "wcPctOfRevGrowth": 0.02,
   "wacc": 0.11,
   "g": 0.03,
   "sbc": 0.7,
@@ -833,7 +839,17 @@
    "tvShareWarn": 0.85
   },
   "consensusGapTol": 0.05,
-  "profitMarginTolPt": 0.02
+  "profitMarginTolPt": 0.02,
+  "checks": {
+   "capexPerMwBand": [
+    20,
+    45
+   ],
+   "leaseVsCommitMin": 0.8,
+   "unsignedRevShareMax": 0.5,
+   "siteRentGapMax": 10,
+   "rentVsBenchMin": 0.8
+  }
  },
  "peers": {
   "priceDate": "2026-09-21",

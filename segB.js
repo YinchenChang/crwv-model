@@ -26,7 +26,8 @@ function mR(e, t, n) {
 }
 
 function forwardPL(e, t) {
-  let n = HIST_PL[2],
+  let NOL_USE = t.nolUsePct, // 5a：NOL 每年可抵用比例讀 company.json → valuation
+    n = HIST_PL[2],
     r = n.revenue,
     s = t.shares,
     sb = t.shares,
@@ -42,23 +43,23 @@ function forwardPL(e, t) {
       p = EB - e.years[c].daFleet,
       m = e.years[c].interest,
       pt = p - m,
-      tb = Math.max(0, pt - Math.min(N, Math.max(0, pt) * .8)),
+      tb = Math.max(0, pt - Math.min(N, Math.max(0, pt) * NOL_USE)),
       tx = tb * t.tax,
       h = pt - tx;
-    pt < 0 ? N += -pt : N -= Math.min(N, pt * .8);
+    pt < 0 ? N += -pt : N -= Math.min(N, pt * NOL_USE);
     sb = c === 0 ? t.shares : sb * 1.01, s = sb + (e.years[c].cumNewShares || 0);
     let g = h / s,
       _ = (h + t.sbc * L) / s,
       v = e.years[c].daFleet,
       y = e.years[c].cashCapex,
-      b = .02 * Math.max(0, d - r),
-      tb2 = Math.max(0, p - Math.min(N2, p * .8)),
+      b = t.wcPctOfRevGrowth * Math.max(0, d - r),
+      tb2 = Math.max(0, p - Math.min(N2, p * NOL_USE)),
       x = p - tb2 * t.tax + v - y - b,
       S = e.years[c].revenue,
       w = e.years[c].newRev,
       T = e.years[c].capacity > 0 ? e.years[c].unsold / e.years[c].capacity : 0,
       E = p + v;
-    return N2 -= Math.min(N2, p * .8), r = c === 0 ? HIST_PL[3].revenue + d : d, {
+    return N2 -= Math.min(N2, p * NOL_USE), r = c === 0 ? HIST_PL[3].revenue + d : d, {
       fyRevenue: c === 0 ? HIST_PL[3].revenue + d : d,
       fyOpInc: c === 0 ? HIST_PL[3].opInc + p : p,
       fyNi: c === 0 ? HIST_PL[3].ni + h : h,

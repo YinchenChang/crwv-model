@@ -52,6 +52,9 @@ run_cmp() {  # $1=標籤 $2..=cmp31 參數
 step "0. 季度層檢查（季度加總＝年度、指引一致性、超過門檻的差距都有原因；v4.4）"
 if node scripts/check_quarterly.js "$ROOT"; then ok "check_quarterly：季度加總＝年度、差異原因齊全"; else bad "check_quarterly"; finish; fi
 
+step "0b. README 欄位說明與 company.json 一致（scripts/fields_doc.py --check；5a）"
+if python3 scripts/fields_doc.py --check; then ok "README 欄位說明與 company.json 一致"; else bad "README 欄位說明（執行 python3 scripts/fields_doc.py --write）"; fi
+
 step "1. 建 HTML（v$VER · $DATE）"
 if python3 build_html_portable.py "$VER" "$HTML" "$DATE" docs/template_v3_3.html; then ok "建 HTML"; else bad "建 HTML"; finish; fi
 
