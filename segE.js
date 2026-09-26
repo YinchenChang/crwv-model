@@ -137,7 +137,7 @@ function onePageQ({ cv, qv, TR, f, o, e, rv, scLabel, callTone }) {
       elQ(`thead`, { key: `h` }, elQ(`tr`, {}, [td(`US$bn`, { textAlign: `left`, fontWeight: 600, borderBottom: `2px solid var(--color-ink)` }),
         ...CONS_YEARS.map(yr => td(`${yr} 模型／共識／差距`, { fontWeight: 600, borderBottom: `2px solid var(--color-ink)` }))])),
       elQ(`tbody`, { key: `b` }, MET.map(([n, k]) => elQ(`tr`, { key: k }, [td(n, { textAlign: `left` }),
-        ...cv.rows.map(r => td([fmtV(k, r.m[k]), `／`, fmtV(k, r.c[k]), `　`, elQ(`b`, { key: `g`, style: { color: k === `nd` || k === `ebM` ? `var(--color-fg)` : gcol(r.gap[k]) } }, gapTxtQ(r.gap[k], k === `ebM`))]))])))
+        ...cv.rows.map(r => td([fmtV(k, r.m[k]), `／`, fmtV(k, r.c[k]), `　`, elQ(`b`, { key: `g`, style: { color: k === `nd` || k === `ebM` ? `var(--color-fg)` : gcol(r.gap[k]) } }, k === `ebitda` || k === `nd` ? dTxtQ(r.dif[k], `US$bn`) : gapTxtQ(r.gap[k], k === `ebM`))]))])))
     ]),
     elQ(`p`, { key: `j`, style: { fontSize: 13, lineHeight: 1.4, margin: `5px 0 0`, fontWeight: 600 } }, cv.judge),
     cv.rsnSum ? elQ(`p`, { key: `r`, style: { fontSize: 11.5, lineHeight: 1.35, margin: `2px 0 0` } }, cv.rsnSum) : null
@@ -193,15 +193,15 @@ function ConsTabQ({ d, p, o, tr: TR, st }) {
           elQ(`td`, { key: `n`, className: `px-2 py-1.5 font-medium` }, n),
           ...cv.rows.flatMap((r, i) => [r.m[k], r.c[k], r.gap[k]].map((x, j) => elQ(`td`, {
             key: `${i}${j}`, className: `px-2 py-1.5 text-right font-mono tabular-nums ${j === 2 && k !== `ebM` && k !== `nd` && Math.abs(x) > CONS_TOL ? `text-bad font-semibold` : ``}`
-          }, j === 2 ? gapTxtQ(x, k === `ebM`) : k === `ebM` ? hA(x * 100, 1) : Y(x, 2))))
+          }, j === 2 ? (k === `ebitda` || k === `nd` ? dTxtQ(r.dif[k], `US$bn`) : gapTxtQ(x, k === `ebM`)) : k === `ebM` ? hA(x * 100, 1) : Y(x, 2))))
         ])))
       ]),
       elQ(`p`, { key: `j`, className: `mt-2 text-sm font-semibold` }, cv.judge),
       cv.rsn.length ? elQ(`div`, { key: `r`, className: `mt-1 text-sm` }, [elQ(`div`, { key: `h`, className: `font-semibold` }, cv.rsnSum.replace(/；[^；]*$/, ``)),
-        ...cv.rsn.map((x, i) => elQ(`div`, { key: i, className: `text-xs leading-relaxed` }, `${x.yr} ${x.name} ${gapTxtQ(x.gap)}｜${x.type}：${x.text}`))]) : null,
+        ...cv.rsn.map((x, i) => elQ(`div`, { key: i, className: `text-xs leading-relaxed` }, `${x.yr} ${x.name} ${x.gtxt}｜${x.type}：${x.text}`))]) : null,
       elQ(`p`, { key: `i`, className: `mt-1 text-sm` }, cv.implied),
       elQ(`p`, { key: `n`, className: `mt-1 text-xs leading-relaxed text-muted` },
-        `判斷只用營收、EBITDA、CapEx，門檻 ${pctQ(CONS_TOL)}（company.json → methodology.consensusGapTol）；EBITDA 率以百分點列差距；淨負債只列不判斷（共識口徑未揭露）。FY26 模型為全年口徑：營收＝1H 實際＋2H 模型；調整後 EBITDA＝1H 實際 ${Y(ACTUAL_1H.adjEbitda, 3)}（Q1 ${Y(ACTUAL_1H.adjEbitdaMeta.q1, 3)}＋Q2 ${Y(ACTUAL_1H.adjEbitdaMeta.q2, 3)}；${ACTUAL_1H.adjEbitdaMeta.tag}：${ACTUAL_1H.adjEbitdaMeta.note}；${ACTUAL_1H.adjEbitdaMeta.sources.map(x => `${x.quarter} ${x.name}`).join(`、`)}；${ACTUAL_1H.adjEbitdaMeta.crossCheck}）＋2H 模型，只用於本對照，不改模型 GAAP 損益與評價；CapEx＝1H 實際毛額 ${Y(ACTUAL_1H.capex, 3)}＋2H 模型毛額（共識口徑未揭露）。隱含倍數＝（價格 × 股數 ${Y(o.shares, 3)}bn＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA。`)
+        `判斷只用營收、EBITDA、CapEx，門檻 ${pctQ(CONS_TOL)}（company.json → methodology.consensusGapTol）；營收、CapEx 以比例列差距，調整後 EBITDA 與淨負債以金額差、EBITDA 率以百分點列示（判斷門檻仍以比例計）；淨負債只列不判斷（共識口徑未揭露）。FY26 模型為全年口徑：營收＝1H 實際＋2H 模型；調整後 EBITDA＝1H 實際 ${Y(ACTUAL_1H.adjEbitda, 3)}（Q1 ${Y(ACTUAL_1H.adjEbitdaMeta.q1, 3)}＋Q2 ${Y(ACTUAL_1H.adjEbitdaMeta.q2, 3)}；${ACTUAL_1H.adjEbitdaMeta.tag}：${ACTUAL_1H.adjEbitdaMeta.note}；${ACTUAL_1H.adjEbitdaMeta.sources.map(x => `${x.quarter} ${x.name}`).join(`、`)}；${ACTUAL_1H.adjEbitdaMeta.crossCheck}）＋2H 模型，只用於本對照，不改模型 GAAP 損益與評價；CapEx＝1H 實際毛額 ${Y(ACTUAL_1H.capex, 3)}＋2H 模型毛額（共識口徑未揭露）。隱含倍數＝（價格 × 股數 ${Y(o.shares, 3)}bn＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA。`)
     ]),
     ...secs.map(sc => elQ(`div`, { key: sc, className: `max-w-full overflow-x-auto` }, [
       elQ(`h3`, { key: `h`, className: `text-sm font-semibold` }, sc),
@@ -230,8 +230,8 @@ function QuarterTabQ({ d, p, st }) {
     thL = x => elQ(`th`, { key: x, style: xstyQ.thL }, x),
     td = (x, k, st2) => elQ(`td`, { key: k, style: { ...xstyQ.td, ...(st2 || {}) } }, x),
     tdL = (x, k) => elQ(`td`, { key: k, style: xstyQ.tdL }, x),
-    gp = (g, u, miss) => g == null ? miss : gapTxtQ(g, u === `%`),
-    gcol = (g, u) => g != null && u !== `%` && Math.abs(g) > qv.tol ? { color: `#9f1239`, fontWeight: 700 } : {},
+    gp = (r, k, m) => r[k] == null ? NA : gTxtQ(r[k], m.kind, m.unit, r[k + `P`]),
+    gcol = (r, vs) => r.rsn.some(x => x.vs === vs) ? { color: `#9f1239`, fontWeight: 700 } : {},
     vt = (x, u, miss) => x == null ? miss : valTxtQ(x, u),
     NA = `不適用`, TBD = `待公布`,
     rl = qv.rsnLine(i),
@@ -239,28 +239,28 @@ function QuarterTabQ({ d, p, st }) {
       elQ(`thead`, { key: `h` }, elQ(`tr`, {}, head)), elQ(`tbody`, { key: `b` }, body)]));
   let first = tbl([thL(`指標`), ...[`模型`, `共識`, `模型 vs 共識`, `指引`, `模型 vs 指引中點`, `實際`, `實際 vs 模型`, `實際 vs 共識`, `實際 vs 指引`].map(x => th(x))],
     qv.rows.map(m => { let r = m.q[i], u = m.unit, hasA = r.actual != null;
-      return elQ(`tr`, { key: m.key }, [tdL(m.label, `l`), td(vt(r.model, u, NA), `m`), td(vt(r.cons, u, NA), `c`), td(gp(r.mc, u, NA), `mc`, gcol(r.mc, u)),
-        td(r.guide ? rngTxtQ(r.guide, u) : NA, `g`), td(r.guide ? `${gp(r.mg, u, NA)}（${r.posM}）` : NA, `mg`, gcol(r.mg, u)),
-        td(hasA ? valTxtQ(r.actual, u) : TBD, `a`), td(hasA ? gp(r.am, u, NA) : `—`, `am`, gcol(r.am, u)), td(hasA ? gp(r.ac, u, NA) : `—`, `ac`),
-        td(hasA ? (r.guide ? `${gp(r.ag, u, NA)}（${r.posA}）` : NA) : `—`, `ag`)]) }), 980);
+      return elQ(`tr`, { key: m.key }, [tdL(m.label, `l`), td(vt(r.model, u, NA), `m`), td(vt(r.cons, u, NA), `c`), td(gp(r, `mc`, m), `mc`, gcol(r, `consensus`)),
+        td(r.guide ? rngTxtQ(r.guide, u) : r.gtext ? `${r.gtext.text}（文字）` : NA, `g`), td(r.guide ? `${gp(r, `mg`, m)}（${r.posM}）` : NA, `mg`, gcol(r, `guidance`)),
+        td(hasA ? valTxtQ(r.actual, u) : TBD, `a`), td(hasA ? gp(r, `am`, m) : `—`, `am`, gcol(r, `actual`)), td(hasA ? gp(r, `ac`, m) : `—`, `ac`),
+        td(hasA ? (r.guide ? `${gp(r, `ag`, m)}（${r.posA}）` : NA) : `—`, `ag`)]) }), 980);
   let L = qv.Qs.map(q => q.label),
     path = tbl([thL(`項目`), th(`單位`), ...L.map((x, k) => th(x, k))], [
       ...qv.rows.map(m => [m.label + `（模型）`, m.unit, m.q.map(r => r.model)]),
       [`車隊折舊（模型）`, `US$bn`, qv.da], [`平均在役 MW（Billable，拆分依據）`, `MW`, qv.avgBil],
       ...qv.rows.filter(m => m.consensus).map(m => [`共識｜${m.label}${m.consensus === `derived` ? ` [Derived]` : ``}`, m.unit, m.q.map(r => r.cons)]),
       ...qv.rows.filter(m => m.consensusSecondary).map(m => [m.consensusSecondaryLabel || `共識｜${m.consensusSecondary}`, m.unit, m.q.map(r => r.consSec)]),
-      ...qv.rows.filter(m => m.q.some(r => r.guide)).map(m => [`指引｜${m.label}`, m.unit, m.q.map(r => r.guide), 1]),
+      ...qv.rows.filter(m => m.q.some(r => r.guide || r.gtext)).map(m => [`指引｜${m.label}`, m.unit, m.q.map(r => r.guide || r.gtext), 1]),
       ...qv.rows.map(m => [`實際｜${m.actualLabel || m.label}`, m.unit, m.q.map(r => r.actual), 2])
     ].map(([a, u, xs, kind], k) => elQ(`tr`, { key: k }, [tdL(a, `a`), td(u, `u`, { textAlign: `left`, color: `#6b7280` }),
-      ...xs.map((x, j) => td(kind === 1 ? (x ? rngTxtQ(x, u) : NA) : x == null ? (kind === 2 ? TBD : NA) : valTxtQ(x, u).replace(/bn$|\sMW$/, ``).replace(`$`, ``), j))])));
+      ...xs.map((x, j) => td(kind === 1 ? (!x ? NA : Array.isArray(x) ? rngTxtQ(x, u) : `${x.text}（文字，${x.tag}）`) : x == null ? (kind === 2 ? TBD : NA) : valTxtQ(x, u).replace(/bn$|\sMW$/, ``).replace(`$`, ``), j))])));
   let sums = tbl([thL(`期間`), th(`指標`), th(`季度加總`), th(`年度模型`), th(`差額`)],
     qv.sums.flatMap(s => [[`revenue`, `營收`], [`adjEbitda`, `調整後 EBITDA`], [`adjOpInc`, `調整後營業利益`], [`capex`, `CapEx（毛額）`], [`da`, `車隊折舊`]].map(([k, n]) =>
       elQ(`tr`, { key: s.name + k }, [tdL(s.name, `p`), td(n, `n`, { textAlign: `left` }), td(Y(s[k].q, 3), `q`), td(Y(s[k].a, 3), `a`), td(Y(s[k].q - s[k].a, 6), `d`)]))));
   let HOW = { anchor: `從${C.revenueAnchor ? ` ${C.revenueAnchor.label} ${valTxtQ(C.revenueAnchor.value, `US$bn`)}` : `最新一季實際`}起逐季線性爬升`, driverAvg: qv.drv ? `依平均在役 MW 分配` : `平分（無 MW 資料）`, equal: `平分` },
     meth = [`營收：${C.periodNames.map((n, j) => `${n} ${HOW[(C.revenueSplit || [])[j] || `equal`]}`).join(`；`)}。`,
       `EBITDA 率：跨季一條直線，同時符合各期年度 EBITDA。調整後營業利益＝調整後 EBITDA − 車隊折舊（依期內平均 PP&E）。`,
-      `CapEx：${qv.drv ? `依季內新增 Accepted MW（線性內插＝期內平分）` : `期內平分`}。${qv.drv && C.driver.endStartNote ? `MW 起點：${C.driver.endStartNote}。` : ``}`,
-      `差異原因：差距超過 ${pctQ(qv.tol)} 時標示；「拆法」＝所屬期間合計差距在 ${pctQ(qv.tol)} 內，其餘讀 company.json → varianceReasons。季度層只用於追蹤，不影響年度數字與目標價。`];
+      `CapEx：${C.capexSplit === `guidanceAnchor` ? `有季度指引的季取指引中點，其餘季分配期間餘數（` : ``}${qv.drv ? `依季內新增 Accepted MW` : `期內平分`}${C.capexSplit === `guidanceAnchor` ? `）` : ``}。${qv.drv && C.driver.endStartNote ? `MW 起點：${C.driver.endStartNote}。` : ``}`,
+      `差距：營收、CapEx 為比例；利潤類為金額差／利潤率百分點；EBITDA 率為百分點；MW 為差額。差距超過 ${pctQ(qv.tol)}（金額差以比較基準的 ${pctQ(qv.tol)} 計）或模型落在指引區間外時附差異原因；「拆法」＝所屬期間合計差距在門檻內（指引另須在隱含區間內），其餘讀 company.json → varianceReasons。季度層只用於追蹤，不影響年度數字與目標價。`];
   return elQ(`div`, { className: `space-y-3` }, [
     elQ(hdrQ, { key: `h`, title: `季度追蹤（${Q.label}${Q.reportNote ? `，財報${Q.reportNote}` : ``}）`, tip: `由年度模型拆分（目前情境），季度加總＝年度；只用於追蹤，不影響目標價。實際數讀 company.json → quarterly.actuals。` }),
     elQ(`div`, { key: `s`, className: `flex flex-wrap gap-1` }, qv.Qs.map((q, k) => elQ(`button`, { key: q.key, onClick: () => setSel(k),

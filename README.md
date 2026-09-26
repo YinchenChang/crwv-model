@@ -29,7 +29,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | data/consensus_crwv_20260925.json | 市場共識資料檔（v4.3；Andy 查證後提供，只讀，不得增補或修改數字）；路徑寫在 `company.json` → `meta.consensusFile`，HTML 建置時併入 `COMPANY_DATA.consensus`，Excel 直接讀取 |
 | xl_diff.py | Excel 比對：`python3 xl_diff.py 舊.xlsx 新.xlsx [--values] [--by-label] [--ignore=工作表,…]`（v4.2 `--by-label`：新增列造成位移時以「區段＋列名稱」配對，見「v4.2 核對方式」；v4.3 `--ignore`：兩檔都略過指定工作表） |
 | scripts/fields_doc.py | v4.2：產生下方「company.json 欄位說明」的表格（`python3 scripts/fields_doc.py > out/fields.md`）；company.json 有欄位沒寫說明即報錯 |
-| xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值（暫存檔在 `out/`，以 `scripts/recalc.py` 重算）；cmp31.js 以 HTML 引擎逐列比對（三情境各 300 項，含 v4.1 目標價區間與判斷句、v4.3 市場共識逐筆與一頁摘要的差距、隱含倍數與句子逐字比對、v4.4 季度層 6 季數字／差距／差異原因／驗證點句與年度差異原因；讀取目前目錄的 `xl17_*.json`） |
+| xlx.py／cmp31.js | 一致性核對：xlx.py 依情境重算 Excel 並擷取數值（暫存檔在 `out/`，以 `scripts/recalc.py` 重算）；cmp31.js 以 HTML 引擎逐列比對（三情境各 313 項，含 v4.1 目標價區間與判斷句、v4.3 市場共識逐筆與一頁摘要的差距、隱含倍數與句子逐字比對、v4.4 季度層 6 季數字／差距／差異原因／驗證點句與年度差異原因；讀取目前目錄的 `xl17_*.json`） |
 | scripts/recalc.py | LibreOffice headless 重算：`python3 scripts/recalc.py 檔案.xlsx [逾時秒數]`＝開啟、全部重算、原地存檔，輸出 JSON 並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）；有錯誤或失敗時代碼 1 |
 | scripts/verify.sh | 一次跑完建置與核對（見下節） |
 | scripts/check_quarterly.js | v4.4：季度加總＝年度（三情境）、`quarterly.consistency` 一致性、超過門檻的差距都有原因；`build_html_portable.py` 建置時呼叫，verify.sh 步驟 0 |
@@ -57,7 +57,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - 目視檢查可用 Playwright：開啟 HTML、`page.pdf(prefer_css_page_size=True)` 應得 10 頁（v4.3：一頁摘要＋附錄 9 頁）。
 
 ## v3.5 核對方式（EV/EBITDA 錨定年度）
-- 預設三情境：`python3 xlx.py <xlsx> 1|2|3 xl17_<n>.json`，再 `node cmp31.js low|base|high`（目前各 300 項）。
+- 預設三情境：`python3 xlx.py <xlsx> 1|2|3 xl17_<n>.json`，再 `node cmp31.js low|base|high`（目前各 313 項）。
 - 其他錨定年度：`python3 xlx.py <xlsx> 2 out/xl17_2_a3.json 3` 後於 `out/` 內 `node ../cmp31.js base 3`（第 4 個參數＝錨定年度 1–4）。
 - 矩陣：HTML `evGrid()`（segB）與 Excel「評價_DCF與目標價」的「錨定×倍數｜…」列逐格比對（40 格）。
 
@@ -95,13 +95,13 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 - **季度層**（`company.json` → `quarterly`；HTML `quarterlyView`〔segB〕、畫面 `QuarterTabQ`〔segE〕；Excel「季度追蹤」分頁＋「輸入與假設」J 區）：2026 Q3–2027 Q4 共 6 季，由年度模型拆分，只用於追蹤，不回寫年度數字、不影響目標價。
   - 營收：2H26 從 Q2 實際營收 2.575 逐季線性爬升（`revenueSplit` anchor），FY27 依平均在役 MW（Billable，年底之間線性內插）。
   - EBITDA 率：6 季一條直線，同時符合 2H26 與 FY27 的年度 EBITDA。調整後營業利益＝調整後 EBITDA − 車隊折舊（依期內平均 PP&E，與年度公式相同；未扣 SBC）。
-  - CapEx（毛額）：依季內新增 Accepted MW（線性內插＝期內平分）。MW：季末 Accepted（6/30 起點＝公司公布 1.5 GW）。
+  - CapEx（毛額）：有季度指引的季取指引中點（`capexSplit`＝guidanceAnchor；Q3 12.5），其餘季分配期間餘數（依季內新增 Accepted MW）。MW：季末 Accepted（6/30 起點＝公司公布 1.5 GW）。
   - 沒有 MW 資料（`driver.type`＝none）、沒有指引或共識時，對應欄位顯示「不適用」（`scripts/test_quarterly.py` 測試 B）。
 - **第一屏**：焦點季（`quarterly.focus`；Excel J 區「焦點季」）各指標的模型／共識／指引／實際與差距，加一行差異原因；6 季路徑、期間合計核對、拆分方法放次層（預設收合）。
-- **差距**：實際 ÷ 比較值 − 1；指引以中點並標位置（高於上緣／區間上半部／下半部／低於下緣）；EBITDA 率以百分點。
-- **差異原因（已決定事項 2）**：差距超過 `methodology.consensusGapTol`（5%）時附原因。「拆法」由程式判定（單季超過門檻、所屬期間合計在門檻內）；「觀點」「已知限制」寫在 `varianceReasons`（原因文字的 `{路徑:格式}` 由模型數字帶入，Excel 以文字公式產生同一字串）；找不到即「未歸類」，`check_quarterly.js` 讓建置失敗。年度共識對照（一頁摘要、市場共識分頁、Excel 摘要）同一機制。
+- **差距（第 4 輪，Andy 決定）**：比例差只用於營收、CapEx；利潤類（調整後 EBITDA、調整後營業利益）列金額差＋利潤率百分點；EBITDA 率為百分點；MW 與淨負債為差額。指引以中點並標位置（高於上緣／區間上半部／下半部／低於下緣）。年度共識對照同一規則（一頁摘要、市場共識分頁、Excel 摘要；判斷門檻仍以比例計）。文字型指引（`guidanceText`，例如 Q4 調整後營業利益率 low teens）只列不計差距。
+- **差異原因（已決定事項 2）**：差距超過 `methodology.consensusGapTol`（5%；金額差以比較基準的 5% 計），或模型落在公司指引區間外時附原因。「拆法」另須所屬期間合計落在隱含指引區間內。原因文字的 `{路徑:格式}` 可用加減（例如 `{c.ebitda-g.adjOpInc:2}`），格式 `s2`＝帶正負號。「拆法」由程式判定（單季超過門檻、所屬期間合計在門檻內）；「觀點」「已知限制」寫在 `varianceReasons`（原因文字的 `{路徑:格式}` 由模型數字帶入，Excel 以文字公式產生同一字串）；找不到即「未歸類」，`check_quarterly.js` 讓建置失敗。年度共識對照（一頁摘要、市場共識分頁、Excel 摘要）同一機制。
 - **一頁摘要**：驗證點改為焦點季 3 個指標（`quarterly.keyMetrics`：營收、調整後營業利益、CapEx）；「與市場的差異」加一句差異原因摘要。依精簡原則，方法註腳與最新分析師動作移出一頁摘要（仍在「市場共識」分頁與 Excel I 區）。
-- **核對**：`check_quarterly.js`（季度加總＝年度，誤差 ≤1e-9）；cmp31 每次 300 項；`test_quarterly.py` 以暫存副本測試假設實際數與可移植性，repo 內實際數維持空白。
+- **核對**：`check_quarterly.js`（季度加總＝年度，誤差 ≤1e-9）；cmp31 每次 313 項；`test_quarterly.py` 以暫存副本測試假設實際數與可移植性，repo 內實際數維持空白。
 
 ## company.json 欄位說明（換公司填表指引）
 換成 Nebius、Oracle、OpenAI 等公司時，照這一節逐欄填寫 `company.json`；HTML 與 Excel 都從這個檔讀資料，改完執行 `scripts/verify.sh`。
@@ -486,7 +486,9 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `quarterly.driver` | 拆分依據：type＝mw 時依 MW 內插（endStart＝第 1 期期初 Accepted MW、endStartNote 來源）；type＝none（沒有 MW 資料的公司）時營收依 revenueSplit、CapEx 平分，MW 列顯示「不適用」 | 物件 | 物件（type、endStart、endStartNote） | 檢查 |
 | `quarterly.revenueSplit` | 各所屬模型期的營收拆法：anchor＝從 revenueAnchor 逐季線性爬升、driverAvg＝依平均在役 MW、equal＝平分 | 文字清單 | anchor、driverAvg | 檢查 |
 | `quarterly.revenueAnchor` | 營收拆法 anchor 的起點（最新一季實際營收）：value、label、tag | 物件 | 物件（value、label、tag） | 必改 |
-| `quarterly.metrics` | 追蹤的指標，一項一列：key（revenue、adjEbitda、ebitdaMargin、adjOpInc、capex、mw 之一）、label、unit（US$bn／%／MW）、consensus 共識檔季度欄位名（derived＝由共識 EBITDA ÷ 營收換算）、consensusSecondary／consensusSecondaryLabel 只列不比較的共識欄位、actualLabel 實際數列名稱 | 清單 | 6 筆 | 檢查 |
+| `quarterly.metrics` | 追蹤的指標，一項一列：key（revenue、adjEbitda、ebitdaMargin、adjOpInc、capex、mw 之一）、label、unit（US$bn／%／MW）、gap 差距寫法（ratio＝比例，用於營收、CapEx；diff＝金額差；pt＝百分點）、marginOf 利潤類另列利潤率百分點時的分母指標（revenue）、consensus 共識檔季度欄位名（derived＝由共識 EBITDA ÷ 營收換算）、consensusSecondary／consensusSecondaryLabel 只列不比較的共識欄位、actualLabel 實際數列名稱 | 清單 | 6 筆 | 檢查 |
+| `quarterly.capexSplit` | CapEx 拆法：guidanceAnchor＝有季度指引的季取指引中點、其餘季分配期間餘數（依新增 MW）；driverAdds（或不填）＝全部依新增 MW | 文字 | guidanceAnchor | 檢查 |
+| `quarterly.guidanceText` | 文字型指引（例如「調整後營業利益率 low teens」），{季別: {指標: {text, source, tag}}}：只列不計差距；完整支援（年增率、利潤率區間）列入待辦 5 | 物件 | 物件（2026Q4） | 必改 |
 | `quarterly.guidance` | 季度指引（公司預估），{季別: {指標: [低, 高]}}；沒有指引的季度或公司不填，顯示「不適用」 | 物件 | 物件（2026Q3） | 必改 |
 | `quarterly.guidanceMeta` | 季度指引的來源與標記 | 物件 | 物件（source、tag） | 必改 |
 | `quarterly.periodGuidance` | 期間隱含指引，{模型期: {指標: {range: [全年低, 全年高], less: 已實現部分}}}：只用於判斷季度差距是否為「拆法」 | 物件 | 物件（0） | 必改 |

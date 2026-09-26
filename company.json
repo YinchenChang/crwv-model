@@ -937,37 +937,45 @@
     "key": "revenue",
     "label": "營收",
     "unit": "US$bn",
-    "consensus": "revenue"
+    "consensus": "revenue",
+    "gap": "ratio"
    },
    {
     "key": "adjEbitda",
     "label": "調整後 EBITDA",
     "unit": "US$bn",
-    "consensus": "ebitda"
+    "consensus": "ebitda",
+    "gap": "diff",
+    "marginOf": "revenue"
    },
    {
     "key": "ebitdaMargin",
     "label": "EBITDA 率",
     "unit": "%",
-    "consensus": "derived"
+    "consensus": "derived",
+    "gap": "pt"
    },
    {
     "key": "adjOpInc",
     "label": "調整後營業利益",
     "unit": "US$bn",
     "consensusSecondary": "ebit",
-    "consensusSecondaryLabel": "共識 EBIT（口徑未揭露）"
+    "consensusSecondaryLabel": "共識 EBIT（口徑未揭露）",
+    "gap": "diff",
+    "marginOf": "revenue"
    },
    {
     "key": "capex",
     "label": "CapEx（毛額）",
-    "unit": "US$bn"
+    "unit": "US$bn",
+    "gap": "ratio"
    },
    {
     "key": "mw",
     "label": "季末 Accepted MW",
     "unit": "MW",
-    "actualLabel": "季末 active power"
+    "actualLabel": "季末 active power",
+    "gap": "diff"
    }
   ],
   "guidance": {
@@ -1129,6 +1137,16 @@
     "date": null,
     "tag": null
    }
+  },
+  "capexSplit": "guidanceAnchor",
+  "guidanceText": {
+   "2026Q4": {
+    "adjOpInc": {
+     "text": "調整後營業利益率 low teens",
+     "source": "Q2 法說 2026-08-11",
+     "tag": "Interested-party"
+    }
+   }
   }
  },
  "varianceReasons": {
@@ -1140,7 +1158,7 @@
     "metric": "adjOpInc",
     "vs": "guidance",
     "type": "已知限制",
-    "text": "模型車隊折舊 {q.da:2} 高於最新一季實際 {lq.da:2}，營業利益因此偏低；待辦 6 修正"
+    "text": "對照指引隱含折舊 {c.ebitda-g.adjOpInc:2}（＝共識 EBITDA {c.ebitda:2} − 指引中點 {g.adjOpInc:2}，Derived），模型折舊 {q.da:2}；缺口 {q.adjOpInc-g.adjOpInc:s2} ≈ 折舊 {c.ebitda-g.adjOpInc-q.da:s2} ＋ EBITDA {q.adjEbitda-c.ebitda:s2}；待辦 6 修正折舊"
    },
    {
     "scope": "annual",

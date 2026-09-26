@@ -417,6 +417,9 @@ var PRICE_DATE = COMPANY_DATA.meta.priceDate, // 現價收盤日（HTML 畫面�
 function gapTxtQ(g, pt) { // 差距文字：比例 → +1.4%；pt＝true 時為百分點 → −2.8pt
   return `${g < 0 ? `−` : `+`}${Y(Math.abs(g) * 100, 1)}${pt ? `pt` : `%`}`
 }
+function annGapTxtQ(r, k) { // v4.4：年度對照的差距文字——營收、CapEx 為比例；EBITDA 為金額差／EBITDA 率百分點；淨負債為金額差；EBITDA 率為百分點
+  return k === `ebitda` ? `${dTxtQ(r.dif.ebitda, `US$bn`)}／${gapTxtQ(r.gap.ebM, true)}` : k === `nd` ? dTxtQ(r.dif.nd, `US$bn`) : gapTxtQ(r.gap[k], k === `ebM`)
+}
 function consensusView(d, p, o, TR, st) { // d＝runFunding、p＝runValuation、o＝評價參數、TR＝targetRange、st＝目前輸入（v4.4：差異原因的數字）
   let E = CONSENSUS.annualEstimates, y = d.years, f = p.fwd,
     rows = CONS_YEARS.map((yr, i) => {
@@ -424,10 +427,11 @@ function consensusView(d, p, o, TR, st) { // d＝runFunding、p＝runValuation�
         ebitda = i === 0 ? ACTUAL_1H.adjEbitda + f[0].ebitda : f[i].fyEbitda,
         m = { rev, ebitda, ebM: ebitda / rev, capex: i === 0 ? ACTUAL_1H.capex + y[0].gross : y[i].gross, nd: y[i].totalDebtEnd - y[i].cum },
         c = { rev: E[yr].revenue, ebitda: E[yr].ebitda, ebM: E[yr].ebitdaMargin, capex: E[yr].capex, nd: E[yr].netDebt };
-      return { yr, m, c, gap: { rev: m.rev / c.rev - 1, ebitda: m.ebitda / c.ebitda - 1, ebM: m.ebM - c.ebM, capex: m.capex / c.capex - 1, nd: m.nd / c.nd - 1 } }
+      return { yr, m, c, gap: { rev: m.rev / c.rev - 1, ebitda: m.ebitda / c.ebitda - 1, ebM: m.ebM - c.ebM, capex: m.capex / c.capex - 1, nd: m.nd / c.nd - 1 },
+        dif: { ebitda: m.ebitda - c.ebitda, nd: m.nd - c.nd } } // v4.4：利潤類與淨負債以金額差呈現（門檻判斷仍用比例）
     }),
     tol = pctQ(CONS_TOL),
-    ex = rows.map(r => CONS_JUDGE_KEYS.filter(([, k]) => Math.abs(r.gap[k]) > CONS_TOL).map(([n, k]) => `${n} ${gapTxtQ(r.gap[k])}`)),
+    ex = rows.map(r => CONS_JUDGE_KEYS.filter(([, k]) => Math.abs(r.gap[k]) > CONS_TOL).map(([n, k]) => `${n} ${annGapTxtQ(r, k)}`)),
     first = ex.findIndex(x => x.length),
     Y0 = CONS_YEARS[0], YN = CONS_YEARS[CONS_YEARS.length - 1],
     judge = first < 0 ? `${Y0}–${YN} 營收、EBITDA、CapEx 與共識差距皆在 ${tol} 以內。`
@@ -446,7 +450,7 @@ function consensusView(d, p, o, TR, st) { // d＝runFunding、p＝runValuation�
   let rsn = rows.flatMap((r, i) => ANN_RSN_KEYS.filter(([, k]) => Math.abs(r.gap[k]) > CONS_TOL).map(([n, k]) => {
       let c = findRsnQ(`annual`, r.yr, k, `consensus`),
         ctx = { m: r.m, c: r.c, gap: r.gap, y: { mwNew: y[i].mwNew, accepted: d.m.accepted[i], costMW: st ? st.a.costMW[i] : NaN }, in: st || {} };
-      return { yr: r.yr, key: k, name: n, gap: r.gap[k], type: c ? c.type : `未歸類`, text: c ? fillTokQ(c.text, ctx) : `差異原因待補` }
+      return { yr: r.yr, key: k, name: n, gap: r.gap[k], gtxt: annGapTxtQ(r, k), type: c ? c.type : `未歸類`, text: c ? fillTokQ(c.text, ctx) : `差異原因待補` }
     })),
     rsnSum = reasonSumQ(rsn, `原因見「損益與評價 → 市場共識」。`);
   return { rows, ex, first, judge, impTgt, impPx, mHi, implied, head, up, gapTh, rsn, rsnSum }
@@ -459,13 +463,19 @@ var RSN_TYPES = [`觀點`, `拆法`, `已知限制`, `未歸類`],
 function cfgPathQ(s, root) { // 以「a.b.0」路徑讀值（company.json 或指定物件）
   return String(s).split(`.`).reduce((x, k) => x == null ? x : x[k], root || COMPANY_DATA)
 }
-function tokFmtQ(x, f) { // 原因文字的數字格式：gap＝差距、%1＝百分比 1 位、2＝數字 2 位；負號用 −
+function tokFmtQ(x, f) { // 原因文字的數字格式：gap＝差距、%1＝百分比 1 位、2＝數字 2 位、s2＝帶正負號 2 位；負號用 −
   if (x == null || !Number.isFinite(x)) return `不適用`;
   if (f === `gap`) return gapTxtQ(x);
+  if (f[0] === `s`) return `${x < 0 ? `−` : `+`}${Y(Math.abs(x), +f.slice(1))}`;
   return f[0] === `%` ? `${x < 0 ? `−` : ``}${Y(Math.abs(x) * 100, +f.slice(1))}%` : `${x < 0 ? `−` : ``}${Y(Math.abs(x), +f)}`
 }
+function tokValQ(expr, ctx) { // {a-b+c}：路徑的加減（例如 c.ebitda-g.adjOpInc-q.da）；任一項缺值即 NaN
+  let parts = expr.split(/(?=[+-])/), v = 0;
+  for (let t of parts) { let sg = t[0] === `-` ? -1 : 1, x = cfgPathQ(t.replace(/^[+-]/, ``), ctx); if (typeof x !== `number` || !Number.isFinite(x)) return NaN; v += sg * x }
+  return v
+}
 function fillTokQ(t, ctx) {
-  return t.replace(/\{([\w.]+):(%?\w+)\}/g, (_, a, f) => tokFmtQ(cfgPathQ(a, ctx), f))
+  return t.replace(/\{([\w.+-]+):([%s]?\w+)\}/g, (_, a, f) => tokFmtQ(tokValQ(a, ctx), f))
 }
 function findRsnQ(scope, period, metric, vs) {
   return VAR_RSN.find(x => x.scope === scope && (x.period === `*` || x.period === period) && x.metric === metric && (x.vs === `*` || x.vs === vs))
@@ -492,11 +502,20 @@ function rngTxtQ(g, u) { // 指引區間文字：$3.45–3.60bn
 function qPosQ(x, g) { // 相對指引區間的位置
   return x > g[1] ? `高於上緣` : x < g[0] ? `低於下緣` : x >= (g[0] + g[1]) / 2 ? `區間上半部` : `區間下半部`
 }
+function dTxtQ(g, u) { // 金額差文字：+$0.10bn／−25 MW
+  return g == null || !Number.isFinite(g) ? `不適用` : `${g < 0 ? `−` : `+`}${valTxtQ(Math.abs(g), u)}`
+}
+function gTxtQ(g, kind, u, pt) { // 差距文字（v4.4 第 4 輪）：ratio＝比例（營收、CapEx）；diff＝金額差，利潤類另附利潤率百分點；pt＝百分點
+  if (g == null || !Number.isFinite(g)) return `不適用`;
+  if (kind === `diff`) return dTxtQ(g, u) + (pt != null && Number.isFinite(pt) ? `／${gapTxtQ(pt, true)}` : ``);
+  return gapTxtQ(g, kind === `pt`)
+}
 function quarterlyView(d, p, st) { // d＝runFunding、p＝runValuation、st＝目前輸入
   let C = QTR_CFG;
   if (!C) return null;
   let Qs = C.quarters, n = Qs.length, f = p.fwd, y = d.years, drv = !!(C.driver && C.driver.type === `mw`),
     pers = [...new Set(Qs.map(q => q.period))], inP = P => Qs.map((q, i) => q.period === P ? i : -1).filter(i => i >= 0),
+    gq = (qk, mk) => ((C.guidance || {})[qk] || {})[mk] || null,
     endAcc = Array(n).fill(null), avgBil = Array(n).fill(null), rev = Array(n), da = Array(n), capex = Array(n), idx = Qs.map((q, i) => i + 1);
   pers.forEach(P => {
     let ix = inP(P), k = ix.length, L = PERIOD_YEARS[P],
@@ -514,8 +533,12 @@ function quarterlyView(d, p, st) { // d＝runFunding、p＝runValuation、st＝�
       let w = ix.map(i => how === `driverAvg` && drv ? avgBil[i] : 1), s = w.reduce((a, b) => a + b, 0);
       ix.forEach((i, j) => rev[i] = R * w[j] / s)
     }
-    let adds = ix.map((i, j) => drv ? endAcc[i] - (j === 0 ? a0 : endAcc[ix[j - 1]]) : 1), sa = adds.reduce((a, b) => a + b, 0);
-    ix.forEach((i, j) => capex[i] = y[P].gross * (sa > 0 ? adds[j] / sa : 1 / k))
+    // CapEx：依季內新增 Accepted MW；capexSplit＝guidanceAnchor 時，有季度指引的季取指引中點，其餘季依新增 MW 分配期間餘數
+    let adds = ix.map((i, j) => drv ? endAcc[i] - (j === 0 ? a0 : endAcc[ix[j - 1]]) : 1),
+      anc = ix.map(i => C.capexSplit === `guidanceAnchor` ? gq(Qs[i].key, `capex`) : null),
+      fixed = anc.reduce((s, g) => s + (g ? (g[0] + g[1]) / 2 : 0), 0),
+      free = adds.map((a, j) => anc[j] ? 0 : a), sf = free.reduce((a, b) => a + b, 0), nf = anc.filter(g => !g).length;
+    ix.forEach((i, j) => capex[i] = anc[j] ? (anc[j][0] + anc[j][1]) / 2 : (y[P].gross - fixed) * (sf > 0 ? free[j] / sf : 1 / nf))
   });
   let S = pers.map(P => inP(P).reduce((s, i) => s + rev[i], 0)), T = pers.map(P => inP(P).reduce((s, i) => s + rev[i] * idx[i], 0)),
     E = pers.map(P => f[P].ebitda), mg = Array(n);
@@ -527,42 +550,57 @@ function quarterlyView(d, p, st) { // d＝runFunding、p＝runValuation、st＝�
     annual = { revenue: P => f[P].revenue, adjEbitda: P => f[P].ebitda, adjOpInc: P => f[P].opInc, capex: P => y[P].gross },
     QE = (typeof CONSENSUS !== `undefined` && CONSENSUS && CONSENSUS.quarterlyEstimates) || {},
     num = x => typeof x === `number` && Number.isFinite(x) ? x : null,
-    consOf = (m, key) => { let q = QE[key]; if (!q || !m.consensus) return null;
+    mref = k => C.metrics.find(x => x.key === k),
+    consOf = (m, key) => { let q = QE[key]; if (!m || !q || !m.consensus) return null;
       if (m.consensus === `derived`) { let a = num(q.ebitda), b = num(q.revenue); return a != null && b ? a / b : null }
       return num(q[m.consensus]) },
-    actOf = (m, key) => { let a = (C.actuals || {})[key] || {};
+    actOf = (m, key) => { let a = (C.actuals || {})[key] || {}; if (!m) return null;
       if (m.key === `ebitdaMargin`) { let x = num(a.adjEbitda), r = num(a.revenue); return x != null && r ? x / r : null }
       return num(a[m.key]) },
-    gapOf = (x, b, u) => x != null && b != null && b !== 0 ? (u === `%` ? x - b : x / b - 1) : null,
+    gmidOf = (qk, mk) => { let g = gq(qk, mk); return g ? (g[0] + g[1]) / 2 : null },
+    kindOf = m => m.gap || (m.unit === `%` ? `pt` : `ratio`),
+    gapOf = (x, b, kind) => x == null || b == null ? null : kind === `ratio` ? (b !== 0 ? x / b - 1 : null) : x - b,
     tol = CONS_TOL,
-    rows = C.metrics.map(m => ({ ...m, q: Qs.map((q, i) => {
-      let mv = model[m.key] ? model[m.key][i] : null, cv = consOf(m, q.key), gd = ((C.guidance || {})[q.key] || {})[m.key] || null,
-        gmid = gd ? (gd[0] + gd[1]) / 2 : null, av = actOf(m, q.key),
-        cs = m.consensusSecondary && QE[q.key] ? num(QE[q.key][m.consensusSecondary]) : null,
-        r = { model: mv, cons: cv, consSec: cs, guide: gd, gmid, actual: av,
-          mc: gapOf(mv, cv, m.unit), mg: gapOf(mv, gmid, m.unit), am: gapOf(av, mv, m.unit), ac: gapOf(av, cv, m.unit), ag: gapOf(av, gmid, m.unit),
-          posM: gd && mv != null ? qPosQ(mv, gd) : null, posA: gd && av != null ? qPosQ(av, gd) : null, rsn: [] },
-        P = q.period, same = inP(P),
-        aggC = () => { let v = same.map(j => consOf(m, Qs[j].key)); return v.every(x => x != null) && annual[m.key] ? gapOf(annual[m.key](P), v.reduce((a, b) => a + b, 0), m.unit) : null },
-        aggG = () => { let g = ((C.periodGuidance || {})[P] || {})[m.key]; return g && annual[m.key] ? gapOf(annual[m.key](P), (g.range[0] + g.range[1]) / 2 - (g.less || 0), m.unit) : null },
-        ctx = { q: { ...Object.fromEntries(Object.keys(model).map(k => [k, model[k][i]])), da: da[i], mwAvg: avgBil[i] }, lq: LATEST_Q };
-      if (m.unit !== `%`) [[`consensus`, r.mc, aggC], [`guidance`, r.mg, aggG]].forEach(([vs, g, agg]) => {
-        if (g == null || Math.abs(g) <= tol) return;
-        let ag = agg(), c = findRsnQ(`quarter`, q.key, m.key, vs);
-        r.rsn.push(ag != null && Math.abs(ag) <= tol ? { vs, gap: g, type: `拆法`, text: `${C.periodNames[pers.indexOf(P)]} 合計差距 ${gapTxtQ(ag)}` }
-          : c ? { vs, gap: g, type: c.type, text: fillTokQ(c.text, ctx) } : { vs, gap: g, type: `未歸類`, text: `差異原因待補` })
-      });
-      [[`actual`, r.am]].forEach(([vs, g]) => { let c = g != null && Math.abs(g) > tol ? findRsnQ(`quarter`, q.key, m.key, vs) : null;
-        if (c) r.rsn.push({ vs, gap: g, type: c.type, text: fillTokQ(c.text, ctx) }) });
-      return r
-    }) })),
-    fi = Math.max(0, Qs.findIndex(q => q.key === C.focus)),
+    exc = (g, b, kind) => g != null && (kind === `diff` ? (b ? Math.abs(g) > tol * Math.abs(b) : g !== 0) : Math.abs(g) > tol), // 金額差：|差| > 門檻 × |比較基準|
+    mar = (a, b) => a != null && b != null && b !== 0 ? a / b : null, ptd = (a, b) => a != null && b != null ? a - b : null,
     VS = { consensus: `vs 共識`, guidance: `vs 指引中點`, actual: `實際 vs 模型` },
-    rsnLine = i => rows.flatMap(m => m.q[i].rsn.map(x => `${m.label} ${VS[x.vs]} ${gapTxtQ(x.gap)}：${x.type}（${x.text}）`)).join(`；`),
-    line = (m, i) => { let r = m.q[i], u = m.unit, pt = u === `%`;
-      return `${m.label}：模型 ${valTxtQ(r.model, u)}` + (r.cons != null ? `｜共識 ${valTxtQ(r.cons, u)}（${gapTxtQ(r.mc, pt)}）` : ``) +
-        (r.guide ? `｜指引 ${rngTxtQ(r.guide, u)}（中點 ${gapTxtQ(r.mg, pt)}，${r.posM}）` : ``) +
-        (r.actual != null ? `｜實際 ${valTxtQ(r.actual, u)}（較模型 ${gapTxtQ(r.am, pt)}${r.cons != null ? `、較共識 ${gapTxtQ(r.ac, pt)}` : ``}${r.guide ? `、${r.posA}` : ``}）` : ``) +
+    rows = C.metrics.map(m => { let kind = kindOf(m), u = m.unit, RM = m.marginOf ? mref(m.marginOf) : null;
+      return { ...m, kind, q: Qs.map((q, i) => {
+      let mv = model[m.key] ? model[m.key][i] : null, cv = consOf(m, q.key), gd = gq(q.key, m.key), gmid = gd ? (gd[0] + gd[1]) / 2 : null, av = actOf(m, q.key),
+        cs = m.consensusSecondary && QE[q.key] ? num(QE[q.key][m.consensusSecondary]) : null,
+        gt = ((C.guidanceText || {})[q.key] || {})[m.key] || null,
+        mM = RM ? mar(mv, model[RM.key][i]) : null, cM = RM ? mar(cv, consOf(RM, q.key)) : null,
+        gM = RM ? mar(gmid, gmidOf(q.key, RM.key)) : null, aM = RM ? mar(av, actOf(RM, q.key)) : null,
+        r = { model: mv, cons: cv, consSec: cs, guide: gd, gmid, gtext: gt, actual: av,
+          mc: gapOf(mv, cv, kind), mg: gapOf(mv, gmid, kind), am: gapOf(av, mv, kind), ac: gapOf(av, cv, kind), ag: gapOf(av, gmid, kind),
+          mcP: ptd(mM, cM), mgP: ptd(mM, gM), amP: ptd(aM, mM), acP: ptd(aM, cM), agP: ptd(aM, gM),
+          posM: gd && mv != null ? qPosQ(mv, gd) : null, posA: gd && av != null ? qPosQ(av, gd) : null, rsn: [] },
+        P = q.period, same = inP(P), pn = C.periodNames[pers.indexOf(P)],
+        ctx = { q: { ...Object.fromEntries(Object.keys(model).map(k => [k, model[k][i]])), da: da[i], mwAvg: avgBil[i] }, lq: LATEST_Q,
+          c: QE[q.key] || {}, g: Object.fromEntries(C.metrics.map(x => [x.key, gmidOf(q.key, x.key)])) },
+        // 「拆法」：所屬期間合計（年度模型）與期間合計的共識／隱含指引差距在門檻內；指引另須落在隱含指引區間內
+        aggC = () => { let v = same.map(j => consOf(m, Qs[j].key)); if (!v.every(x => x != null) || !annual[m.key]) return null;
+          let b = v.reduce((a, c) => a + c, 0), g = gapOf(annual[m.key](P), b, kind); return { g, ok: !exc(g, b, kind) } },
+        aggG = () => { let pg = ((C.periodGuidance || {})[P] || {})[m.key]; if (!pg || !annual[m.key]) return null;
+          let ls = pg.less || 0, b = (pg.range[0] + pg.range[1]) / 2 - ls, a = annual[m.key](P), g = gapOf(a, b, kind);
+          return { g, ok: !exc(g, b, kind) && a >= pg.range[0] - ls && a <= pg.range[1] - ls } },
+        push = (vs, g, gp, agg) => { let c = findRsnQ(`quarter`, q.key, m.key, vs), gt2 = gTxtQ(g, kind, u, gp), A = agg ? agg() : null;
+          r.rsn.push(A && A.ok ? { vs, gap: g, gtxt: gt2, type: `拆法`, text: `${pn} 合計差距 ${gTxtQ(A.g, kind, u)}` }
+            : c ? { vs, gap: g, gtxt: gt2, type: c.type, text: fillTokQ(c.text, ctx) } : { vs, gap: g, gtxt: gt2, type: `未歸類`, text: `差異原因待補` }) };
+      if (kind !== `pt`) {
+        if (exc(r.mc, cv, kind)) push(`consensus`, r.mc, r.mcP, aggC);
+        if (exc(r.mg, gmid, kind) || (gd && mv != null && (mv > gd[1] || mv < gd[0]))) push(`guidance`, r.mg, r.mgP, aggG); // 落在指引區間外也須附原因
+        if (exc(r.am, mv, kind)) { let c = findRsnQ(`quarter`, q.key, m.key, `actual`);
+          if (c) r.rsn.push({ vs: `actual`, gap: r.am, gtxt: gTxtQ(r.am, kind, u, r.amP), type: c.type, text: fillTokQ(c.text, ctx) }) }
+      }
+      return r
+    }) } }),
+    fi = Math.max(0, Qs.findIndex(q => q.key === C.focus)),
+    rsnLine = i => rows.flatMap(m => m.q[i].rsn.map(x => `${m.label} ${VS[x.vs]} ${x.gtxt}：${x.type}（${x.text}）`)).join(`；`),
+    line = (m, i) => { let r = m.q[i], u = m.unit, k = m.kind;
+      return `${m.label}：模型 ${valTxtQ(r.model, u)}` + (r.cons != null ? `｜共識 ${valTxtQ(r.cons, u)}（${gTxtQ(r.mc, k, u, r.mcP)}）` : ``) +
+        (r.guide ? `｜指引 ${rngTxtQ(r.guide, u)}（中點 ${gTxtQ(r.mg, k, u, r.mgP)}，${r.posM}）` : r.gtext ? `｜指引（文字）${r.gtext.text}` : ``) +
+        (r.actual != null ? `｜實際 ${valTxtQ(r.actual, u)}（較模型 ${gTxtQ(r.am, k, u, r.amP)}${r.cons != null ? `、較共識 ${gTxtQ(r.ac, k, u, r.acP)}` : ``}${r.guide ? `、${r.posA}` : ``}）` : ``) +
         (r.rsn.length ? `〔${[...new Set(r.rsn.map(x => x.type))].join(`、`)}〕` : ``) },
     key = (C.keyMetrics || []).map(k => rows.find(m => m.key === k)).filter(Boolean),
     sums = pers.map((P, j) => ({ P, name: C.periodNames[j], ...Object.fromEntries(Object.keys(annual).map(k => [k, { q: inP(P).reduce((s, i) => s + model[k][i], 0), a: annual[k](P) }])),

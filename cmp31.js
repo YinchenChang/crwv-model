@@ -132,7 +132,8 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
     rows.push([ok?'OK ':'XX ','共識 '+it.label,JSON.stringify([...it.vals,it.text,it.date,it.tag]),JSON.stringify(x)]); }
   for(const [n,k] of [['營收','rev'],['調整後 EBITDA','ebitda'],['CapEx（毛額）','capex'],['淨負債','nd']]){
     cmp('摘要 '+n+' 模型',SM+'差異｜'+n+'｜模型',cv.rows.map(r=>r.m[k])); cmp('摘要 '+n+' 共識',SM+'差異｜'+n+'｜共識',cv.rows.map(r=>r.c[k]));
-    cmp('摘要 '+n+' 差距',SM+'差異｜'+n+'｜差距',cv.rows.map(r=>r.gap[k])); }
+    cmp('摘要 '+n+' 差距',SM+'差異｜'+n+'｜差距',cv.rows.map(r=>r.gap[k]));
+    if(k==='ebitda'||k==='nd') cmp('摘要 '+n+' 差距金額',SM+'差異｜'+n+'｜差距（金額）',cv.rows.map(r=>r.dif[k])); }
   cmp('摘要 EBITDA率 模型',SM+'差異｜EBITDA 率｜模型',cv.rows.map(r=>r.m.ebM)); cmp('摘要 EBITDA率 共識',SM+'差異｜EBITDA 率｜共識',cv.rows.map(r=>r.c.ebM));
   cmp('摘要 EBITDA率 差距pt',SM+'差異｜EBITDA 率｜差距（百分點）',cv.rows.map(r=>r.gap.ebM));
   cmp('摘要 分歧起始年',SM+'差異｜分歧起始年（1＝FY26…3＝FY28；0＝無）',[cv.first+1]);
@@ -160,9 +161,11 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
       if(rq.some(r=>r.guide)){ cmpMix('季度 '+L+' 指引低',QT+'指引｜'+L+'（低）',rq.map(r=>r.guide?r.guide[0]:null)); cmpMix('季度 '+L+' 指引高',QT+'指引｜'+L+'（高）',rq.map(r=>r.guide?r.guide[1]:null)); }
       cmpMix('季度 '+L+' 實際',QT+'實際｜'+(m.actualLabel||L),rq.map(r=>r.actual));
       for(const [g,t] of [['mc','模型 vs 共識'],['mg','模型 vs 指引中點'],['am','實際 vs 模型'],['ac','實際 vs 共識'],['ag','實際 vs 指引中點']]) cmpMix('季度 '+L+' '+t,QT+'差距｜'+L+'｜'+t,rq.map(r=>r[g]));
-      if(m.unit!=='%') for(const vs of ['consensus','guidance','actual']) cmpMix('季度 '+L+' 原因 '+vs,QT+'原因｜'+L+'｜'+VSN[vs],rq.map(r=>{ const x=r.rsn.find(z=>z.vs===vs); return x?`${L} ${VSN[vs]} ${gapTxtQ(x.gap)}：${x.type}（${x.text}）`:''; }));
+      if(m.marginOf) for(const [g,t] of [['mcP','模型 vs 共識'],['mgP','模型 vs 指引中點'],['amP','實際 vs 模型'],['acP','實際 vs 共識'],['agP','實際 vs 指引中點']]) cmpMix('季度 '+L+' '+t+' 利潤率pt',QT+'差距｜'+L+'｜'+t+'（利潤率 pt）',rq.map(r=>r[g]));
+      if(rq.some(r=>r.gtext)) cmpMix('季度 '+L+' 文字指引',QT+'指引（文字）｜'+L,rq.map(r=>r.gtext?r.gtext.text:''));
+      if(m.kind!=='pt') for(const vs of ['consensus','guidance','actual']) cmpMix('季度 '+L+' 原因 '+vs,QT+'原因｜'+L+'｜'+VSN[vs],rq.map(r=>{ const x=r.rsn.find(z=>z.vs===vs); return x?`${L} ${VSN[vs]} ${x.gtxt}：${x.type}（${x.text}）`:''; }));
       cmpMix('季度 '+L+' 句',QT+'句｜'+L,rq.map((r,i)=>qv.line(m,i)));
-      const f=rq[qv.fi]; cmpMix('焦點 '+L,QT+'焦點｜'+L,[f.model,f.cons,f.mc,f.guide?f.guide[0]:null,f.guide?f.guide[1]:null,f.mg,f.actual,f.am,f.ac,f.ag]); }
+      const f=rq[qv.fi]; cmpMix('焦點 '+L,QT+'焦點｜'+L,[f.model,f.cons,f.mc,f.guide?f.guide[0]:(f.gtext?f.gtext.text:null),f.guide?f.guide[1]:null,f.mg,f.actual,f.am,f.ac,f.ag,f.mcP,f.mgP,f.amP,f.acP,f.agP]); }
     cmpMix('季度 差異原因一行',QT+'差異原因（一行）',qv.Qs.map((_,i)=>qv.rsnLine(i)));
     cmpMix('焦點 季度',QT+'焦點｜季度',[qv.focus.label]); cmpMix('焦點 差異原因',QT+'焦點｜差異原因',[qv.rsnLine(qv.fi)||'無（差距皆在 '+pctQ(qv.tol)+' 以內）']);
     for(const nm of ['營收','調整後 EBITDA','調整後營業利益','CapEx（毛額）','車隊折舊']) cmpMix('核對 '+nm,QT+'核對｜'+nm,qv.sums.map(()=>0));

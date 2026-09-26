@@ -85,8 +85,9 @@ for m in co['quarterly']['metrics']:
     a = ACT['adjEbitda'] / ACT['revenue'] if k == 'ebitdaMargin' else ACT.get(k)
     c = {'revenue': cons['revenue'], 'adjEbitda': cons['ebitda'], 'ebitdaMargin': cons['ebitda'] / cons['revenue']}.get(k)
     g = G.get(k)
-    rel = (lambda x, y: x - y) if u == '%' else (lambda x, y: x / y - 1)
-    exp[k] = dict(am=rel(a, model), ac=rel(a, c) if c is not None else None, ag=rel(a, (g[0] + g[1]) / 2) if g else None,
+    kind = m.get('gap') or ('pt' if u == '%' else 'ratio')  # v4.4 第 4 輪：營收、CapEx＝比例；利潤類與 MW＝差額；EBITDA 率＝百分點
+    rel = (lambda x, y: x / y - 1) if kind == 'ratio' else (lambda x, y: x - y)
+    exp[k] = dict(kind=kind, am=rel(a, model), ac=rel(a, c) if c is not None else None, ag=rel(a, (g[0] + g[1]) / 2) if g else None,
                   posA=(None if not g else '高於上緣' if a > g[1] else '低於下緣' if a < g[0] else '區間上半部' if a >= (g[0] + g[1]) / 2 else '區間下半部'), actual=a)
     hq = next(r for r in H['rows'] if r['key'] == k)['q'][H['fi']]
     for f in ('am', 'ac', 'ag'):
@@ -107,9 +108,9 @@ if errs or '3.50bn' not in txt or want not in summ:
     FAIL.append(f'測試 A 畫面：錯誤 {errs}；季度追蹤含 3.50bn：{"3.50bn" in txt}；一頁摘要含實際數句：{want in summ}')
 for m in co['quarterly']['metrics']:
     e = exp[m['key']]
-    fm = (lambda x: fmt(x)[:-1] + 'pt') if m['unit'] == '%' else fmt
+    fm = (lambda x: fmt(x)[:-1] + 'pt') if e['kind'] == 'pt' else (lambda x: ('−' if x < 0 else '+') + (f'{abs(x):,.0f} MW' if m['unit'] == 'MW' else f'${abs(x):,.2f}bn')) if e['kind'] == 'diff' else fmt
     print(f"  {m['label']}：實際 {e['actual']:.4g}；較模型 {fm(e['am'])}" + (f"、較共識 {fm(e['ac'])}" if e['ac'] is not None else '') +
-          (f"、較指引中點 {fmt(e['ag'])}（{e['posA']}）" if e['ag'] is not None else ''))
+          (f"、較指引中點 {fm(e['ag'])}（{e['posA']}）" if e['ag'] is not None else ''))
 print('  驗證點句：' + H['keyLines'][0])
 
 print('=== 測試 B｜可移植性：無 MW、無季度指引、無季度共識（暫存副本）')
