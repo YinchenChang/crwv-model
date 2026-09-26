@@ -1,17 +1,19 @@
-# CoreWeave 收支模型（v4.0）— Claude Code 工作守則
+# CoreWeave 收支模型 — Claude Code 工作守則
+
+（本檔不寫版本號；目前版本見 `docs/handoff/` 內交接檔檔名與 `vlog.py`。）
 
 ## 專案是什麼
 CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套引擎輸出兩個成品，數字必須完全一致：
 - HTML（互動版，`build_html_portable.py` 產生）
 - Excel（全部活公式，`build_xlsx.py` 產生）
-此 repo 是日後 Nebius、Oracle、OpenAI 模型的模板。業務背景、目前結果與待辦見 `docs/` 內最新交接檔；技術細節見 `README.md`。
+此 repo 是日後 Nebius、Oracle、OpenAI 模型的模板。業務背景、目前結果與待辦見 `docs/handoff/` 內的交接檔（資料夾內只保留最新版）；技術細節見 `README.md`。
 
 ## 目錄
 - `company.json`：公司原始輸入的**唯一來源**（HTML 與 Excel 共用）。換公司先改這裡。
 - `segA.js`～`segE.js`、`tail.js`：HTML 引擎與畫面；`app_pretty.js`：模板函式庫片段來源。
 - `build_xlsx.py`、`fix_outline.py`、`verify_ooxml.py`：Excel 建置與結構檢查。
 - `cmp31.js`＋`xlx.py`（HTML vs Excel 數值）、`crawl.py`（畫面文字）、`xl_diff.py`（Excel 逐格）：核對工具。
-- `dist/`：交付成品（HTML、xlsx）。`docs/`：交接檔、建置用模板 `template_v3_3.html`；`docs/reports/`：各任務的完整回報。
+- `dist/`：交付成品（HTML、xlsx）。`docs/handoff/`：交接檔（只保留最新版；升版時新增新版並移除舊版，供 Project 的 GitHub 同步勾選整個資料夾）；`docs/`：建置用模板 `template_v3_3.html`；`docs/reports/`：各任務的完整回報。
 
 ## 第一個任務（環境移植，完成前不要做其他改版）
 原始碼原本在另一個沙盒執行，有寫死的路徑，需先移植：
@@ -24,8 +26,8 @@ CRWV 資金與評價模型，核心論點「Backlog 不是現金」。同一套�
 ## 每次修改的鐵則
 - 先讀交接檔與 README，再動手；純結構修改的驗收標準是「數字與畫面與前一版完全相同」。
 - 每次修改後必跑 `scripts/verify.sh`，全數通過才可提交。改到數字的修改，要在回報中列出受影響的關鍵數字（三情境目標價等）前後對照。
-- 版本號：**只有 `dist/` 成品（HTML 或 Excel）改變時才升版**；純工具修改（建置／核對腳本、文件、setup script 等，`dist/` 不變）不升版、不新增 VLOG。升版時 `vlog.py`（Excel 唯一來源）與 `tail.js` 的 VLOG（HTML）**兩處都要**新增一列；成品命名 `更新日_CoreWeave收支模型_v版本號`，放 `dist/`，並移除舊版成品。
-- 同時更新交接檔（`docs/`）與 README。
+- 版本號：**只有 `dist/` 成品（HTML 或 Excel）改變時才升版**；純工具修改（建置／核對腳本、文件、setup script 等，`dist/` 不變）不升版、不新增 VLOG。升版時 `vlog.py`（Excel 唯一來源）與 `tail.js` 的 VLOG（HTML）**兩處都要**新增一列；成品命名 `更新日_CoreWeave收支模型_v版本號`，放 `dist/`，並移除舊版成品；交接檔同樣以新版取代舊版（`docs/handoff/` 只留一個檔）。
+- 同時更新交接檔（`docs/handoff/`，只保留最新版）與 README。
 - 一個任務一個分支、一個 PR；PR 說明寫：改了什麼、驗收結果、需 Andy 決定的事項（任務完成時與報告檔「目前狀態」同步更新）。
 - 任務回報：依下節「每輪回報規則」。報告檔另須保存 `scripts/verify.sh` 完整輸出、關鍵數字前後對照（三情境目標價等；未改數字時註明「無變動」並列出現值）。
 
