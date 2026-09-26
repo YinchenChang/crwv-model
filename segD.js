@@ -252,7 +252,7 @@ function zM() {
                 className: `mt-4 space-y-2`,
                 children: [(0, $.jsx)(accQ, {
                   title: `B｜產能與收入`,
-                  sum: `RPO ${Y(e.rpoFy26,1)}＋${Y(e.rpoQ1Add,0)} · 認列 ${e.rp}%`,
+                  sum: `RPO ${Y(e.rpoOpen,1)}＋${Y(e.rpoPendingAdd,0)} · 認列 ${e.rp}%`,
                   children: [(0, $.jsx)(LM, {
                     label: `每 MW 年收入倍數（整體）`,
                     hint: `${hA((e.revScale ?? 1)*100,0)} · 反向 DCF 與壓力測試用；預設 100%`,
@@ -268,9 +268,9 @@ function zM() {
                   label: `6/30 RPO（US$bn）`,
                   hint: `103.7 10-Q（backlog 104.2）`,
                   children: (0, $.jsx)(IM, {
-                    value: e.rpoFy26,
+                    value: e.rpoOpen,
                     onChange: e => w({
-                      rpoFy26: e
+                      rpoOpen: e
                     })
                   })
                 }),
@@ -278,9 +278,9 @@ function zM() {
                   label: `Q3 初新增承諾（US$bn）`,
                   hint: `法說「>25」，未入 RPO；口徑為 net new commitments`,
                   children: (0, $.jsx)(IM, {
-                    value: e.rpoQ1Add,
+                    value: e.rpoPendingAdd,
                     onChange: e => w({
-                      rpoQ1Add: e
+                      rpoPendingAdd: e
                     })
                   })
                 }),
@@ -418,9 +418,9 @@ function zM() {
                   label: `FY26 CapEx 下限（已承諾）`,
                   hint: `全年指引下緣 35；保守情境會觸發`,
                   children: (0, $.jsx)(IM, {
-                    value: e.capexFloor26,
+                    value: e.capexFloorFY0,
                     onChange: e => w({
-                      capexFloor26: e
+                      capexFloorFY0: e
                     }),
                     step: 1
                   })
@@ -767,7 +767,7 @@ function zM() {
                     [`　本期新增 MW`, d.years.map(e => e.mwNew), void 0, void 0, `calc`, `＝期末 Accepted − 期初。FY26 期初為 2025 年底 850 MW。`, `MW`],
                     [`　次期新增 MW`, d.years.map(e => e.mwNext), void 0, void 0, `calc`, `下一期新增量；FY30 欄取左欄「FY31 新增 MW」。`, `MW`],
                     [`　全年毛 CapEx（公式）`, d.years.map(e => e.capexFull), void 0, void 0, `calc`, `＝(本期新增×(1−λ)＋次期新增×λ)×每 MW 成本。FY26 應落在公司全年指引 35–39。`],
-                    [`　成長型 CapEx（模型期）`, d.years.map(e => e.capexGrowth), void 0, void 0, `calc`, `FY26 欄＝MAX(全年公式, FY26 下限 ${e.capexFloor26}) − 1H 已認列 16.139。下限代表 2026 年已下單、無論情境都會發生的支出；保守情境的公式值低於下限，差額即「轉向太晚」的成本。`],
+                    [`　成長型 CapEx（模型期）`, d.years.map(e => e.capexGrowth), void 0, void 0, `calc`, `FY26 欄＝MAX(全年公式, FY26 下限 ${e.capexFloorFY0}) − 1H 已認列 16.139。下限代表 2026 年已下單、無論情境都會發生的支出；保守情境的公式值低於下限，差額即「轉向太晚」的成本。`],
                     [`　GPU 汰換 CapEx`, d.years.map(e => e.refresh), void 0, void 0, `calc`, `＝(本年 − 經濟壽命) 那一年新增的 MW × 每 MW 成本。壽命 ${e.gpuLife} 年：FY29 汰換 2023 年批次（${e.mwYE23} MW，推估）、FY30 汰換 2024 年批次（${e.mwYE24 - e.mwYE23} MW；YE24 ${e.mwYE24} MW 為 S-1 揭露）。三情境相同。`],
                     [`① 毛 CapEx（模型期）`, d.years.map(e => e.gross), void 0, void 0, `tot`, `＝成長型＋汰換。含 OEM 融資的非現金部分。`],
                     [`　對照：v1.4 手動值`, d.years.map(e => e.capexOld), void 0, void 0, void 0, `舊版未與 MW 連動，FY28–30 對每年 +1.5–1.7 GW 明顯不足。`],
