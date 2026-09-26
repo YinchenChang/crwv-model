@@ -1,13 +1,18 @@
 # v4.2：產生 README「company.json 欄位說明」的表格。意義、單位、換公司時的處理寫在下方；「目前數值」與「程式使用」直接讀 company.json 與程式碼。
 # company.json 有欄位沒寫說明、或說明了不存在的欄位，都直接報錯——新增欄位時先在這裡補說明，再重新產生。
-# 用法：python3 scripts/fields_doc.py > out/fields.md，把輸出貼回 README「company.json 欄位說明」的各區表格。
+# 用法：python3 scripts/fields_doc.py --write（直接更新 README「company.json 欄位說明」的「填表慣例」起至各區表格結束）；
+#       --check 只比對、不一致即失敗（verify.sh 步驟 0b）；不帶參數則印出。
 import json, sys, re, os
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CO = json.load(open(os.path.join(REPO, 'company.json'), encoding='utf-8'))
 CODE = ''.join(open(f'{REPO}/{f}', encoding='utf-8').read() for f in
                ['segA.js', 'segB.js', 'segC.js', 'segD.js', 'segE.js', 'tail.js', 'build_xlsx.py', 'cmp31.js'])
-P5 = '五期（首期模型部分＋4 個完整財年；目前為 FY26 下半年、FY27、FY28、FY29、FY30）'
+sys.path.insert(0, REPO); import calendar_q, vlog  # 5a：期間字樣與版本號自動帶入（滾動或升版後不必手改）
+CAL = calendar_q.derive(CO)
+VER = vlog.VLOG[-1][0]
+PL = [f"{CAL['periods'][0]} {CAL['stubWord']}" if CAL['stubMonths'] < 12 else CAL['periods'][0]] + CAL['periods'][1:]  # FY26 下半年、FY27…
+P5 = f"五期（首期模型部分＋4 個完整財年；目前為 {'、'.join(PL)}）"
 M, C, K = '必改', '檢查', '可沿用'   # 換公司：必改＝公司特有資料；檢查＝判斷值，依新公司重新評估；可沿用＝口徑或方法，通常不必改
 
 # (路徑, 意義, 單位, 換公司)
@@ -18,6 +23,7 @@ F = [
  ('texts.fy0EquityNote', '首期股權／可轉債的組成說明（含年初至今與首期模型的金額；v4.5；可用期間佔位符 «P0»、«YTD»、«STUB»）', '文字', M),
  ('texts.sourceLine', '頁首的資料來源一行（例如最新 10-Q、法說、期後 8-K；v4.5）', '文字', M),
  ('texts.cashTaxNote', '年初至今現金稅的說明（損益與評價頁；v4.5）', '文字', M),
+ ('texts.mwYearEndNotes', '各年底主動電力的來源說明，以年份為鍵（Excel「輸入與假設」說明欄；5a）', '物件（文字）', M),
  ('meta.sourceOrderNote', '資料來源的先後與衝突時的取捨原則（畫面說明文字）', '文字', M),
  ('calendar.fiscalYearEndMonth', '財年結束月份（v4.5；CoreWeave 12、Oracle 5）', '月', M),
  ('calendar.latestQuarterFiled', '最新已申報（10-Q／10-K）的財季，格式 FYyyQn；驅動年度首期滾動與評價日（v4.5）', '文字', M),
@@ -77,9 +83,9 @@ F = [
  ('legacy.interestV14', '舊版（v1.4）手動利息，只供畫面對照', 'US$bn 清單', K),
  ('defaults.scenario', '開啟時的預設情境（low／base／high）', '文字', C),
  ('defaults.lambda', '提前支出比例：次年才上線的 MW，其建置支出落在前一年的比例', '比例', C),
- ('defaults.mwYE25', '上一年底主動電力（第一期期初）', 'MW', M),
+ ('defaults.mwYearEnd', '各年底主動電力，以年份為鍵（例如 "2025": 850）：首期期初取首期前一財年末；GPU 汰換批次＝各年新增 MW（5a；列入滾動檢查）', 'MW 物件', M),
  ('defaults.mw31', '模型期後一年新增 MW 的預設值（情境切換時改用 scenarios.mw31）', 'MW', C),
- ('defaults.capexFloor26', '第一年資本支出下限（已下單的承諾，取公司指引下緣）', 'US$bn', M),
+ ('defaults.capexFloorFY0', '首期所屬財年的全年資本支出下限（已下單的承諾，取公司指引下緣；首期＝下限 − 年初至今實際認列）', 'US$bn', M),
  ('defaults.gpuLife', 'GPU 經濟壽命（決定汰換時點與折舊）', '年', C),
  ('defaults.revScale', '每 MW 年收入整體倍數（反向 DCF 與壓力測試用，1＝不調整）', '倍', K),
  ('defaults.capexScale', '每 MW 建置成本整體倍數（1＝不調整）', '倍', K),
@@ -91,14 +97,13 @@ F = [
  ('defaults.eqPx', '新股發行參考價（預設＝現價）', 'US$', M),
  ('defaults.eqDisc', '新股發行折價', '比例', C),
  ('defaults.eqCapPct', '每年股權募資上限（占現市值）；輸入 9 以上視為無上限', '比例', C),
+ ('defaults.eqCapShares', '股權年上限的股數基礎：現市值＝發行參考價 × 此股數（5a；評價日時點，列入滾動檢查）', 'bn', M),
  ('defaults.junkRate', '股權上限用完後的高息債利率', '比例', C),
- ('defaults.mwYE23', '兩年前年底主動電力（推算車隊折舊用）', 'MW', M),
- ('defaults.mwYE24', '一年前年底主動電力', 'MW', M),
- ('defaults.ppe630', '最新季末固定資產毛額', 'US$bn', M),
+ ('defaults.ppeOpen', '最新季末固定資產毛額', 'US$bn', M),
  ('defaults.jvCommit', '已承諾的 JV 出資餘額，各期', 'US$bn 清單', M),
  ('defaults.intCal', '第一期利息校準值（讓模型利息對上公司季度指引）', 'US$bn', M),
- ('defaults.rpoFy26', '最新季末 RPO', 'US$bn', M),
- ('defaults.rpoQ1Add', '季末後新簽、尚未進 RPO 的承諾', 'US$bn', M),
+ ('defaults.rpoOpen', '最新季末 RPO', 'US$bn', M),
+ ('defaults.rpoPendingAdd', '季末後新簽、尚未進 RPO 的承諾', 'US$bn', M),
  ('defaults.rp', 'RPO 在模型期內認列的比例（百分點；應與 rpo.scheduledShare 一致）', '%', M),
  ('defaults.cash', '最新季末現金（第一期期初現金）', 'US$bn', M),
  ('defaults.includeDebt', '是否依到期表攤還既有債務（true＝是；false＝假設全數再融資）', '是／否', K),
@@ -106,6 +111,8 @@ F = [
  ('defaults.atm', '期後股權／可轉債募資淨額（記在第一期）', 'US$bn', M),
  ('defaults.overlay', '電力／維護成本另計（預設關；EBITDA 率已含電費，開啟會重複扣除）', '是／否', K),
  ('defaults.cdsLink', 'CDS 利差是否傳入新債利率（預設關）', '是／否', K),
+ ('defaults.cdsBaseBp', 'CDS 傳入新債利率的門檻：超過此值的部分才傳入（5a）', 'bps', C),
+ ('defaults.cdsPassThrough', 'CDS 超額傳入新債利率的比例（每 1bp 傳入的 bp；5a）', '比例', C),
  ('defaults.linkSites', '具名站點的 MW 是否連動第一期產能下限', '是／否', K),
  ('defaults.linkLeaseTail', '舊模板遺留開關，目前程式未使用', '是／否', K),
  ('defaults.useAvgMw', '收入以平均在役 MW 計（true）或期末存量計（false）', '是／否', K),
@@ -131,6 +138,8 @@ F = [
  ('valuation.price', '現價', 'US$', M), ('valuation.shares', '評價股數（含期後股權發行上限）', 'bn 股', M),
  ('valuation.netDebt', '淨負債（最新季末本金 − 現金）', 'US$bn', M), ('valuation.tax', '稅率', '比例', C),
  ('valuation.nol', '期初可扣抵虧損（NOL）', 'US$bn', M), ('valuation.wacc', '加權平均資金成本 WACC', '比例', C),
+ ('valuation.nolUsePct', 'NOL 每年可抵用上限占應稅所得的比例（美國 80%；依公司稅籍調整；5a）', '比例', C),
+ ('valuation.wcPctOfRevGrowth', '營運資金變動占營收增量的比例（DCF 自由現金流；5a）', '比例', C),
  ('valuation.g', '永續成長率', '比例', C), ('valuation.sbc', '年度股份基礎薪酬', 'US$bn', M),
  ('valuation.maintRatio', '終值的維持性資本支出占折舊比例', '比例', C),
  ('valuation.evEbitda', 'EV/EBITDA 倍數', '倍', C), ('valuation.evYear', 'EV/EBITDA 錨定年度（1＝FY27 … 4＝FY30）', '年度代碼', C),
@@ -148,6 +157,11 @@ F = [
  ('methodology.rating.sellUpsideMaxIfEquityOver', '股權募資超標時，空間小於或等於此值即賣出', '比例（負數）', K),
  ('methodology.rating.sellMarginAlert', '任一情境與賣出門檻的距離小於「現價 × 此值」時，判斷句另外揭露', '比例', K),
  ('methodology.rating.tvShareWarn', '終值占企業價值超過此值時提出警示（融資說明、檢查頁）', '比例', K),
+ ('methodology.checks.capexPerMwBand', '檢查頁：模型期 CapEx 強度（每 MW 百萬美元）的合理區間下端與上端（5a）', 'US$m/MW 清單', C),
+ ('methodology.checks.leaseVsCommitMin', '檢查頁：表外租金路徑 ÷ 已承諾租約至少要達到的倍數（5a）', '倍', C),
+ ('methodology.checks.unsignedRevShareMax', '檢查頁：後段年度依賴未簽約收入的比例上限（5a）', '比例', C),
+ ('methodology.checks.siteRentGapMax', '檢查頁：站點租賃五期租金可能低估的金額上限（5a）', 'US$bn', C),
+ ('methodology.checks.rentVsBenchMin', '檢查頁：模型每 MW 年租金至少要達到「市場基準 × 第三方占比」的比例（5a）', '比例', C),
  ('peers.priceDate', '同業市值的收盤日', '日期', M), ('peers.priceSource', '同業市值來源', '文字', M),
  ('peers.list', '同業，一家一列（HTML Comps 分頁與 Excel「可比公司」頁共用）。欄位：ticker 代號、name 公司名、labelHtml／labelXlsx 兩邊顯示的名稱、roleHtml 定位說明（HTML）、mkt 市值、netDebt 淨負債、rev 近十二個月營收、opl 營業租賃負債、opInc GAAP 營業損益、da 折舊攤銷（以上 US$bn）、asOf 資料期、noteHtml／noteXlsx 兩邊的備註。EV＝市值＋淨負債、EBITDA＝營業損益＋折舊攤銷，由程式計算', '清單', M),
  ('peers.textHtml.headerTip', 'HTML Comps 表標題的浮動說明', '文字', M),
@@ -206,14 +220,14 @@ CF = {
  'contractedGw': ('簽約電力（法說日）', 'GW'), 'contractedGwQ2': ('簽約電力（季末）', 'GW'), 'poweredLandGw': ('已取得電力的土地／選擇權／意向書', 'GW'),
  'yeActiveGw': ('年底主動電力指引', 'GW'), 'gw2030': ('2030 年電力目標', 'GW'), 'dataCenters': ('資料中心數', '座'),
  'capexLo': ('全年資本支出指引下緣', 'US$bn'), 'capexHi': ('全年資本支出指引上緣', 'US$bn'),
- 'q3CapexLo': ('下一季資本支出指引下緣', 'US$bn'), 'q3CapexHi': ('下一季資本支出指引上緣', 'US$bn'),
- 'q3IntLo': ('下一季利息指引下緣', 'US$bn'), 'q3IntHi': ('下一季利息指引上緣', 'US$bn'),
+ 'nextQCapexLo': ('下一季資本支出指引下緣', 'US$bn'), 'nextQCapexHi': ('下一季資本支出指引上緣', 'US$bn'),
+ 'nextQIntLo': ('下一季利息指引下緣', 'US$bn'), 'nextQIntHi': ('下一季利息指引上緣', 'US$bn'),
  'revLo': ('全年營收指引下緣', 'US$bn'), 'revHi': ('全年營收指引上緣', 'US$bn'),
- 'q3RevLo': ('下一季營收指引下緣', 'US$bn'), 'q3RevHi': ('下一季營收指引上緣', 'US$bn'),
+ 'nextQRevLo': ('下一季營收指引下緣', 'US$bn'), 'nextQRevHi': ('下一季營收指引上緣', 'US$bn'),
  'adjOpLo': ('全年調整後營業利益指引下緣', 'US$bn'), 'adjOpHi': ('全年調整後營業利益指引上緣', 'US$bn'),
- 'q3AdjOpLo': ('下一季調整後營業利益指引下緣', 'US$bn'), 'q3AdjOpHi': ('下一季調整後營業利益指引上緣', 'US$bn'),
+ 'nextQAdjOpLo': ('下一季調整後營業利益指引下緣', 'US$bn'), 'nextQAdjOpHi': ('下一季調整後營業利益指引上緣', 'US$bn'),
  'arrLo': ('期末年化經常性收入（ARR）指引下緣', 'US$bn'), 'arrHi': ('期末 ARR 指引上緣', 'US$bn'),
- 'q3NewCommit': ('季末後新增承諾', 'US$bn'), 'priceUp': ('新約漲價幅度', '比例'), 'marginStep': ('新約貢獻率提升', '文字'),
+ 'postQNewCommit': ('季末後新增承諾', 'US$bn'), 'priceUp': ('新約漲價幅度', '比例'), 'marginStep': ('新約貢獻率提升', '文字'),
  'backlogStarted': ('backlog 中已開始交付的比例（法說「>50%」）', '比例'), 'inferenceArr': ('推論服務 ARR（年底）', 'US$bn'), 'otherArr': ('其他服務 ARR', 'US$bn'),
  'convert': ('期後可轉債發行額', 'US$bn'), 'convertNet': ('期後可轉債淨額', 'US$bn'), 'convertCoupon': ('期後可轉債票面利率', '比例'),
  'convertPx': ('轉換價', 'US$'), 'atmShares': ('股權分銷（ATM）上限', 'm 股'), 'price0917': ('9/17 收盤價', 'US$'),
@@ -221,7 +235,7 @@ CF = {
  'cdsMid': ('CDS 中價', 'bps'), 'cdsBidAsk': ('CDS 買／賣價', '文字'), 'cdsRange': ('CDS 近期區間', '文字'), 'cdsPeak': ('CDS 峰值', 'bps'),
  'cdsPeakDate': ('CDS 峰值日期', '日期'), 'cdsLow': ('CDS 低點', 'bps'), 'cdsLowDate': ('CDS 低點日期', '日期'),
  'availability': ('未動用信用額度', 'US$bn'), 'price0918': ('9/18 收盤價', 'US$'), 'priceLast': ('最新收盤價', 'US$'),
- 'priceDate': ('最新收盤價日期', '日期'), 'q3ShortDated': ('期後公告摘要', '文字'), 'ttmRev': ('近十二個月營收', 'US$bn'),
+ 'priceDate': ('最新收盤價日期', '日期'), 'postQShortDated': ('期後公告摘要', '文字'), 'ttmRev': ('近十二個月營收', 'US$bn'),
  'ttmOpInc': ('近十二個月 GAAP 營業損益', 'US$bn'), 'ttmDa': ('近十二個月折舊攤銷', 'US$bn'),
  'ttmOpLease': ('近十二個月營業租賃成本', 'US$bn'), 'mktCapLast': ('CRWV 市值（Comps 用；與同業同一收盤日 peers.priceDate，v4.3 起不隨現價更新）', 'US$bn'), 'nextEarn': ('下次財報時間', '文字'),
 }
@@ -261,7 +275,13 @@ SECT = [('meta', '基本資料'), ('calendar', '期間與日期（v4.5）'), ('a
         ('callFacts', '法說會與期後事項'), ('scenarios', '三個擴張情境'), ('legacy', '舊版對照值'),
         ('defaults', '預設假設（畫面上可調的輸入）'), ('valuation', '評價參數'), ('methodology', '評價方法與評等門檻'), ('peers', '同業比較（Comps）'),
         ('quarterly', '季度層（v4.4）'), ('varianceReasons', '差異原因（v4.4）'), ('texts', '公司特有的說明文字（v4.5；隨資料更新）')]
-out, shown = [], set()
+out, shown = ['**填表慣例**',
+               '- 金額單位是**十億美元（US$bn）**，例如 4.653 代表 46.53 億美元；另有標示的例外：每股（US$）、每 MW 建置成本（百萬美元／MW，US$m/MW）、股數（十億股，bn）。',
+               '- 「比例」寫成小數（0.25＝25%）；標示「%」的欄位寫成百分點（25＝25%）。兩種寫法沿用既有程式，不可混用。',
+               f"- 「清單」依模型期順序填：{'、'.join(PL)}，共 {len(PL)} 格（除非另有說明）。",
+               '- 文字中的來源標記沿用 [Verified]（已公開可查）、[Interested-party]（利害關係人說法）、[Derived]（由其他數字換算）、[Assumed]（判斷值）。',
+               '- 「換公司」欄：**必改**＝公司特有的資料；**檢查**＝判斷值，要依新公司重新評估；**可沿用**＝口徑或方法，通常不必改。',
+               f"- 下表的「目前數值」是 {CO['meta']['company']} {VER} 的值（版本號讀 `vlog.py`、期間讀 `calendar_q.py`，由本檔自動帶入）；過長的文字只顯示開頭。表格由 `scripts/fields_doc.py` 產生，新增欄位時先在該檔補說明，再重新產生。"], set()
 for top, title in SECT:
     out.append(f'\n### `{top}`：{title}\n')
     if top in ('latestQuarter', 'callFacts'):
@@ -279,4 +299,21 @@ for top, title in SECT:
             shown.add(p)
             out.append(f'| `{p}` | {m} | {u} | {fmt(get(p))} | {c} |')
 assert shown == {p for p, *_ in F}, set(p for p, *_ in F) - shown
-print('\n'.join(out))
+txt = '\n'.join(out)
+if sys.argv[1:2] == ['--check']:  # 5a：README「填表慣例」起至各區表格結束，須與本檔輸出相同（verify.sh 步驟 0b）
+    R = open(os.path.join(REPO, 'README.md'), encoding='utf-8').read().split('\n')
+    a = next(i for i, l in enumerate(R) if l.startswith('**填表慣例**'))
+    b = next(i for i, l in enumerate(R) if i > a and l.startswith('## '))
+    cur = '\n'.join(R[a:b]).strip('\n')
+    if cur != txt.strip('\n'):
+        import difflib
+        print('README 欄位說明與 company.json／fields_doc.py 不一致（執行 python3 scripts/fields_doc.py --write 更新）：')
+        print('\n'.join(list(difflib.unified_diff(cur.split('\n'), txt.strip('\n').split('\n'), lineterm='', n=0))[:20])); sys.exit(1)
+    print('README 欄位說明與 company.json 一致'); sys.exit(0)
+if sys.argv[1:2] == ['--write']:  # 直接更新 README 的對應區段
+    R = open(os.path.join(REPO, 'README.md'), encoding='utf-8').read().split('\n')
+    a = next(i for i, l in enumerate(R) if l.startswith('**填表慣例**'))
+    b = next(i for i, l in enumerate(R) if i > a and l.startswith('## '))
+    open(os.path.join(REPO, 'README.md'), 'w', encoding='utf-8').write('\n'.join(R[:a] + txt.strip('\n').split('\n') + [''] + R[b:]))
+    print('README 欄位說明已更新'); sys.exit(0)
+print(txt)

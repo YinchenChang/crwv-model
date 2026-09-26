@@ -7,6 +7,7 @@ var PERIODS = COMPANY_DATA.periods,
   SOURCE_ORDER_NOTE = COMPANY_DATA.meta.sourceOrderNote,
   ACTUAL_1H = COMPANY_DATA.ytdActual, // v4.5：年初至今實際（原 actual1H）
   CALQ = COMPANY_DATA.cal, // v4.5：期間與日期（calendar_q.py 推算）
+  PERIOD_FY = PERIODS.map(p => 2000 + +p.slice(2)), // 5a：各期財年年份（FYyy → 20yy）
   RPO_SCHEDULED_SHARE = COMPANY_DATA.rpo.scheduledShare,
   RPO_BUCKET_W = COMPANY_DATA.rpo.bucketWeights,
   RPO_Q3ADD_W = RPO_BUCKET_W.map(e => e / RPO_SCHEDULED_SHARE),
@@ -39,7 +40,9 @@ var PERIODS = COMPANY_DATA.periods,
   DBT_P = DEBT_TOOLS.reduce((e, t) => e + t[4], 0),
   DBT_I = DEBT_TOOLS.reduce((e, t) => e + t[3] * t[4], 0),
   DBT_R = DBT_I / DBT_P,
-  CONV_I = COMPANY_DATA.debt.convertible.principal * COMPANY_DATA.debt.convertible.coupon,
+  CONV_P = COMPANY_DATA.debt.convertible.principal,
+  CONV_I = CONV_P * COMPANY_DATA.debt.convertible.coupon,
+  CHECK_TH = COMPANY_DATA.methodology.checks, // 5a：連動檢查門檻（Excel「檢查_連動」同一來源）
   CX_OLD = COMPANY_DATA.legacy.capexV14,
   INT_OLD = COMPANY_DATA.legacy.interestV14,
   LEASE_FACTS = COMPANY_DATA.leases.facts,
@@ -150,8 +153,8 @@ function rpoBridge(e) {
 }
 
 function sA(e, t) {
-  let n = e.rpoFy26,
-    r = e.rpoQ1Add,
+  let n = e.rpoOpen,
+    r = e.rpoPendingAdd,
     i = n + r;
   return {
     begin: n,
@@ -200,7 +203,7 @@ function lA(e) {
 function uA(e, t) {
   let n = e.m.rate[t];
   if (!e.cdsLink) return n;
-  let r = (e.cds - 450) / 100 * .4;
+  let r = (e.cds - e.cdsBaseBp) / 100 * e.cdsPassThrough; // 5a：CDS 門檻與傳導比例讀 company.json → defaults
   return Math.max(0, n + r)
 }
 
@@ -213,21 +216,18 @@ function runFunding(e) {
     r = eA(e.sites),
     i = e.rp / 100,
     a = e.cash,
-    MB = [e.mwYE25, ...t.accepted.slice(0, 4)],
+    MB = [e.mwYearEnd[PERIOD_FY[0] - 1], ...t.accepted.slice(0, 4)], // 5a：期初＝首期前一財年末主動電力（defaults.mwYearEnd 以年份為鍵）
     MN = t.accepted.map((e, n) => e - MB[n]),
     MX = t.accepted.map((n, r) => r < 4 ? t.accepted[r + 1] - n : e.mw31),
     CXF = MN.map((t, n) => (t * (1 - e.lambda) + MX[n] * e.lambda) * e.a.costMW[n] * (e.capexScale ?? 1) / 1e3),
-    VIN = {
-      2023: e.mwYE23,
-      2024: e.mwYE24 - e.mwYE23,
-      2025: e.mwYE25 - e.mwYE24
-    },
-    REF = [2026, 2027, 2028, 2029, 2030].map((t, n) => (VIN[t - e.gpuLife] || 0) * e.a.costMW[n] * (e.capexScale ?? 1) / 1e3),
-    CXG = CXF.map((t, n) => n === 0 ? Math.max(t, e.capexFloor26 ?? 0) - ACTUAL_1H.capex : t),
+    VIN = Object.fromEntries(Object.entries(e.mwYearEnd).map(([y, m]) => [y, m - (e.mwYearEnd[y - 1] ?? 0)])), // 各年新增 MW（汰換批次）
+    REF = PERIOD_FY.map( // 5a：期間的財年年份由日曆推算（滾動後不寫死）
+      (t, n) => (VIN[t - e.gpuLife] || 0) * e.a.costMW[n] * (e.capexScale ?? 1) / 1e3),
+    CXG = CXF.map((t, n) => n === 0 ? Math.max(t, e.capexFloorFY0 ?? 0) - ACTUAL_1H.capex : t),
     CX = CXG.map((e, t) => e + REF[t]),
     PPE = [],
     DAF = CXG.map((t, n) => {
-      let r = n === 0 ? e.ppe630 : PPE[n - 1] + CXG[n - 1];
+      let r = n === 0 ? e.ppeOpen : PPE[n - 1] + CXG[n - 1];
       return PPE.push(r), (r + .5 * t) / e.gpuLife * PERIOD_YEARS[n]
     }),
     PB = [],
@@ -241,13 +241,13 @@ function runFunding(e) {
       pc: e.cash,
       Dn: 0,
       fr: e.useFacility ? e.facility : 0,
-      B: e.rpoFy26 + e.rpoQ1Add,
+      B: e.rpoOpen + e.rpoPendingAdd,
       pnr: 0,
       sh: 0
     },
     o = PERIODS.map((n, r) => {
       let L = PERIOD_YEARS[r],
-        o = e.rpoFy26 * (RPO_BUCKET_W[r] / RPO_SCHEDULED_SHARE) * i + e.rpoQ1Add * RPO_Q3ADD_W[r] * i,
+        o = e.rpoOpen * (RPO_BUCKET_W[r] / RPO_SCHEDULED_SHARE) * i + e.rpoPendingAdd * RPO_Q3ADD_W[r] * i,
         s = o,
         c = r === 0 ? e.billableOpen : t.billable[r - 1],
         l = e.useAvgMw ? (c + t.billable[r]) / 2 : t.billable[r],
@@ -279,17 +279,17 @@ function runFunding(e) {
         A = g + nC + svcCash + v,
         j0 = _ + S + IX[r] + e.jvCommit[r] + e.a.div[r] + T + O,
         wRL = uA(e, r) / 100 * L,
-        wRJ = (e.junkRate + (e.cdsLink ? Math.max(0, e.cds - 450) / 1e4 * .4 : 0)) * L,
+        wRJ = (e.junkRate + (e.cdsLink ? Math.max(0, e.cds - e.cdsBaseBp) / 1e4 * e.cdsPassThrough : 0)) * L,
         wI0 = wRL * WF.Dn + wRJ * WF.Jn,
         wPre = a + A + k - j0 - wI0,
         wX = Math.max(0, e.minCash - wPre),
         wB = WF.B - o - nR + e.ctrTerm * Math.max(0, nR / L - WF.pnr),
-        wEx = (e.includeDebt ? PB[r][1] : DBT_P) + 3.7,
+        wEx = (e.includeDebt ? PB[r][1] : DBT_P) + CONV_P, // 5a：評價日後新發可轉債本金讀 company.json → debt.convertible
         wCap = e.debtBacklog * wB - (wEx + WF.Dn),
         wCapD = Math.max(0, wCap, WF.fr),
         wD = Math.min(wCapD, wX / (1 - wRL)),
         wRem = Math.max(0, wX + wRL * wD - wD),
-        wCapEq = e.eqCapPct >= 9 ? 1 / 0 : e.eqCapPct * e.eqPx * .5865 * L,
+        wCapEq = e.eqCapPct >= 9 ? 1 / 0 : e.eqCapPct * e.eqPx * e.eqCapShares * L,
         wEq = Math.min(wRem, wCapEq),
         wJ = (wRem - wEq) / (1 - wRJ),
         E = wI0 + wRL * wD + wRJ * wJ,
@@ -397,7 +397,7 @@ function runFunding(e) {
     d = s(`collected`),
     f = s(`cashCapex`) + s(`op`) + s(`lease`) + s(`interest`) + s(`div`) + s(`debtPay`),
     p = Math.max(0, f - s(`legacy`)) / Math.max(d + s(`newRev`), 1),
-    m = (e.rpoFy26 + e.rpoQ1Add) * (1 - i),
+    m = (e.rpoOpen + e.rpoPendingAdd) * (1 - i),
     h = u * (e.terminal.residual / 100) * (e.terminal.rerent / 100) + m * (e.terminal.margin / 100) - c,
     g = [],
     _ = e => g.push(e);
@@ -415,7 +415,7 @@ function runFunding(e) {
     detail: `營業＋融資租賃未折現付款：2026 餘 1.028+0.012、2027 2.116+0.223、2028 2.306、2029 2.373、2030 2.289、其後 19.023；現值負債 16.319+0.221。對應已入帳 ROU 16.595bn，不含 35.5bn 未起租。`
   }), _({
     id: `off-balance-lease`,
-    ok: l >= (LATEST_Q.offBalanceLease + LATEST_Q.singleSiteCap) * .8,
+    ok: l >= (LATEST_Q.offBalanceLease + LATEST_Q.singleSiteCap) * CHECK_TH.leaseVsCommitMin,
     severity: `watch`,
     title: `表外租賃 $35.5bn＋單站上限 $14.7bn（未起租）`,
     detail: `10-Q Note 8：已簽約未起租租賃未折現 $35.5bn（2026–2029 起租、7–16 年），另有單站 393 MW 按造價計租、上限 $14.7bn／16 年，以及 355 MW 按造價計租（金額未定）未含在 35.5 內。模型「表外現金租金」五期 ${e.a.newLease.reduce((e,t)=>e+t,0).toFixed(1)} + 尾端 = ${l.toFixed(0)}bn，為已承諾 50.2bn 的 ${(l/50.2).toFixed(1)} 倍：8 GW 路徑需要的新租約多數尚未簽署，路徑高於已承諾是假設而非錯誤；低於 80% 才標示不一致。`
@@ -525,7 +525,7 @@ function runFunding(e) {
     ok: o[0].capexFull >= 35 && o[0].capexFull <= 39,
     severity: o[0].capexFull >= 35 && o[0].capexFull <= 39 ? `ok` : `watch`,
     title: `毛 CapEx 由 MW 推導：FY26 全年 ${o[0].capexFull.toFixed(1)}（指引 35–39）`,
-    detail: `公式＝(本期新增 MW×(1−λ)＋次期新增 MW×λ)×每 MW 成本。YE25 ${e.mwYE25} MW（Q4 法說 >850）→ YE26 ${t.accepted[0]} MW、λ ${(e.lambda*100).toFixed(0)}%、每 MW $${e.a.costMW[0]}m。五期（FY26 為下半年）合計 ${CX.reduce((e,t)=>e+t,0).toFixed(1)}，v1.4 手動值 ${CX_OLD.reduce((e,t)=>e+t,0)}，差 ${(CX.reduce((e,t)=>e+t,0)-CX_OLD.reduce((e,t)=>e+t,0)).toFixed(1)}——舊值對 FY28–30 每年 +1.5–1.7 GW 明顯不足。FY26 指引把每 MW 成本釘在約 $32–37m（λ 25–45%）；GPU 汰換的維持性 CapEx 未納入。`
+    detail: `公式＝(本期新增 MW×(1−λ)＋次期新增 MW×λ)×每 MW 成本。YE25 ${e.mwYearEnd[PERIOD_FY[0] - 1]} MW（Q4 法說 >850）→ YE26 ${t.accepted[0]} MW、λ ${(e.lambda*100).toFixed(0)}%、每 MW $${e.a.costMW[0]}m。五期（FY26 為下半年）合計 ${CX.reduce((e,t)=>e+t,0).toFixed(1)}，v1.4 手動值 ${CX_OLD.reduce((e,t)=>e+t,0)}，差 ${(CX.reduce((e,t)=>e+t,0)-CX_OLD.reduce((e,t)=>e+t,0)).toFixed(1)}——舊值對 FY28–30 每年 +1.5–1.7 GW 明顯不足。FY26 指引把每 MW 成本釘在約 $32–37m（λ 25–45%）；GPU 汰換的維持性 CapEx 未納入。`
   }), _({
     id: `fleet-da`,
     ok: !0,
@@ -537,12 +537,12 @@ function runFunding(e) {
     ok: !0,
     severity: `watch`,
     title: `GPU 汰換 CapEx：FY29 ${o[3].refresh.toFixed(1)}、FY30 ${o[4].refresh.toFixed(1)}`,
-    detail: `2023／2024 年批次在第 ${e.gpuLife} 年汰換（YE24 360 MW 為 S-1 揭露，YE23 ${e.mwYE23} MW 為推估）。汰換取代已折舊完的設備，不增加折舊基礎。法說稱 A100 續約至 2029——舊世代可延長使用，汰換可能遞延，此處取壽命年限為基準。`
+    detail: `2023／2024 年批次在第 ${e.gpuLife} 年汰換（YE24 360 MW 為 S-1 揭露，YE23 ${Object.values(e.mwYearEnd)[0]} MW 為推估）。汰換取代已折舊完的設備，不增加折舊基礎。法說稱 A100 續約至 2029——舊世代可延長使用，汰換可能遞延，此處取壽命年限為基準。`
   }), _({
     id: `capex-floor`,
-    ok: o[0].capexFull < (e.capexFloor26 ?? 0) ? !1 : !0,
+    ok: o[0].capexFull < (e.capexFloorFY0 ?? 0) ? !1 : !0,
     severity: `watch`,
-    title: o[0].capexFull < (e.capexFloor26 ?? 0) ? `FY26 CapEx 公式值 ${o[0].capexFull.toFixed(1)} 低於下限 ${e.capexFloor26}：差額 ${(e.capexFloor26 - o[0].capexFull).toFixed(1)} 為轉向太晚的成本` : `FY26 CapEx 公式值 ${o[0].capexFull.toFixed(1)} 高於下限 ${e.capexFloor26}`,
+    title: o[0].capexFull < (e.capexFloorFY0 ?? 0) ? `FY26 CapEx 公式值 ${o[0].capexFull.toFixed(1)} 低於下限 ${e.capexFloorFY0}：差額 ${(e.capexFloorFY0 - o[0].capexFull).toFixed(1)} 為轉向太晚的成本` : `FY26 CapEx 公式值 ${o[0].capexFull.toFixed(1)} 高於下限 ${e.capexFloorFY0}`,
     detail: `2026 年的支出多已下單（全年指引 35–39，1H 已認列 16.1）。若 FY27 的新增 MW 少到公式值低於下限，代表已採購的設備超過實際上線需求——這部分在模型中不帶來額外收入。`
   }), _({
     id: `debt-sched-int`,
@@ -558,7 +558,7 @@ function runFunding(e) {
     detail: `10-Q Note 3：兩個 JV 承諾最高 1.7bn，預計 2026 年內履行，入夥後須依協議追加出資。H1 已付 0.55 → 餘 1.15 落在 FY26 下半年（v1.4 只放 0.6）。後續增資 ${e.a.div.join('／')} 未揭露，屬 [Assumed]。`
   }), _({
     id: `rent-bench`,
-    ok: o[4].rentPerMW >= siteBenchQ(e.sites) * LEASE_FACTS.share * .8,
+    ok: o[4].rentPerMW >= siteBenchQ(e.sites) * LEASE_FACTS.share * CHECK_TH.rentVsBenchMin,
     severity: `watch`,
     title: `租金檢驗：模型每 MW 年租金 FY30 $${o[4].rentPerMW.toFixed(2)}m vs 市場基準 $${siteBenchQ(e.sites).toFixed(2)}m`,
     detail: `具名站點（Helios／Polaris Forge 1／Core Scientific，1,516 MW、合約 36.2bn）加權每 MW 年租金 $${siteBenchQ(e.sites).toFixed(2)}m。模型從 FY26 $${o[0].rentPerMW.toFixed(2)}m 降到 FY30 $${o[4].rentPerMW.toFixed(2)}m；以第三方租賃占比 ${LEASE_FACTS.share*100}% 計，五期租金可能低估約 ${o.reduce((e,t)=>e+(t.rentBench-t.lease),0).toFixed(1)}bn，集中在 FY29–30。本版未改為 MW 驅動，避免與 CapEx 同時放大同一條 8 GW 假設。`
