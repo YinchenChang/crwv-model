@@ -175,7 +175,7 @@ function AM({
             })
           }), (0, $.jsx)(kM, {
             label: `EV/EBITDA 錨定年度`,
-            hint: `${PERIOD_LABELS[n.evYear ?? 1]}${(n.evYear ?? 1) > 1 ? `（以 WACC 折回 FY27 末）` : ``}`,
+            hint: `${PERIOD_LABELS[n.evYear ?? 1]}${(n.evYear ?? 1) >= CALQ.evDiscFrom ? `（以 WACC 折回 ${CALQ.targetText}）` : ``}`,
             children: (0, $.jsx)(`div`, {
               className: `grid grid-cols-4 gap-1 rounded-lg bg-surface p-1`,
               children: [1, 2, 3, 4].map(e => (0, $.jsx)(`button`, {
@@ -886,7 +886,7 @@ function AM({
             })
           }), (0, $.jsx)(hdrQ, {
             title: `錨定年度 × 倍數：EV/EBITDA 腿的方法敏感度（即時重算）`,
-            tip: `EV/EBITDA 腿＝（錨定年 EBITDA × 倍數 − 錨定年末淨負債）÷ 錨定年末股數，FY28 起以 WACC 折回 FY27 末（目標價時點）。6x 是以單位經濟推算的穩態倍數上緣（約 3.4–6.0x），套在利潤率仍在爬坡的 FY27 上並不一致；FY27 年末淨負債也已含 FY28 才產生 EBITDA 的預建 CapEx。黃底為目前設定，綠底為不低於現價。`,
+            tip: `EV/EBITDA 腿＝（錨定年 EBITDA × 倍數 − 錨定年末淨負債）÷ 錨定年末股數，${CALQ.evDiscText}（目標價時點）。6x 是以單位經濟推算的穩態倍數上緣（約 3.4–6.0x），套在利潤率仍在爬坡的 FY27 上並不一致；FY27 年末淨負債也已含 FY28 才產生 EBITDA 的預建 CapEx。黃底為目前設定，綠底為不低於現價。`,
             w: 480
           }), (0, $.jsx)(EvGridQ, {
             st: t,
@@ -982,7 +982,7 @@ function AM({
             children: (0, $.jsx)(`tbody`, {
               children: [
                 [`DCF（已含 CapEx）`, c.perShare, `不重複扣缺口`],
-                [`EV/EBITDA（融資後）`, f, `${PERIOD_LABELS[r.evK]} 末淨負債 ${Y(r.ndA,1)}bn ／ ${PERIOD_LABELS[r.evK]} 末股數 ${Y(r.shA,3)}bn${r.evK > 1 ? `；以 WACC 折回 FY27 末` : ``}`],
+                [`EV/EBITDA（融資後）`, f, `${PERIOD_LABELS[r.evK]} 末淨負債 ${Y(r.ndA,1)}bn ／ ${PERIOD_LABELS[r.evK]} 末股數 ${Y(r.shA,3)}bn${r.evK >= CALQ.evDiscFrom ? `；以 WACC 折回 ${CALQ.targetText}` : ``}`],
               ].map(([e, t, n]) => (0, $.jsxs)(`tr`, {
                 className: `border-t border-border`,
                 children: [(0, $.jsx)(`td`, {

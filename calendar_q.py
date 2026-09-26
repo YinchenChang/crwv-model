@@ -80,6 +80,11 @@ def derive(co):
         # EV/EBITDA 腿：錨定期 k（1..N）期末折回目標價時點的年數＝k − evOffset；evOffset＝目標價時點年數 − 首期長度
         'evOffset': num(tgt_m / 12 - stub / 12),
     }
+    # 目標價時點的寫法：現行口徑＝「FY27 末」；評價日＋12 個月＝日期。EV/EBITDA 腿自哪個錨定期起需要折回（折回年數 > 0）
+    out['targetText'] = f"{out['periods'][1]} 末" if hz == 'firstFullYearEnd' else out['targetDate']
+    k0 = next(k for k in range(1, len(out['periods'])) if k - out['evOffset'] > 0)
+    out['evDiscFrom'] = k0
+    out['evDiscText'] = (f"{out['periods'][k0]} 起" if k0 > 1 else '') + f"以 WACC 折回 {out['targetText']}"
     out['tokens'] = tokens(out)
     return out
 
@@ -94,7 +99,7 @@ def tokens(c):
         '«STUBEND»': c['periodEnd'][0][5:], '«STUBYR»': c['periodEnd'][0][:4], '«LASTYR»': c['periodEnd'][-1][:4],
         '«YTDL»': c['ytdLabel'] or na, '«YTDA»': c['ytdShortAlt'] or na, '«YTDW»': c['ytdWord'] or na, '«YTD»': c['ytdShort'] or na,
         '«STUBL»': c['stubLabel'], '«STUBW»': c['stubWord'], '«STUB»': c['stubShort'] or '全年',
-        '«P0»': p[0], '«P1»': p[1], '«PL»': p[-1],
+        '«P0»': p[0], '«P1»': p[1], '«PL»': p[-1], '«TGT»': c['targetText'], '«EVDISC»': c['evDiscText'], '«EVDISCS»': c['evDiscText'].replace('以 WACC ', ''),
         '«PREVFYE»': c['prevFYE'], '«FYSTART»': _next_day(c['prevFYE']), '«VMMDD»': c['valuationDate'][5:], '«YTDQS»': '＋'.join(f'Q{i}' for i in range(1, y // 3 + 1)) or na,
         '«FY0»': f"{p[0]}＝{c['ytdShort']} 實際＋{c['stubWord']}模型" if y else f'{p[0]}＝全年模型',
     }

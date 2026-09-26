@@ -449,7 +449,7 @@ MAINT = gi(r, "終值維持性 CapEx 占 D&A", "%", V['maintRatio'], "終值不�
 TAX = gi(r, "稅率", "%", V['tax'], "美國聯邦名目稅率 [Verified]", PCT); r += 1
 NOL0 = gi(r, "期初 NOL（虧損扣抵）", "US$bn", V['nol'], f"«VMD» 累積虧損約 {V['nol']:.1f}；抵扣上限為應稅所得 80% [Derived]"); r += 1
 EVEBITDA = gi(r, "EV/EBITDA 倍數", "x", V['evEbitda'], "穩態合理倍數約 3.4–6.0x（轉換率 ÷ (WACC − g)），6x 為上緣 [Assumed]", MULT); r += 1
-EVY = gi(r, "EV/EBITDA 錨定年度（1＝FY27、2＝FY28、3＝FY29、4＝FY30）", "", V['evYear'], "FY28 起以 WACC 折回 FY27 末（目標價時點）；v3.6 起預設 FY29：接近穩態利潤率，與 6x 穩態倍數一致 [Assumed]", NUM0, True); r += 1
+EVY = gi(r, "EV/EBITDA 錨定年度（1＝FY27、2＝FY28、3＝FY29、4＝FY30）", "", V['evYear'], "«EVDISC»（目標價時點）；v3.6 起預設 FY29：接近穩態利潤率，與 6x 穩態倍數一致 [Assumed]", NUM0, True); r += 1
 from openpyxl.worksheet.datavalidation import DataValidation as _DV
 _dv = _DV(type="whole", operator="between", formula1="1", formula2="4", allow_blank=False, showErrorMessage=True, error="請輸入 1–4", errorTitle="錨定年度")
 ws.add_data_validation(_dv); _dv.add(EVY.split("!")[1].replace("$", ""))
@@ -1544,7 +1544,7 @@ DCF_PS = f"C{d0+7}"
 DCF_BAD = f"C{d0+11}"
 
 r += 1
-r = section(ws, r, "倍數法（錨定年度，預設 FY29；FY28 起折回 FY27 末）")
+r = section(ws, r, "倍數法（錨定年度，預設 FY29；«EVDISCS»）")
 m0 = r
 _EB = f"{PL}$D${ebitda_v}:$G${ebitda_v}"
 _TD = f"'各期收支'!$D${FRR['td']}:$G${FRR['td']}"
@@ -1556,7 +1556,7 @@ mult_lines = [
     ("錨定年度企業價值（倍數 × EBITDA）", None, NUM, None),
     ("錨定年度末淨負債（總債務 − 現金）", f"=INDEX({_TD},1,{EVY})-INDEX({_CU},1,{EVY})", NUM, "含瀑布新債"),
     ("錨定年度末股數（含瀑布新股）", f"=INDEX({_SHR},1,{EVY})", '0.000', "損益股數：SBC 逐年稀釋＋瀑布新股"),
-    ("折回 FY27 末的折現因子", f"=1/(1+{WACC})^({EVY}-{OFF})", '0.000', "以 WACC 折現 [Assumed]"),
+    ("折回 «TGT»的折現因子", f"=1/(1+{WACC})^({EVY}-{OFF})", '0.000', "以 WACC 折現 [Assumed]"),
     ("EV/EBITDA 每股（融資後）", None, USD, "以 0 為下限"),
 ]
 for nm, f, fmt, nt in mult_lines:
@@ -1686,7 +1686,7 @@ RG_PT_CODE = f"C{R0+3}"
 # v3.5：錨定年度 × 倍數矩陣（全為活公式；與 HTML evGrid 同一算法）
 from openpyxl.formatting.rule import CellIsRule as _CIR
 r += 1
-r = section(ws, r, "錨定年度 × 倍數矩陣（每股；FY28 起以 WACC 折回 FY27 末）")
+r = section(ws, r, "錨定年度 × 倍數矩陣（每股；«EVDISC»）")
 ws.cell(row=r, column=9, value="EV/EBITDA 腿＝(錨定年 EBITDA × 倍數 − 錨定年末淨負債) ÷ 錨定年末股數 × 折現因子；加權＝DCF 採用值 × 有效權重 ＋ 腿 × 有效權重。綠底＝不低於現價").font = SMALL
 EVG_M = [3.4, 4.5, 5.0, 6.0, 7.0]
 for kind in ("EV/EBITDA 腿", "加權目標價"):
@@ -2913,7 +2913,7 @@ r = section(ws, r, "3｜現價隱含什麼")
 _E28, _N28, _PTM = CIR("年度｜調整後 EBITDA", 2), CIR("年度｜淨負債", 2), CIR("目標價｜平均")
 srow("隱含｜共識平均目標價隱含 FY28 EV/EBITDA", "x", [f"=({_PTM}*{SH}+{_N28})/{_E28}"], MULT, "＝（共識平均目標價 × 股數＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA")
 srow("隱含｜現價隱含 FY28 EV/EBITDA", "x", [f"=({PX}*{SH}+{_N28})/{_E28}"], MULT, "同一共識 FY28 數字，價格換成現價")
-srow("隱含｜模型方法區間上緣", "x", [f"=MAX({RM_LO},{RM_HI})"], MULT, "模型 EV/EBITDA 腿錨定 FY29 並折回 FY27 末，錨定年度與此不同")
+srow("隱含｜模型方法區間上緣", "x", [f"=MAX({RM_LO},{RM_HI})"], MULT, "模型 EV/EBITDA 腿錨定 FY29 並折回 «TGT»，錨定年度與此不同")
 _i1, _i2, _mh = f"C{SM['隱含｜共識平均目標價隱含 FY28 EV/EBITDA']}", f"C{SM['隱含｜現價隱含 FY28 EV/EBITDA']}", f"C{SM['隱含｜模型方法區間上緣']}"
 srow("隱含｜隱含倍數句", "", [(f'="共識平均目標價 $"&TEXT({_PTM},"0.00")&" 隱含 FY28 EV/EBITDA "&TEXT({_i1},"0.0")&"x，"'
                             f'&IF(ROUND({_i1},1)>{_mh},"高於",IF(ROUND({_i1},1)<{_mh},"低於","等於"))&"模型方法區間上緣 "&{_MT(_mh)}&"x；現價 $"&TEXT({PX},"0.00")&" 隱含 "&TEXT({_i2},"0.0")&"x。"')], bold=True)

@@ -178,7 +178,7 @@ var BLEND_W = COMPANY_DATA.methodology.blendWeights,
   }, {
     method: `EV/EBITDA（錨定年度，可選 FY27–FY30）`,
     capex: `EBITDA 未扣 CapEx`,
-    hole: `不扣缺口：改用錨定年末淨負債（含瀑布新債）與股數（含瀑布新股）；FY28 起以 WACC 折回 FY27 末`,
+    hole: `不扣缺口：改用錨定年末淨負債（含瀑布新債）與股數（含瀑布新股）；${CALQ.evDiscText}`,
     shares: `錨定年末（含 SBC 稀釋與新股）`,
     netDebt: `錨定年末總債務 − 現金`
   }]

@@ -96,7 +96,7 @@ function EvGridQ({ st, o, g, big }) {
   ]);
   return elQ(`div`, { style: { display: `grid`, gridTemplateColumns: `1fr 1fr`, gap: big ? 36 : 20, marginTop: big ? 0 : 8, marginBottom: big ? 0 : 20 } }, [
     tab(`加權目標價（每股）`, G.tgt, `DCF 腿 $${Y(G.dcf, 1)} × ${hA(G.wd * 100, 0)}＋EV/EBITDA 腿 × ${hA((1 - G.wd) * 100, 0)}`),
-    tab(`EV/EBITDA 腿單獨（每股，折回 FY27 末）`, G.leg, `綠底＝不低於現價 $${Y(P, 2)}；折現率＝WACC ${hA(o.wacc * 100, 0)}`)
+    tab(`EV/EBITDA 腿單獨（每股，折回 ${CALQ.targetText}）`, G.leg, `綠底＝不低於現價 $${Y(P, 2)}；折現率＝WACC ${hA(o.wacc * 100, 0)}`)
   ]);
 }
 
@@ -146,7 +146,7 @@ function onePageQ({ cv, qv, TR, f, o, e, rv, scLabel, callTone }) {
     elQ(`div`, { key: `g`, style: { display: `grid`, gridTemplateColumns: `repeat(3, 1fr)`, gap: 8 } }, [
       [`共識平均目標價隱含`, `${Y(cv.impTgt, 1)}x`, `$${Y(PT.mean, 2)}，股數 ${Y(o.shares, 3)}bn`],
       [`現價隱含`, `${Y(cv.impPx, 1)}x`, `$${Y(o.price, 2)}；同一共識 FY28 數字`],
-      [`模型方法區間上緣`, `${multTxt(cv.mHi)}x`, `錨定 ${PERIOD_LABELS[o.evYear ?? 1]}、折回 FY27 末`]
+      [`模型方法區間上緣`, `${multTxt(cv.mHi)}x`, `錨定 ${PERIOD_LABELS[o.evYear ?? 1]}、折回 ${CALQ.targetText}`]
     ].map(([a, b, c]) => elQ(`div`, { key: a, style: { background: `var(--color-card)`, borderRadius: 8, padding: `6px 10px` } }, [
       elQ(`div`, { key: `a`, style: { fontSize: 12, color: `var(--color-muted)` } }, a),
       elQ(`div`, { key: `b`, style: { fontSize: 19, fontWeight: 700, fontVariantNumeric: `tabular-nums` } }, b),
