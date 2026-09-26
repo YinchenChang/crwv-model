@@ -260,7 +260,7 @@ function QuarterTabQ({ d, p, st }) {
     meth = [`營收：${C.periodNames.map((n, j) => `${n} ${HOW[(C.revenueSplit || [])[j] || `equal`]}`).join(`；`)}。`,
       `EBITDA 率：跨季一條直線，同時符合各期年度 EBITDA。調整後營業利益＝調整後 EBITDA − 車隊折舊（依期內平均 PP&E）。`,
       `CapEx：${C.capexSplit === `guidanceAnchor` ? `有季度指引的季取指引中點，其餘季分配期間餘數（` : ``}${qv.drv ? `依季內新增 Accepted MW` : `期內平分`}${C.capexSplit === `guidanceAnchor` ? `）` : ``}。${qv.drv && C.driver.endStartNote ? `MW 起點：${C.driver.endStartNote}。` : ``}`,
-      `差距：營收、CapEx 為比例；利潤類為金額差／利潤率百分點；EBITDA 率為百分點；MW 為差額。差距超過 ${pctQ(qv.tol)}（金額差以比較基準的 ${pctQ(qv.tol)} 計）或模型落在指引區間外時附差異原因；「拆法」＝所屬期間合計差距在門檻內（指引另須在隱含區間內），其餘讀 company.json → varianceReasons。季度層只用於追蹤，不影響年度數字與目標價。`];
+      `差距：營收、CapEx 為比例；利潤類為金額差／利潤率百分點；EBITDA 率為百分點；MW 為差額。需附原因：營收、CapEx、MW 差距超過比較基準的 ${pctQ(qv.tol)}，利潤類利潤率差超過 ${PM_TOL != null ? `${Y(PM_TOL * 100, 1)}pt` : pctQ(qv.tol)}，或模型落在指引區間外。有期間合計時拆解為水準與分配：分配較大為「拆法」、水準較大為「觀點」；其餘讀 company.json → varianceReasons。季度層只用於追蹤，不影響年度數字與目標價。`];
   return elQ(`div`, { className: `space-y-3` }, [
     elQ(hdrQ, { key: `h`, title: `季度追蹤（${Q.label}${Q.reportNote ? `，財報${Q.reportNote}` : ``}）`, tip: `由年度模型拆分（目前情境），季度加總＝年度；只用於追蹤，不影響目標價。實際數讀 company.json → quarterly.actuals。` }),
     elQ(`div`, { key: `s`, className: `flex flex-wrap gap-1` }, qv.Qs.map((q, k) => elQ(`button`, { key: q.key, onClick: () => setSel(k),

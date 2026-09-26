@@ -788,7 +788,8 @@
    "sellMarginAlert": 0.05,
    "tvShareWarn": 0.85
   },
-  "consensusGapTol": 0.05
+  "consensusGapTol": 0.05,
+  "profitMarginTolPt": 0.02
  },
  "peers": {
   "priceDate": "2026-09-21",

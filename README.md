@@ -99,7 +99,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
   - 沒有 MW 資料（`driver.type`＝none）、沒有指引或共識時，對應欄位顯示「不適用」（`scripts/test_quarterly.py` 測試 B）。
 - **第一屏**：焦點季（`quarterly.focus`；Excel J 區「焦點季」）各指標的模型／共識／指引／實際與差距，加一行差異原因；6 季路徑、期間合計核對、拆分方法放次層（預設收合）。
 - **差距（第 4 輪，Andy 決定）**：比例差只用於營收、CapEx；利潤類（調整後 EBITDA、調整後營業利益）列金額差＋利潤率百分點；EBITDA 率為百分點；MW 與淨負債為差額。指引以中點並標位置（高於上緣／區間上半部／下半部／低於下緣）。年度共識對照同一規則（一頁摘要、市場共識分頁、Excel 摘要；判斷門檻仍以比例計）。文字型指引（`guidanceText`，例如 Q4 調整後營業利益率 low teens）只列不計差距。
-- **差異原因（已決定事項 2）**：差距超過 `methodology.consensusGapTol`（5%；金額差以比較基準的 5% 計），或模型落在公司指引區間外時附原因。「拆法」另須所屬期間合計落在隱含指引區間內。原因文字的 `{路徑:格式}` 可用加減（例如 `{c.ebitda-g.adjOpInc:2}`），格式 `s2`＝帶正負號。「拆法」由程式判定（單季超過門檻、所屬期間合計在門檻內）；「觀點」「已知限制」寫在 `varianceReasons`（原因文字的 `{路徑:格式}` 由模型數字帶入，Excel 以文字公式產生同一字串）；找不到即「未歸類」，`check_quarterly.js` 讓建置失敗。年度共識對照（一頁摘要、市場共識分頁、Excel 摘要）同一機制。
+- **差異原因（已決定事項 2）**：需附原因的條件——營收、CapEx、淨負債、MW：差距超過比較基準的 `methodology.consensusGapTol`（5%）；利潤類（調整後 EBITDA、調整後營業利益，年度 EBITDA 亦同）：利潤率差超過 `methodology.profitMarginTolPt`（2pt；第 5 輪）；另外模型落在公司指引區間外也須附原因。分歧判斷句仍用 5% 比例門檻，不受影響。
+- **拆法／觀點的判定（第 5 輪）**：有期間合計（同期各季共識合計、或全年指引中點 − 1H 實際）時拆解季度差距：水準＝(模型期間 − 比較期間) × 比較的季占比；分配＝(模型季占比 − 比較季占比) × 模型期間，兩項相加＝季度差距。分配較大→「拆法」、水準較大→「觀點」（有 varianceReasons 設定時用其類型並附其文字）；原因文字寫出兩項金額（例：Q3 營收 vs 指引 水準 +$0.115bn、分配 +$0.023bn → 觀點）。沒有期間合計時讀 varianceReasons。原因文字的 `{路徑:格式}` 可用加減（例如 `{c.ebitda-g.adjOpInc:2}`），格式 `s2`＝帶正負號。「拆法」由程式判定（單季超過門檻、所屬期間合計在門檻內）；「觀點」「已知限制」寫在 `varianceReasons`（原因文字的 `{路徑:格式}` 由模型數字帶入，Excel 以文字公式產生同一字串）；找不到即「未歸類」，`check_quarterly.js` 讓建置失敗。年度共識對照（一頁摘要、市場共識分頁、Excel 摘要）同一機制。
 - **一頁摘要**：驗證點改為焦點季 3 個指標（`quarterly.keyMetrics`：營收、調整後營業利益、CapEx）；「與市場的差異」加一句差異原因摘要。依精簡原則，方法註腳與最新分析師動作移出一頁摘要（仍在「市場共識」分頁與 Excel I 區）。
 - **核對**：`check_quarterly.js`（季度加總＝年度，誤差 ≤1e-9）；cmp31 每次 313 項；`test_quarterly.py` 以暫存副本測試假設實際數與可移植性，repo 內實際數維持空白。
 
@@ -453,6 +454,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `methodology.blendWeights.pe` | 加權目標價中 EV/EBITDA 的權重（兩者合計 1） | 比例 | 0.55 | 可沿用 |
 | `methodology.rangeMultiples` | 方法區間的 EV/EBITDA 倍數下端與上端 | 倍 清單 | 5、6 | 檢查 |
 | `methodology.consensusGapTol` | 與市場共識比較的判斷句門檻：營收、EBITDA、CapEx 差距絕對值超過此比例即視為分歧（v4.3） | 比例 | 0.05 | 可沿用 |
+| `methodology.profitMarginTolPt` | 利潤類（調整後 EBITDA、調整後營業利益）須附差異原因的門檻：利潤率差超過此百分點（寫成比例，0.02＝2pt）；營收、CapEx、淨負債、MW 仍用 consensusGapTol 的比例門檻；不影響分歧判斷句（v4.4） | 比例 | 0.02 | 可沿用 |
 | `methodology.rating.buyUpsideMin` | 買進：空間（加權目標價 ÷ 現價 − 1）至少要達到的值 | 比例 | 0.25 | 可沿用 |
 | `methodology.rating.buyTvShareMax` | 買進：終值占企業價值須低於此值 | 比例 | 0.9 | 可沿用 |
 | `methodology.rating.sellUpsideMax` | 賣出：空間小於或等於此值即賣出；賣出門檻價＝現價 ×（1＋此值） | 比例（負數） | -0.15 | 可沿用 |

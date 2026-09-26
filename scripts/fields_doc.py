@@ -129,6 +129,7 @@ F = [
  ('methodology.blendWeights.pe', '加權目標價中 EV/EBITDA 的權重（兩者合計 1）', '比例', K),
  ('methodology.rangeMultiples', '方法區間的 EV/EBITDA 倍數下端與上端', '倍 清單', C),
  ('methodology.consensusGapTol', '與市場共識比較的判斷句門檻：營收、EBITDA、CapEx 差距絕對值超過此比例即視為分歧（v4.3）', '比例', K),
+ ('methodology.profitMarginTolPt', '利潤類（調整後 EBITDA、調整後營業利益）須附差異原因的門檻：利潤率差超過此百分點（寫成比例，0.02＝2pt）；營收、CapEx、淨負債、MW 仍用 consensusGapTol 的比例門檻；不影響分歧判斷句（v4.4）', '比例', K),
  ('methodology.rating.buyUpsideMin', '買進：空間（加權目標價 ÷ 現價 − 1）至少要達到的值', '比例', K),
  ('methodology.rating.buyTvShareMax', '買進：終值占企業價值須低於此值', '比例', K),
  ('methodology.rating.sellUpsideMax', '賣出：空間小於或等於此值即賣出；賣出門檻價＝現價 ×（1＋此值）', '比例（負數）', K),

@@ -447,7 +447,7 @@ function consensusView(d, p, o, TR, st) { // d＝runFunding、p＝runValuation�
     up = TR.pt / o.price - 1, gapTh = TR.pt - TR.th,
     head = `${p.call.call}：點位 $${Y(TR.pt, 1)}，較現價 $${Y(o.price, 2)} ${up >= 0 ? `高` : `低`} ${hA(Math.abs(up) * 100, 0)}；情境區間 $${Y(TR.A[0], 1)}–$${Y(TR.A[1], 1)}，方法區間 $${Y(TR.B[0], 1)}–$${Y(TR.B[1], 1)}；點位${gapTh < 0 ? `低於` : `高於`}賣出門檻 $${Y(TR.th, 1)} 達 $${Y(Math.abs(gapTh), 1)}。`;
   // v4.4：差距超過門檻的項目附差異原因（已決定事項 2）；原因與類型讀 company.json → varianceReasons，找不到即為「未歸類」
-  let rsn = rows.flatMap((r, i) => ANN_RSN_KEYS.filter(([, k]) => Math.abs(r.gap[k]) > CONS_TOL).map(([n, k]) => {
+  let rsn = rows.flatMap((r, i) => ANN_RSN_KEYS.filter(([, k]) => k === `ebitda` && PM_TOL != null ? Math.abs(r.gap.ebM) > PM_TOL : Math.abs(r.gap[k]) > CONS_TOL).map(([n, k]) => {
       let c = findRsnQ(`annual`, r.yr, k, `consensus`),
         ctx = { m: r.m, c: r.c, gap: r.gap, y: { mwNew: y[i].mwNew, accepted: d.m.accepted[i], costMW: st ? st.a.costMW[i] : NaN }, in: st || {} };
       return { yr: r.yr, key: k, name: n, gap: r.gap[k], gtxt: annGapTxtQ(r, k), type: c ? c.type : `未歸類`, text: c ? fillTokQ(c.text, ctx) : `差異原因待補` }
@@ -458,6 +458,7 @@ function consensusView(d, p, o, TR, st) { // d＝runFunding、p＝runValuation�
 
 // v4.4：差異原因的共用工具（年度共識對照與季度層共用）。類型固定為四種（已決定事項 2）；原因文字中的 {路徑:格式} 由模型數字帶入。
 var RSN_TYPES = [`觀點`, `拆法`, `已知限制`, `未歸類`],
+  PM_TOL = COMPANY_DATA.methodology.profitMarginTolPt ?? null, // v4.4 第 5 輪：利潤類附原因門檻（利潤率百分點，比例表示；0.02＝2pt）
   ANN_RSN_KEYS = [[`營收`, `rev`], [`EBITDA`, `ebitda`], [`CapEx`, `capex`], [`淨負債`, `nd`]],
   VAR_RSN = (COMPANY_DATA.varianceReasons || {}).list || [];
 function cfgPathQ(s, root) { // 以「a.b.0」路徑讀值（company.json 或指定物件）
@@ -480,9 +481,9 @@ function fillTokQ(t, ctx) {
 function findRsnQ(scope, period, metric, vs) {
   return VAR_RSN.find(x => x.scope === scope && (x.period === `*` || x.period === period) && x.metric === metric && (x.vs === `*` || x.vs === vs))
 }
-function reasonSumQ(rsn, tail) { // 例：超過 5% 的 6 項差距：觀點 6 項；原因見…
+function reasonSumQ(rsn, tail) { // 例：需附原因的 6 項差距：觀點 6 項；原因見…
   if (!rsn.length) return ``;
-  return `超過 ${pctQ(CONS_TOL)} 的 ${rsn.length} 項差距：${RSN_TYPES.map(t => [t, rsn.filter(x => x.type === t).length]).filter(([, n]) => n).map(([t, n]) => `${t} ${n} 項`).join(`、`)}；${tail}`
+  return `需附原因的 ${rsn.length} 項差距：${RSN_TYPES.map(t => [t, rsn.filter(x => x.type === t).length]).filter(([, n]) => n).map(([t, n]) => `${t} ${n} 項`).join(`、`)}；${tail}`
 }
 
 // v4.4：季度層（company.json → quarterly）。由年度模型拆分，只用於追蹤：不回寫任何年度數字、不影響目標價。
@@ -490,10 +491,10 @@ function reasonSumQ(rsn, tail) { // 例：超過 5% 的 6 項差距：觀點 6 �
 // EBITDA 率為跨季一條直線（兩個期間時同時符合兩期年度 EBITDA；一個期間時為常數）；車隊折舊依期內平均 PP&E（與年度公式相同）；
 // 調整後營業利益＝EBITDA − 折舊；CapEx 依季內新增 Accepted MW（線性內插時等於平分）。沒有 MW 驅動（driver.type≠mw）時一律平分，MW 列為「不適用」。
 var QTR_CFG = COMPANY_DATA.quarterly || null;
-function valTxtQ(x, u) { // 數值文字：US$bn → $1.23bn；MW → 1,500 MW；% → 58.8%；負號用 −
+function valTxtQ(x, u, dp) { // 數值文字：US$bn → $1.23bn（dp 位，預設 2）；MW → 1,500 MW；% → 58.8%；負號用 −
   if (x == null || !Number.isFinite(x)) return `不適用`;
   let s = x < 0 ? `−` : ``, a = Math.abs(x);
-  return u === `%` ? `${s}${Y(a * 100, 1)}%` : u === `MW` ? `${s}${Y(a, 0)} MW` : `${s}$${Y(a, 2)}bn`
+  return u === `%` ? `${s}${Y(a * 100, 1)}%` : u === `MW` ? `${s}${Y(a, 0)} MW` : `${s}$${Y(a, dp ?? 2)}bn`
 }
 function rngTxtQ(g, u) { // 指引區間文字：$3.45–3.60bn
   let n = x => `${x < 0 ? `−` : ``}${Y(Math.abs(x), u === `MW` ? 0 : 2)}`;
@@ -502,8 +503,8 @@ function rngTxtQ(g, u) { // 指引區間文字：$3.45–3.60bn
 function qPosQ(x, g) { // 相對指引區間的位置
   return x > g[1] ? `高於上緣` : x < g[0] ? `低於下緣` : x >= (g[0] + g[1]) / 2 ? `區間上半部` : `區間下半部`
 }
-function dTxtQ(g, u) { // 金額差文字：+$0.10bn／−25 MW
-  return g == null || !Number.isFinite(g) ? `不適用` : `${g < 0 ? `−` : `+`}${valTxtQ(Math.abs(g), u)}`
+function dTxtQ(g, u, dp) { // 金額差文字：+$0.10bn／−25 MW
+  return g == null || !Number.isFinite(g) ? `不適用` : `${g < 0 ? `−` : `+`}${valTxtQ(Math.abs(g), u, dp)}`
 }
 function gTxtQ(g, kind, u, pt) { // 差距文字（v4.4 第 4 輪）：ratio＝比例（營收、CapEx）；diff＝金額差，利潤類另附利潤率百分點；pt＝百分點
   if (g == null || !Number.isFinite(g)) return `不適用`;
@@ -578,19 +579,26 @@ function quarterlyView(d, p, st) { // d＝runFunding、p＝runValuation、st＝�
         P = q.period, same = inP(P), pn = C.periodNames[pers.indexOf(P)],
         ctx = { q: { ...Object.fromEntries(Object.keys(model).map(k => [k, model[k][i]])), da: da[i], mwAvg: avgBil[i] }, lq: LATEST_Q,
           c: QE[q.key] || {}, g: Object.fromEntries(C.metrics.map(x => [x.key, gmidOf(q.key, x.key)])) },
-        // 「拆法」：所屬期間合計（年度模型）與期間合計的共識／隱含指引差距在門檻內；指引另須落在隱含指引區間內
-        aggC = () => { let v = same.map(j => consOf(m, Qs[j].key)); if (!v.every(x => x != null) || !annual[m.key]) return null;
-          let b = v.reduce((a, c) => a + c, 0), g = gapOf(annual[m.key](P), b, kind); return { g, ok: !exc(g, b, kind) } },
-        aggG = () => { let pg = ((C.periodGuidance || {})[P] || {})[m.key]; if (!pg || !annual[m.key]) return null;
-          let ls = pg.less || 0, b = (pg.range[0] + pg.range[1]) / 2 - ls, a = annual[m.key](P), g = gapOf(a, b, kind);
-          return { g, ok: !exc(g, b, kind) && a >= pg.range[0] - ls && a <= pg.range[1] - ls } },
-        push = (vs, g, gp, agg) => { let c = findRsnQ(`quarter`, q.key, m.key, vs), gt2 = gTxtQ(g, kind, u, gp), A = agg ? agg() : null;
-          r.rsn.push(A && A.ok ? { vs, gap: g, gtxt: gt2, type: `拆法`, text: `${pn} 合計差距 ${gTxtQ(A.g, kind, u)}` }
-            : c ? { vs, gap: g, gtxt: gt2, type: c.type, text: fillTokQ(c.text, ctx) } : { vs, gap: g, gtxt: gt2, type: `未歸類`, text: `差異原因待補` }) };
+        // 期間合計的比較基準：共識＝同期各季共識合計（全部季都有才算）；指引＝全年指引中點 − 已實現（periodGuidance）
+        aggC = () => { let v = same.map(j => consOf(m, Qs[j].key)); return v.every(x => x != null) ? v.reduce((a, c) => a + c, 0) : null },
+        aggG = () => { let pg = ((C.periodGuidance || {})[P] || {})[m.key]; return pg ? (pg.range[0] + pg.range[1]) / 2 - (pg.less || 0) : null },
+        pc = x => `${Y(x * 100, 1)}%`, CN = { consensus: `共識合計`, guidance: `指引隱含` },
+        // 差異原因（v4.4 第 5 輪）：有期間合計時拆解差距——水準＝(模型期間 − 比較期間) × 比較的季占比；分配＝(模型季占比 − 比較季占比) × 模型期間；
+        // 兩項相加＝季度差距。分配較大→「拆法」；水準較大→「觀點」（或 varianceReasons 設定的類型與依據）。沒有期間合計時讀 varianceReasons
+        push = (vs, g, gp, cq, agg) => { let c = findRsnQ(`quarter`, q.key, m.key, vs), gt2 = gTxtQ(g, kind, u, gp), B = agg ? agg() : null, AP = annual[m.key] ? annual[m.key](P) : null;
+          if (B != null && AP != null && B !== 0 && AP !== 0 && cq != null && mv != null) {
+            let cS = cq / B, mS = mv / AP, lv = (AP - B) * cS, al = (mS - cS) * AP;
+            return r.rsn.push(Math.abs(al) > Math.abs(lv)
+              ? { vs, gap: g, gtxt: gt2, type: `拆法`, text: `分配 ${dTxtQ(al, u, 3)}（${q.label} 占 ${pn} ${pc(mS)}，${CN[vs]} ${pc(cS)}）；水準 ${dTxtQ(lv, u, 3)}` }
+              : { vs, gap: g, gtxt: gt2, type: c ? c.type : `觀點`, text: `水準 ${dTxtQ(lv, u, 3)}（${pn} 模型 ${valTxtQ(AP, u, 3)}，${CN[vs]} ${valTxtQ(B, u, 3)}）；分配 ${dTxtQ(al, u, 3)}${c ? `；${fillTokQ(c.text, ctx)}` : ``}` })
+          }
+          r.rsn.push(c ? { vs, gap: g, gtxt: gt2, type: c.type, text: fillTokQ(c.text, ctx) } : { vs, gap: g, gtxt: gt2, type: `未歸類`, text: `差異原因待補` }) },
+        // 需附原因：營收、CapEx、淨負債、MW＝差距超過比較基準的門檻；利潤類（marginOf）＝利潤率差超過 methodology.profitMarginTolPt（未設定時沿用比較基準門檻）
+        need = (g, b, p_) => RM && PM_TOL != null && p_ != null ? Math.abs(p_) > PM_TOL : exc(g, b, kind);
       if (kind !== `pt`) {
-        if (exc(r.mc, cv, kind)) push(`consensus`, r.mc, r.mcP, aggC);
-        if (exc(r.mg, gmid, kind) || (gd && mv != null && (mv > gd[1] || mv < gd[0]))) push(`guidance`, r.mg, r.mgP, aggG); // 落在指引區間外也須附原因
-        if (exc(r.am, mv, kind)) { let c = findRsnQ(`quarter`, q.key, m.key, `actual`);
+        if (need(r.mc, cv, r.mcP)) push(`consensus`, r.mc, r.mcP, cv, aggC);
+        if (need(r.mg, gmid, r.mgP) || (gd && mv != null && (mv > gd[1] || mv < gd[0]))) push(`guidance`, r.mg, r.mgP, gmid, aggG); // 落在指引區間外也須附原因
+        if (need(r.am, mv, r.amP)) { let c = findRsnQ(`quarter`, q.key, m.key, `actual`);
           if (c) r.rsn.push({ vs: `actual`, gap: r.am, gtxt: gTxtQ(r.am, kind, u, r.amP), type: c.type, text: fillTokQ(c.text, ctx) }) }
       }
       return r
