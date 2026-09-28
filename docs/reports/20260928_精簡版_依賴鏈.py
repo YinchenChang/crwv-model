@@ -47,44 +47,32 @@ def closure(targets):
         for d in deps.get(k) or []: st.append(d)
     return seen
 def rng(sh,ref): return cells_of(sh,ref)
+# 第 2 輪修訂：目標 4 改為季度追蹤整張；目標 2 加「總債務 ÷ EBITDA」；另加錨定矩陣與核心檢查
+def rows(sh,rs): 
+    ws=wb[sh]; return [(sh,r,c) for r in rs for c in range(1,ws.max_column+1) if kind.get((sh,r,c))=='f']
+q=wb['季度追蹤']
 T={
  'G1 三情境目標價與評等': rng('評價_DCF與目標價','C48:D70')+rng('摘要','C5:D15'),
- 'G2 資金缺口與股權稀釋': rng('各期收支','C39:G41')+rng('各期收支','C58:G70'),
- 'G3 共識與指引差異及原因': rng('摘要','C17:E48')+rng('摘要','C51:C54'),
- 'G4 季度追蹤（焦點季）': rng('摘要','C61:G67'),
+ 'G1b 錨定×倍數矩陣（穩健性一行）': rows('評價_DCF與目標價',range(74,86)),
+ 'G2 資金缺口與股權稀釋': rng('各期收支','C39:G41')+rng('各期收支','C58:G70')+rows('資產負債_新債與新股',[31]),
+ 'G3 共識與指引差異及原因': rng('摘要','C17:E48')+rng('摘要','C51:C54')+rows('摘要',[69]),
+ 'G4 季度追蹤（整張：焦點季第一屏＋實際數比較＋原因＋核對）': rows('季度追蹤',range(1,q.max_row+1))+rng('摘要','C61:G67'),
  'G5 反向 DCF 摘要': rng('摘要','C55:E58'),
+ 'G8 核心檢查（現金橋、季度核對）': rows('各期收支',range(74,85))+rows('檢查_連動',[5]),
 }
-allk=set(); out={}
+allk=set()
 for n,t in T.items():
     s=closure(t); allk|=s
-    f=sum(1 for k in s if kind.get(k)=='f'); i=sum(1 for k in s if kind.get(k)=='n')
-    out[n]=(f,i,len({k[0] for k in s if k in kind}))
-    print(n,'公式',f,'數值輸入',i,'涉及分頁',sorted({k[0] for k in s if k in kind}))
-F=sum(1 for k,v in kind.items() if v=='f'); N=sum(1 for v in kind.values() if v=='n')
-fa=sum(1 for k in allk if kind.get(k)=='f'); na=sum(1 for k in allk if kind.get(k)=='n')
-print('全部 公式',F,'數值',N,'｜聯集 公式',fa,'數值',na)
+    print(n,'公式',sum(1 for k in s if kind.get(k)=='f'),'數值輸入',sum(1 for k in s if kind.get(k)=='n'))
+F=sum(1 for v in kind.values() if v=='f'); N=sum(1 for v in kind.values() if v=='n')
+print('全部 公式',F,'數值',N,'｜聯集 公式',sum(1 for k in allk if kind.get(k)=='f'),'數值',sum(1 for k in allk if kind.get(k)=='n'))
 per={}
 for k,v in kind.items():
     d=per.setdefault(k[0],[0,0,0,0])
     if v=='f': d[0]+=1; d[1]+= k in allk
     if v=='n': d[2]+=1; d[3]+= k in allk
 for s,d in per.items(): print(s,'公式 %d→%d 數值 %d→%d'%tuple(d))
-# 單獨看目標價（G1）：不在 G1 前導集合內的公式數＝可刪而不改目標價
-g1=closure(T['G1 三情境目標價與評等'])
-print('G1 以外的公式',F-sum(1 for k in g1 if kind.get(k)=='f'))
-print('----- 輸入與假設 各列：是否在聯集／G1 內')
+rs={(k[0],k[1]) for k in allk if k in kind}
+print('保留列',len(rs),'標籤字數',sum(len(v) for (s,r) in rs for v in [wb[s].cell(r,1).value] if isinstance(v,str) and not v.startswith('=')))
 ws=wb['輸入與假設']
-for r in range(1,ws.max_row+1):
-    ks=[('輸入與假設',r,c) for c in range(3,9) if ('輸入與假設',r,c) in kind and kind[('輸入與假設',r,c)]!='t']
-    if not ks: continue
-    a=str(ws.cell(r,1).value)[:38]
-    print(r,a,'| U' if any(k in allk for k in ks) else '| -','G1' if any(k in g1 for k in ks) else '--', [ws.cell(r,c).value for c in range(3,5)])
-print('----- 精簡版估計：保留列的 A 欄標籤字數')
-rows={(k[0],k[1]) for k in allk if k in kind}
-lab=0; nrows=0; per2={}
-for (s,r) in rows:
-    v=wb[s].cell(r,1).value
-    if isinstance(v,str) and not v.startswith('='):
-        lab+=len(v); nrows+=1; per2[s]=per2.get(s,0)+1
-print('保留列',len(rows),'標籤字數',lab, per2)
-tr=sum(wb[s].max_row for s in wb.sheetnames); print('全部列',tr)
+print('輸入列（數值）不在聯集：',[ (r,str(ws.cell(r,1).value)[:18]) for r in range(1,ws.max_row+1) if any(kind.get(('輸入與假設',r,c))=='n' for c in range(3,9)) and not any(('輸入與假設',r,c) in allk for c in range(3,9))])
