@@ -23,6 +23,7 @@ F = [
  ('texts.fy0EquityNote', '首期股權／可轉債的組成說明（含年初至今與首期模型的金額；v4.5；可用期間佔位符 «P0»、«YTD»、«STUB»）', '文字', M),
  ('texts.sourceLine', '頁首的資料來源一行（例如最新 10-Q、法說、期後 8-K；v4.5）', '文字', M),
  ('texts.cashTaxNote', '年初至今現金稅的說明（損益與評價頁；v4.5）', '文字', M),
+ ('texts.customerConcentration', '客戶集中的一句（檢查頁第一屏；精簡版在摘要的檢查區第一行；已決定事項 9；PR #12）', '文字', M),
  ('texts.mwYearEndNotes', '各年底主動電力的來源說明，以年份為鍵（Excel「輸入與假設」說明欄；5a）', '物件（文字）', M),
  ('meta.sourceOrderNote', '資料來源的先後與衝突時的取捨原則（畫面說明文字）', '文字', M),
  ('calendar.fiscalYearEndMonth', '財年結束月份（v4.5；CoreWeave 12、Oracle 5）', '月', M),

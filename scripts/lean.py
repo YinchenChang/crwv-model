@@ -1,7 +1,8 @@
 # 精簡版（PR #12；已決定事項 13）：由建好的完整版 Excel 刪減出精簡版 Excel——不另寫模型公式，數字與完整版相同。
 # 做法：scripts/lean_deps.py 算出精簡版目標的依賴鏈（以「分頁＋A 欄列名稱」定義目標，整列保留的不動點），
 #   以 LibreOffice（UNO）刪除依賴鏈外的分頁與列（LibreOffice 刪列時自動改寫所有參照），並清除 I 欄起不被任何公式引用的說明文字（移除清單 B13）。
-#   另寫出精簡版的 outline 對照（舊列號 → 新列號）供 fix_outline.py 使用。
+#   再依 MERGES 把小分頁整塊併入目的分頁底部（LibreOffice 搬移時自動改寫引用）。
+#   另寫出精簡版的 outline 對照（舊列號 → 新列號）供 fix_outline.py 使用，以及合併對照（*_merges.json）供 lean_check.py 找格。
 # 之後的處理與完整版相同：recalc → fix_outline（本檔寫出的 outline）→ fix_datatable → verify_ooxml；再以 scripts/lean_check.py 與完整版逐項比較。
 # 用法：python3 scripts/lean.py 完整版.xlsx 精簡版.xlsx [完整版 outline.json，預設 out/outline.json] [精簡版 outline 輸出，預設 out/outline_lean.json]
 import sys, os, json, shutil
@@ -15,6 +16,7 @@ full, lean = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
 ol_in = sys.argv[3] if len(sys.argv) > 3 else os.path.join(ROOT, 'out', 'outline.json')
 ol_out = sys.argv[4] if len(sys.argv) > 4 else os.path.join(ROOT, 'out', 'outline_lean.json')
 NOTE_COL = 9  # I 欄起為說明欄（build_xlsx.py 慣例）
+MERGES = [('評價_反向DCF', '評價_DCF與目標價'), ('檢查_連動', '摘要'), ('資產負債_新債與新股', '各期收支')]  # (來源, 目的)：來源整塊併到目的底部
 
 A = analyse(full)
 wbx, keep_cells = A['wb'], A['keep']
@@ -48,13 +50,33 @@ with Workbook(lean, timeout=90) as wb:
             if blocks and blocks[-1][0] == r + 1: blocks[-1][0] = r
             else: blocks.append([r, r])
         for a, b in blocks: sh.Rows.removeByIndex(a - 1, b - a + 1)
+    # 分頁合併（第 6 輪，Andy 核可第一批 3 組；已決定事項 9 逐組核可）：來源分頁整塊搬到目的分頁底部（空一列），
+    # LibreOffice 搬移儲存格時自動改寫所有引用（與剪下貼上相同），再刪除空的來源分頁。
+    from com.sun.star.table import CellAddress
+    moved = {}
+    for src, dst in MERGES:
+        if not (doc.Sheets.hasByName(src) and doc.Sheets.hasByName(dst)): continue
+        ssh, dsh = doc.Sheets.getByName(src), doc.Sheets.getByName(dst)
+        c1 = ssh.createCursor(); c1.gotoEndOfUsedArea(False); ra = c1.RangeAddress
+        c2 = dsh.createCursor(); c2.gotoEndOfUsedArea(False); start = c2.RangeAddress.EndRow + 2   # 0 起算：空一列
+        src_rng = ssh.getCellRangeByPosition(0, 0, ra.EndColumn, ra.EndRow).RangeAddress
+        dest = CellAddress(); dest.Sheet = dsh.RangeAddress.Sheet; dest.Column = 0; dest.Row = start
+        dsh.moveRange(dest, src_rng)
+        doc.Sheets.removeByName(src)
+        moved[src] = (dst, start + 1)   # 來源第 1 列在目的分頁的列號（1 起算）
     from com.sun.star.beans import PropertyValue
     pv = PropertyValue(); pv.Name = 'FilterName'; pv.Value = 'Calc MS Excel 2007 XML'
     doc.storeToURL(Path(lean).as_uri(), (pv,))
 
 ol = json.load(open(ol_in, encoding='utf-8'))
-json.dump({s: [[rowmap[s][hr], lv, col] for hr, lv, col in v if hr in rowmap[s]] for s, v in ol.items() if s in rowmap},
-          open(ol_out, 'w', encoding='utf-8'), ensure_ascii=False)
+lean_ol = {}
+for s, v in ol.items():
+    if s not in rowmap: continue
+    dst, off = moved.get(s, (s, 1))
+    lean_ol.setdefault(dst, []).extend([rowmap[s][hr] + off - 1, lv, col] for hr, lv, col in v if hr in rowmap[s])
+json.dump(lean_ol, open(ol_out, 'w', encoding='utf-8'), ensure_ascii=False)
+json.dump({s: d for s, (d, _) in moved.items()}, open(os.path.splitext(ol_out)[0] + '_merges.json', 'w', encoding='utf-8'), ensure_ascii=False)
 F = sum(1 for k in A['keep'] if A['kind'].get(k) == 'f')
-print(f"精簡版：刪除分頁 {len(drop_sheets)} 張（{'、'.join(drop_sheets)}）；保留 {len(keep)} 張、{sum(len(v) for v in keep.values())} 列、公式 {F} 個；"
+print(f"精簡版：刪除分頁 {len(drop_sheets)} 張（{'、'.join(drop_sheets)}）；合併 {len(moved)} 組（{'、'.join(f'{a}→{b}' for a, (b, _) in moved.items())}）；"
+      f"最後 {len(keep) - len(moved)} 張、{sum(len(v) for v in keep.values())} 列、公式 {F} 個；"
       f"清除說明 {sum(len(v) for v in notes.values())} 格 → {lean}")

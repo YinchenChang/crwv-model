@@ -693,7 +693,7 @@ function AM({
                   [`FY30 每 MW 年收入（US$m）`, Y(RV.rev30, 1), Number.isFinite(RV.R) ? Y(RV.rev30 * RV.R, 1) : `不可達`, Number.isFinite(RV.R) ? hA((RV.R - 1) * 100, 0) : `—`, `期末 ARR 指引隱含約 $10.0–10.5m；7 月新約漲價約 25%`],
                   [`每 MW 建置成本（US$m）`, Y(RV.cost30, 1), Number.isFinite(RV.C) ? Y(RV.cost30 * RV.C, 1) : `不可達`, Number.isFinite(RV.C) ? hA((RV.C - 1) * 100, 0) : `—`, `FY26 指引隱含約 $32–37m；Blackwell／Rubin 世代每 MW 成本上升`],
                   [`穩態 EBITDA 率（FY30）`, hA(RV.eb30 * 100, 1), Number.isFinite(RV.Eb) ? hA(RV.Eb * 100, 1) : `不可達（>99%）`, Number.isFinite(RV.Eb) ? `${Y((RV.Eb - RV.eb30) * 100, 1)} pt` : `—`, `Q2 實際 59%；由下而上推算上緣約 67–71%`],
-                  [`（對照）加權目標價＝現價所需每 MW 年收入`, Y(RV.rev30, 1), Number.isFinite(RV.Rt) ? Y(RV.rev30 * RV.Rt, 1) : `不可達`, Number.isFinite(RV.Rt) ? hA((RV.Rt - 1) * 100, 0) : `—`, `含 EV/EBITDA ${Y(n.evEbitda,1)}x（${PERIOD_LABELS[n.evYear ?? 1]}）腿；非純反向 DCF`]
+                  [`（對照）加權目標價＝現價所需每 MW 年收入`, Y(RV.rev30, 1), Number.isFinite(RV.Rt) ? Y(RV.rev30 * RV.Rt, 1) : `不可達`, Number.isFinite(RV.Rt) ? hA((RV.Rt - 1) * 100, 0) : `—`, `含倍數法（EV/EBITDA ${Y(n.evEbitda,1)}x，${PERIOD_LABELS[n.evYear ?? 1]}）；非純反向 DCF`]
                 ].map((e, t) => (0, $.jsx)(`tr`, {
                   children: e.map((e, n) => (0, $.jsx)(`td`, {
                     style: {
@@ -885,8 +885,8 @@ function AM({
               })]
             })
           }), (0, $.jsx)(hdrQ, {
-            title: `錨定年度 × 倍數：EV/EBITDA 腿的方法敏感度（即時重算）`,
-            tip: `EV/EBITDA 腿＝（錨定年 EBITDA × 倍數 − 錨定年末淨負債）÷ 錨定年末股數，${CALQ.evDiscText}（目標價時點）。6x 是以單位經濟推算的穩態倍數上緣（約 3.4–6.0x），套在利潤率仍在爬坡的 FY27 上並不一致；FY27 年末淨負債也已含 FY28 才產生 EBITDA 的預建 CapEx。黃底為目前設定，綠底為不低於現價。`,
+            title: `錨定年度 × 倍數：倍數法的方法敏感度（即時重算）`,
+            tip: `倍數法＝（錨定年 EBITDA × 倍數 − 錨定年末淨負債）÷ 錨定年末股數，${CALQ.evDiscText}（目標價時點）。6x 是以單位經濟推算的穩態倍數上緣（約 3.4–6.0x），套在利潤率仍在爬坡的 FY27 上並不一致；FY27 年末淨負債也已含 FY28 才產生 EBITDA 的預建 CapEx。黃底為目前設定，綠底為不低於現價。`,
             w: 480
           }), (0, $.jsx)(EvGridQ, {
             st: t,
@@ -952,7 +952,7 @@ function AM({
               })
             }, KI))
           }), (() => {
-            // v3.4：左表若全部相同，說明原因（DCF 腿截斷／EV/EBITDA 腿只看錨定年）
+            // v3.4：左表若全部相同，說明原因（DCF 法截斷／倍數法只看錨定年）
             let G = [0, .1, .2, .3].flatMap(q => [.1, .2, .5, 99].map(cp => {
                 let st = {
                     ...t,
@@ -975,7 +975,7 @@ function AM({
               yrs = [...new Set(G.flatMap(e => e.yrs))].sort();
             return (0, $.jsx)(`p`, {
               className: `mt-2 text-xs leading-relaxed text-muted`,
-              children: hi - lo < .05 ? `左表 16 格皆為 $${Y(lo,1)}，計算正確但此表在目前設定下不具鑑別力：(1) DCF 腿股權價值為負（未截斷每股 ${mA(rl,1)} 至 ${mA(rh,1)}，確實隨折價與上限變動），被 ${n.dcfMode === `option` ? `選擇權模式壓縮` : `0 截斷`}；(2) EV/EBITDA 腿以 ${PERIOD_LABELS[n.evYear ?? 1]} 末淨負債與股數計算，而股權與高息債只出現在 ${yrs.join('、') || '—'}${yrs.every(y => y > PERIOD_LABELS[n.evYear ?? 1]) ? `，不影響錨定年` : ``}。每格下方小字為五期股權｜高息債（$bn），可看出融資組合確有變化；右表（0.4x）股權需求提前，兩腿都會反映。` : `左表範圍 $${Y(lo,1)}–$${Y(hi,1)}；每格下方小字為五期股權｜高息債（$bn）。`
+              children: hi - lo < .05 ? `左表 16 格皆為 $${Y(lo,1)}，計算正確但此表在目前設定下不具鑑別力：(1) DCF 法股權價值為負（未截斷每股 ${mA(rl,1)} 至 ${mA(rh,1)}，確實隨折價與上限變動），被 ${n.dcfMode === `option` ? `選擇權模式壓縮` : `0 截斷`}；(2) 倍數法以 ${PERIOD_LABELS[n.evYear ?? 1]} 末淨負債與股數計算，而股權與高息債只出現在 ${yrs.join('、') || '—'}${yrs.every(y => y > PERIOD_LABELS[n.evYear ?? 1]) ? `，不影響錨定年` : ``}。每格下方小字為五期股權｜高息債（$bn），可看出融資組合確有變化；右表（0.4x）股權需求提前，兩種評價方法都會反映。` : `左表範圍 $${Y(lo,1)}–$${Y(hi,1)}；每格下方小字為五期股權｜高息債（$bn）。`
             })
           })(), (0, $.jsx)(`table`, {
             className: `mt-4 w-full text-sm`,
@@ -1012,7 +1012,15 @@ function AM({
               body: `$${Y(TR.B[0],1)}–$${Y(TR.B[1],1)}`,
               hint: `目前輸入，EV/EBITDA 倍數換成 ${multTxt(TR.mults[0])}x 與 ${multTxt(TR.mults[1])}x；${TR.pos}。`
             })]
-          }), m.notes.length ? (0, $.jsx)(`ul`, {
+          }), (() => {  // PR #12：穩健性與關鍵假設（只顯示 Excel 建置時快照；改了輸入後灰字並加註）
+            const SV = sensView(TR, t);
+            return SV ? (0, $.jsxs)(`div`, {
+              className: `mt-4 rounded-md border p-3 text-xs leading-relaxed ${SV.stale ? `text-muted opacity-60` : ``}`,
+              children: [(0, $.jsx)(`p`, { className: `font-semibold`, children: `穩健性與關鍵假設（Excel 建置時快照，預設輸入）` }),
+                ...[SV.flip, SV.cons, SV.wacc, SV.key].map((s, i) => (0, $.jsx)(`p`, { className: i === 1 ? `text-muted` : ``, children: s }, i)),
+                SV.stale ? (0, $.jsx)(`p`, { className: `font-semibold`, children: `輸入已變動，快照未更新（重新建置後才會反映）` }) : null]
+            }) : null
+          })(), m.notes.length ? (0, $.jsx)(`ul`, {
             className: `mt-4 space-y-1 text-xs leading-relaxed text-muted`,
             children: m.notes.map(e => (0, $.jsxs)(`li`, {
               children: [`— `, e]

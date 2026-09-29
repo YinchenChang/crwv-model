@@ -77,8 +77,9 @@ if (( rc == 0 )); then ok "反向 DCF：Excel 求解，rv_snap.json 與 Excel �
 step "3c. 穩健性與關鍵假設：以 Excel 求解（scripts/sens_solve.py；精簡版 PR #12，兩版共用）"
 set +e; python3 scripts/sens_solve.py "$XLSX"; rc=$?; set -e
 if (( rc == 3 )); then  # 快照有變動：sens_snap.json 已更新，重建 Excel 後再解一次須無變動
-  echo "sens_snap.json 已更新：重建 Excel"
-  python3 build_xlsx.py "$XLSX" && python3 scripts/recalc.py "$XLSX" 120 >/dev/null || { bad "重建 Excel（穩健性快照更新後）"; finish; }
+  echo "sens_snap.json 已更新：重建 Excel 與 HTML（HTML 內嵌快照）"
+  python3 build_xlsx.py "$XLSX" && python3 scripts/recalc.py "$XLSX" 120 >/dev/null \
+    && python3 build_html_portable.py "$VER" "$HTML" "$DATE" docs/template_v3_3.html >/dev/null || { bad "重建 Excel／HTML（穩健性快照更新後）"; finish; }
   set +e; python3 scripts/sens_solve.py "$XLSX"; rc=$?; set -e
 fi
 if (( rc == 0 )); then ok "穩健性與關鍵假設：Excel 求解，sens_snap.json 與 Excel 一致"; else bad "穩健性與關鍵假設求解（代碼 $rc）"; finish; fi
@@ -92,12 +93,15 @@ if python3 fix_datatable.py "$XLSX"; then ok "fix_datatable"; else bad "fix_data
 step "5. verify_ooxml"
 if python3 verify_ooxml.py "$XLSX"; then ok "verify_ooxml：OOXML OK"; else bad "verify_ooxml"; fi
 
+step "5a. 用語規則（CLAUDE.md 用語表；scripts/check_terms.py；PR #12）"
+if python3 scripts/check_terms.py "$HTML" "$XLSX"; then ok "用語規則：repo 與成品皆無舊用語"; else bad "用語規則"; fi
+
 step "5b. 精簡版 Excel：由完整版刪減 → 重算 → outline → 模擬運算表 → OOXML → 與完整版逐項一致（scripts/lean.py、lean_check.py；PR #12）"
 if python3 scripts/lean.py "$XLSX" "$LEAN_XLSX" "$OUT/outline.json" "$OUT/outline_lean.json" \
    && python3 scripts/recalc.py "$LEAN_XLSX" 120 && python3 fix_outline.py "$LEAN_XLSX" "$OUT/outline_lean.json" \
    && python3 fix_datatable.py "$LEAN_XLSX" && python3 verify_ooxml.py "$LEAN_XLSX"; then ok "精簡版 Excel：刪減、重算 0 錯誤、OOXML OK"
 else bad "精簡版 Excel 建置"; fi
-if python3 scripts/lean_check.py "$XLSX" "$LEAN_XLSX"; then ok "精簡版 vs 完整版：三情境 × 兩種 DCF 模式逐項一致"; else bad "精簡版 vs 完整版"; fi
+if python3 scripts/lean_check.py "$XLSX" "$LEAN_XLSX" "$OUT/outline_lean_merges.json"; then ok "精簡版 vs 完整版：三情境 × 兩種 DCF 模式逐項一致"; else bad "精簡版 vs 完整版"; fi
 
 step "5c. 離線開啟檢查（已決定事項 11：單一檔案、無網路請求、console 無錯誤、關鍵數字正常顯示）"
 if python3 scripts/check_offline.py "$HTML" "$XLSX"; then ok "離線開啟：新建 HTML"; else bad "離線開啟：新建 HTML"; fi
@@ -130,10 +134,29 @@ if (( VS_DIST )); then
   step "9. 與 dist/ 成品比對"
   python3 crawl.py "$DIST_HTML" "$OUT/crawl_dist.json"
   python3 crawl.py "$HTML" "$OUT/crawl_new.json"
-  if python3 - "$OUT/crawl_dist.json" "$OUT/crawl_new.json" <<'EOF'
+  if python3 - "$OUT/crawl_dist.json" "$OUT/crawl_new.json" "${EXPECT:-}" <<'EOF'
 import sys, json, difflib
 a, b = (json.load(open(p)) for p in sys.argv[1:3])
 pa, pb = a['pages'], b['pages']
+# 預期差異（PR #12）：EXPECT 檔的「替換 舊 => 新」套用在 dist 的畫面文字；「畫面新增 行首文字」＝新版中以此開頭的行為預期新增，比對前移除
+rep, add = [], []
+if len(sys.argv) > 3 and sys.argv[3]:
+    for ln in open(sys.argv[3], encoding='utf-8'):
+        ln = ln.strip()
+        if ln.startswith('替換 ') and ' => ' in ln: o, n_ = ln[3:].split(' => ', 1); rep.append((o.strip(), n_.strip()))
+        elif ln.startswith('畫面新增 '): add.append(ln[5:].strip())
+def _r(s):
+    for o, n_ in rep: s = s.replace(o, n_)
+    return s
+pa = {k: _r(v) for k, v in pa.items()}
+n_add = 0
+def _d(s):
+    global n_add
+    keep = [l for l in s.splitlines() if not any(l.strip().startswith(x) for x in add)]
+    n_add += len(s.splitlines()) - len(keep); return '\n'.join(keep)
+if add:  # 有預期新增的畫面行時，兩邊都忽略空白行（新增段落之間的空行不帶資訊）
+    pb = {k: _d(v) for k, v in pb.items()}; print(f'預期新增的畫面行 {n_add} 行（EXPECT 畫面新增）')
+    pa, pb = ({k: '\n'.join(l for l in v.splitlines() if l.strip()) for k, v in x.items()} for x in (pa, pb))
 n = sum(len(v) for v in pa.values())
 diff = [k for k in sorted(set(pa) | set(pb)) if pa.get(k) != pb.get(k)]
 print(f'畫面：dist {len(pa)} 個、新版 {len(pb)} 個頁面／分頁，約 {n:,} 字；差異 {len(diff)} 個；頁面錯誤 dist {len(a["errors"])}、新版 {len(b["errors"])}')

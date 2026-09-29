@@ -12,8 +12,13 @@ a, b = sys.argv[1], sys.argv[2]; vals = '--values' in sys.argv; by_label = '--by
 IGN = [x for o in sys.argv if o.startswith('--ignore=') for x in o.split('=', 1)[1].split(',') if x]
 
 
+REPL = []  # --expect 的「替換 舊 => 新」（PR #12 第 6 輪：用語統一只改文字）：比對前先把兩檔字串中的舊用語換成新用語
+
+
 def norm(v):
-    if isinstance(v, str): return re.sub(r'v\d\.\d', 'vX', v)
+    if isinstance(v, str):
+        for a_, b_ in REPL: v = v.replace(a_, b_)
+        return re.sub(r'v\d\.\d', 'vX', v)
     if hasattr(v, 'ref') and not isinstance(v, (int, float)):  # 模擬運算表／陣列公式物件（v4.1）：依屬性比對，不比物件身分
         return f'{type(v).__name__}{sorted((k, str(x)) for k, x in vars(v).items())}'
     return v
@@ -21,11 +26,14 @@ def norm(v):
 
 # --expect=檔案（v4.5）：預期差異清單，每行「工作表!儲存格  原因」（# 開頭為註解）。清單內的格有差異時另列「預期差異」、不計入差異數；
 # 清單內的格若沒有差異也會列出（提醒清單過期）。每個任務只列經說明的格，升版後清空。
+# 「替換 舊 => 新」（PR #12）：比對前先把兩檔所有字串中的舊文字換成新文字（純用語修改），其餘照常比對。
 EXP, SEC_RENAME, ROW_RENAME = {}, {}, {}  # SEC_RENAME：新版區段標題 → 舊版（「區段 舊標題 => 新標題」；該區段的列仍以列名稱配對比對）
 for o in sys.argv:
     if o.startswith('--expect='):
         for ln in open(o.split('=', 1)[1], encoding='utf-8'):
             ln = ln.strip()
+            if ln.startswith('替換 ') and ' => ' in ln:  # 文字替換（用語統一；套用在所有字串，含列名稱、區段標題與公式內的文字）
+                o_, n_ = ln[3:].split(' => ', 1); REPL.append((o_.strip(), n_.strip())); continue
             if ln.startswith('列 ') and ' => ' in ln:  # 列名稱改名（同一區段內）
                 o_, n_ = ln[2:].split(' => ', 1); ROW_RENAME[norm(n_.strip())] = norm(o_.strip()); continue
             if ln.startswith('區段 ') and ' => ' in ln:

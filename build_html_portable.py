@@ -16,6 +16,7 @@ import json as _json
 sys.path.insert(0, H); import calendar_q  # v4.5：期間與日期由 company.json → calendar 推算（與 Excel 共用）
 _co = calendar_q.load(H)  # 公司資料單一來源
 _co.pop('asOf', None)  # 滾動檢查的季度標記只在建置時檢查（calendar_q），不注入 HTML
+_co['sensSnap'] = _json.load(open(os.path.join(H, 'sens_snap.json'), encoding='utf-8'))  # PR #12：穩健性與關鍵假設快照（Excel 求得；HTML 只顯示）
 _co['consensus'] = _json.load(open(os.path.join(H, _co['meta']['consensusFile']), encoding='utf-8'))  # v4.3：市場共識資料檔（只讀）併入注入資料，不另設全域變數
 _g = _co['consensus']['companyGuidance']['2026Q3']  # Q3 營收指引以 company.json 為準；與共識檔不一致即停止建置（Excel 建置同一檢查）
 assert (_g['revenueLow'], _g['revenueHigh']) == (_co['callFacts']['nextQRevLo'], _co['callFacts']['nextQRevHi']), 'Q3 營收指引：company.json 與共識檔不一致'

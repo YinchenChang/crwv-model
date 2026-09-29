@@ -2,8 +2,8 @@
 # 以 LibreOffice（UNO）開啟建好的 Excel，逐情境（0 截斷口徑）改輸入、重算、讀值；結果寫入 sens_snap.json，
 # build_xlsx.py 讀此檔寫入「評價_DCF與目標價」底部「穩健性與關鍵假設」段（完整版與精簡版共用）。
 #   翻轉倍數＝評等離開「賣出」所需的最小 EV/EBITDA 倍數（由目前倍數往上掃描；已非賣出時不算）。
-#   現價所需倍數＝加權目標價（與翻轉倍數同一算法：模型錨定年 EBITDA × 倍數 − 屆時淨負債、÷ 屆時股數、折回目標價時點，含 DCF 腿與權重）
-#     等於現價的倍數（對半求解；第 5 輪取代第 4 輪「EV/EBITDA 腿單獨等於現價」的算法——那不含 DCF 腿、比較對象也不同，並列會誤讀）。
+#   現價所需倍數＝加權目標價（與翻轉倍數同一算法：模型錨定年 EBITDA × 倍數 − 屆時淨負債、÷ 屆時股數、折回目標價時點，含 DCF 法與權重）
+#     等於現價的倍數（對半求解；第 5 輪取代第 4 輪「倍數法單獨等於現價」的算法——那不含 DCF 法、比較對象也不同，並列會誤讀）。
 #   同式對照＝「穩健性｜同式對照：共識平均目標價以模型數字換算的 EV/EBITDA（目前情境，活公式）」逐情境讀值（Excel 公式，非求解）。
 #   翻轉 WACC＝評等離開「賣出」所需的最高 WACC（由目前 WACC 往下掃描）。
 #   關鍵假設＝company.json → methodology.keyAssumptions 的候選各上下一步（rel＝相對 ±step、abs＝絕對 ±step；逐年列整列同改），
@@ -47,6 +47,10 @@ with Workbook(xlsx, timeout=90) as wb:
         cells = [(sh, f'{col}{r}') for col in (COLS if c['perYear'] else 'C')]
         cand.append((c, cells))
     sc0, md0 = wb.get(sc), wb.get(md)
+    # 畫面文字用的現值（完整版 HTML 只顯示快照、不另算：已決定事項 8、13(6)）
+    anc_sh, anc = wb.cell(VA, '錨定年度')
+    res['live'] = {'multiple': wb.get(mult), 'wacc': wb.get(wacc), 'anchor': anc_sh.getCellRangeByName(anc).getString(),
+                   'consensusMultiple': r6(wb.get(wb.cell(VA, '對照｜共識平均目標價隱含 EV/EBITDA（', prefix=True)))}
     wb.set(md, 1)  # 0 截斷口徑（評等依據）
     P = wb.get(px)
     for s in (1, 2, 3):

@@ -1,11 +1,11 @@
 # 目標價變動拆解（已決定事項 12；(a) 的算法 2026-09-26 Andy 決定）：把兩版之間的加權目標價變動拆成
-#   (a) 時間推移＝定義值（純時間價值，以 WACC 累積）：前一版兩條腿（0 截斷前）×（1＋WACC）^（評價日後移月數 ÷ 12），再做 0 截斷與加權。
+#   (a) 時間推移＝定義值（純時間價值，以 WACC 累積）：前一版兩種評價方法（0 截斷前）×（1＋WACC）^（評價日後移月數 ÷ 12），再做 0 截斷與加權。
 #       等同「離開模型期的季度以模型值當作暫定實際數、淨負債與股數推到新評價日、其餘路徑不變」，但淨負債以 WACC 而非債務成本累積。
 #       WACC 讀前一版 Excel 的 WACC 輸入格；月數由 calendar_q.months_between 以兩版 Excel 的評價日（calendar_q 推算、建置時寫入）計算。
 #   (b) 實際數更新：填入 10-Q 的年初至今實際、期初餘額與到期表後重算，減去 (a)。含兩個來源：該季實際與模型的差異；
 #       以及融資時點殘差（(a) 以 WACC 累積淨負債，實際以債務成本累積；該季實際發股）。
 #   (c) 假設變更、(d) 方法變更：依序重算的差額。四項相加＝總變動（逐項檢查）。
-# 只拆解目標價採用的 0 截斷口徑；選擇權模式的 DCF 腿只列前後值、不拆解（Andy 決定）。
+# 只拆解目標價採用的 0 截斷口徑；選擇權模式的 DCF 法只列前後值、不拆解（Andy 決定）。
 # 數值一律取自 Excel（LibreOffice 開啟、重算；已決定事項 8）：三情境以「情境選擇」輸入格切換，其餘輸入不動。
 # 用法：python3 scripts/attrib.py --base 前一版 [--b 步驟] [--c 步驟] --d 新版 [--json 輸出.json]
 #   各步驟可為：已建好的 .xlsx（例如 dist/ 成品）；company.json（以目前 repo 的程式建 Excel）；或 repo 目錄（以該目錄的程式與資料建 Excel）。
@@ -37,7 +37,7 @@ def build(spec, tmp):
 
 
 def read(xlsx):
-    """三情境的兩條腿（0 截斷前後）、權重、加權目標價，以及 WACC、評價日、目標價時點年數。"""
+    """三情境的兩種評價方法（0 截斷前後）、權重、加權目標價，以及 WACC、評價日、目標價時點年數。"""
     out = {}
     with Workbook(xlsx) as wb:
         g = lambda sh, lab, **k: wb.get(wb.cell(sh, lab, **k))
@@ -59,7 +59,7 @@ def read(xlsx):
 
 
 def legs(x, s, grow=1.0):
-    """0 截斷口徑的兩條腿與加權（grow＝(a) 的時間推移係數，套在 0 截斷前的值上）。"""
+    """0 截斷口徑的兩種評價方法與加權（grow＝(a) 的時間推移係數，套在 0 截斷前的值上）。"""
     v = x[s]; T = (1 + x['wacc']) ** x['targetT']
     dcf = 0.0 if v['dcfBad'] else max(0.0, v['dcfRaw'] * grow) * T
     ev = max(0.0, v['evRaw'] * grow)
@@ -94,7 +94,7 @@ def main():
     print(f"評價日 {B['valuationDate']} → {D['valuationDate']}（{months} 個月）；(a) 係數＝(1＋WACC {B['wacc']:.2%})^({months}/12)＝{grow:.5f}")
     for s in (1, 2, 3):
         L = {'base': legs(B, s), 'a': legs(B, s, grow), 'b': legs(X['b'], s), 'c': legs(X['c'], s), 'd': legs(D, s)}
-        for k in ('base', 'b', 'c', 'd'):  # 讀值一致性：0 截斷模式下，以兩條腿重組的加權目標價須等於 Excel 的加權目標價
+        for k in ('base', 'b', 'c', 'd'):  # 讀值一致性：0 截斷模式下，以兩種評價方法重組的加權目標價須等於 Excel 的加權目標價
             x = X[k]
             if x['dcfMode'] == 1 and abs(L[k]['blend'] - x[s]['blendXl']) > 1e-6:
                 fails.append(f"{SCN[s]}（{k}）：重組加權 {L[k]['blend']:.4f} ≠ Excel {x[s]['blendXl']:.4f}")
@@ -109,11 +109,11 @@ def main():
         print(f"\n{SCN[s]}（0 截斷口徑）")
         print('| 項目 | 前一版 | (a) 時間推移 | (b) 實際數 | (c) 假設 | (d) 方法 | 新版 | 總變動 |')
         print('|---|---|---|---|---|---|---|---|')
-        for m, nm in (('dcf', 'DCF 腿（推到目標價時點）'), ('ev', 'EV/EBITDA 腿'), ('blend', '加權目標價')):
+        for m, nm in (('dcf', 'DCF 法（推到目標價時點）'), ('ev', '倍數法'), ('blend', '加權目標價')):
             d = dl[m]
             print(f"| {nm} | ${L['base'][m]:.2f} | {d['a']:+.2f}（{pc(L['base'][m], L['a'][m])}） | {d['b']:+.2f} | {d['c']:+.2f} | {d['d']:+.2f} | ${L['d'][m]:.2f} | {L['d'][m] - L['base'][m]:+.2f} |")
         o = res['scenarios'][SCN[s]]['optionDcf']
-        print(f"選擇權模式 DCF 腿（只列前後值，不拆解）：${o[0]:.2f} → ${o[1]:.2f}")
+        print(f"選擇權模式 DCF 法（只列前後值，不拆解）：${o[0]:.2f} → ${o[1]:.2f}")
     if a.json: json.dump(res, open(a.json, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     print('\n拆解檢查：' + ('通過（三情境 × 三項，四項相加＝總變動；加權目標價與 Excel 一致）' if not fails else '不通過\n  ' + '\n  '.join(fails)))
     return 1 if fails else 0

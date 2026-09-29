@@ -124,7 +124,12 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
   cmpT('文字 方法區間標籤', RG+'方法區間標籤', R.bLabel);
   cmpT('文字 點位位置', RG+'點位位置', R.pos);
   cmpT('文字 判斷句', RG+'判斷句', R.judge);
-  cmpT('文字 DCF 權重說明', '評價_DCF與目標價|DCF 權重說明', R.note); }
+  cmpT('文字 DCF 權重說明', '評價_DCF與目標價|DCF 權重說明', R.note);
+  // PR #12：穩健性與關鍵假設（HTML 只顯示快照；與 Excel 四個句子逐字相同、且預設輸入下快照未過期）
+  const SV=sensView(R,q); if(SV){ const VA='評價_DCF與目標價|';
+    cmpT('文字 翻轉倍數句',VA+'穩健性｜翻轉倍數句',SV.flip); cmpT('文字 共識倍數句',VA+'對照｜共識倍數句',SV.cons);
+    cmpT('文字 翻轉 WACC 句',VA+'穩健性｜翻轉 WACC 句',SV.wacc); cmpT('文字 關鍵假設句',VA+'關鍵假設｜句（目前情境）',SV.key);
+    if(!AKX) rows.push([SV.stale?'XX ':'OK ','快照未過期（預設輸入）',String(SV.stale),'false']); } }  // FY27 錨定的核對改了輸入，快照本來就過期
 // v4.3：市場共識（I 區逐筆：數值、文字、擷取日期、標記）與一頁摘要（差距、隱含倍數、結論句／判斷句／隱含倍數句／Q3 句逐字）
 { const R=targetRange(d,q,VAL_DEFAULTS,p), cv=consensusView(d,p,VAL_DEFAULTS,R,q), SM='摘要|';
   const cmpT=(label,xlKey,h)=>{ const x=X[xlKey]; if(!x){rows.push([label,'MISSING XL KEY '+xlKey]);return;} rows.push([x[0]===h?'OK ':'XX ',label,JSON.stringify(h),JSON.stringify(x[0])]); };
@@ -172,7 +177,7 @@ cmp('加權目標價', V+'加權目標價', [p.call.blended]);
     cmpMix('焦點 季度',QT+'焦點｜季度',[qv.focus.label]); cmpMix('焦點 差異原因',QT+'焦點｜差異原因',[qv.rsnLine(qv.fi)||'無（差距皆在 '+pctQ(qv.tol)+' 以內）']);
     for(const nm of ['營收','調整後 EBITDA','調整後營業利益','CapEx（毛額）','車隊折舊']) cmpMix('核對 '+nm,QT+'核對｜'+nm,qv.sums.map(()=>0));
     qv.key.forEach((m,i)=>cmpT('文字 驗證點 '+m.label,SM+'驗證｜'+m.label+'｜句',qv.keyLines[i])); } }
-{ const G=evAnchorGrid(d,q,VAL_DEFAULTS); G.mults.forEach((m,i)=>{ cmp('矩陣腿 '+m+'x', V+'錨定×倍數｜EV/EBITDA 腿｜'+m.toFixed(1)+'x', G.leg[i]); cmp('矩陣目標 '+m+'x', V+'錨定×倍數｜加權目標價｜'+m.toFixed(1)+'x', G.tgt[i]); }); }
+{ const G=evAnchorGrid(d,q,VAL_DEFAULTS); G.mults.forEach((m,i)=>{ cmp('矩陣倍數法 '+m+'x', V+'錨定×倍數｜倍數法｜'+m.toFixed(1)+'x', G.leg[i]); cmp('矩陣目標 '+m+'x', V+'錨定×倍數｜加權目標價｜'+m.toFixed(1)+'x', G.tgt[i]); }); }
 for(const r of rows) console.log(r.join(' | '));
 // HTML P&L table FY26 display check
 console.log('HTML P&L table FY26: 總營收(fy)',f[0].fyRevenue.toFixed(3),'營業利益(fy)',f[0].fyOpInc.toFixed(3),'營利率(2H)',f[0].opM,'EBITDA(2H)',f[0].ebitda.toFixed(3),'淨利率(2H)',f[0].nm.toFixed(3),'EPS(2H)',f[0].eps.toFixed(3));

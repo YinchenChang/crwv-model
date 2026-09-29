@@ -32,7 +32,7 @@ for name, cal, stub, vd, ytd, p0 in CASES:
         if got != (stub, vd, ytd, p0): fails.append(f'B {name}／{hz}：{got} ≠ {(stub, vd, ytd, p0)}')
         te = d['tEnd']
         if abs(te[0] - stub) > 1e-12 or any(abs(te[i + 1] - te[i] - 1) > 1e-12 for i in range(len(te) - 1)): fails.append(f'B {name}：折現年數 {te}')
-        ex = [k - d['evOffset'] for k in range(1, len(te))]      # EV/EBITDA 腿各錨定期的折回年數
+        ex = [k - d['evOffset'] for k in range(1, len(te))]      # 倍數法各錨定期的折回年數
         if min(ex) < 0: fails.append(f'B {name}／{hz}：錨定期折回年數出現負值（需要內插口徑）：{ex}')
 print(f'B 日曆推算：{len(CASES)} 種 × 2 種目標價時點，失敗 {len(fails)}')
 

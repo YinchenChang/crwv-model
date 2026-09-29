@@ -95,8 +95,8 @@ function EvGridQ({ st, o, g, big }) {
     sub ? elQ(`div`, { key: `s`, style: { fontSize: fs - 1.5, color: `var(--color-muted)`, marginTop: 6, lineHeight: 1.5 } }, sub) : null
   ]);
   return elQ(`div`, { style: { display: `grid`, gridTemplateColumns: `1fr 1fr`, gap: big ? 36 : 20, marginTop: big ? 0 : 8, marginBottom: big ? 0 : 20 } }, [
-    tab(`加權目標價（每股）`, G.tgt, `DCF 腿 $${Y(G.dcf, 1)} × ${hA(G.wd * 100, 0)}＋EV/EBITDA 腿 × ${hA((1 - G.wd) * 100, 0)}`),
-    tab(`EV/EBITDA 腿單獨（每股，折回 ${CALQ.targetText}）`, G.leg, `綠底＝不低於現價 $${Y(P, 2)}；折現率＝WACC ${hA(o.wacc * 100, 0)}`)
+    tab(`加權目標價（每股）`, G.tgt, `DCF 法 $${Y(G.dcf, 1)} × ${hA(G.wd * 100, 0)}＋倍數法 × ${hA((1 - G.wd) * 100, 0)}`),
+    tab(`倍數法單獨（每股，折回 ${CALQ.targetText}）`, G.leg, `綠底＝不低於現價 $${Y(P, 2)}；折現率＝WACC ${hA(o.wacc * 100, 0)}`)
   ]);
 }
 
@@ -422,7 +422,7 @@ function SumQ({ d, f, e, o, m, tr: TR, active }) {
     [`新債／股權／高息債（$bn）`, s => `${Y(s.nd, 1)}／${Y(s.eq, 1)}／${Y(s.jk, 1)}`],
     [`FY30 總債務（$bn）`, s => Y(s.debt30, 1)],
     [`FY30 營收／EBITDA（$bn）`, s => `${Y(s.rev30, 1)}／${Y(s.eb30, 1)}`],
-    [`DCF 腿／EV/EBITDA 腿（每股）`, s => `$${Y(s.dcf, 1)}／$${Y(s.ev, 1)}`],
+    [`DCF 法／倍數法（每股）`, s => `$${Y(s.dcf, 1)}／$${Y(s.ev, 1)}`],
     [`加權目標價（0 截斷）`, s => `$${Y(s.tgt, 1)}`],
     [`加權目標價（選擇權模式）`, s => `$${Y(s.opt, 1)}`],
     [`結論`, s => s.call]
@@ -475,11 +475,11 @@ function SumQ({ d, f, e, o, m, tr: TR, active }) {
     let hits = [];
     eg.leg.forEach((r, i) => r.forEach((x, j) => { if (x >= .95 * P) hits.push(`${eg.years[j]} × ${Y(eg.mults[i], 1)}x（$${Y(x, 1)}）`); }));
     let tmax = Math.max(...eg.tgt.flat()), l29 = k6 >= 0 ? eg.leg[k6][2] : NaN;
-    S(`評價方法`, `結論方向不變，但幅度取決於錨定年度與倍數：${Number.isFinite(l29) ? `FY29 × 6x 時 EV/EBITDA 腿為 $${Y(l29, 1)}，${l29 >= .95 * P ? `約等於` : l29 > P ? `高於` : `低於`}現價` : `見下表`}`, [
+    S(`評價方法`, `結論方向不變，但幅度取決於錨定年度與倍數：${Number.isFinite(l29) ? `FY29 × 6x 時 倍數法為 $${Y(l29, 1)}，${l29 >= .95 * P ? `約等於` : l29 > P ? `高於` : `低於`}現價` : `見下表`}`, [
       elQ(EvGridQ, { key: `g`, st: e, o: o, g: eg, big: !0 }),
       elQ(`div`, { key: `n`, style: { marginTop: 22, fontSize: 17, lineHeight: 1.6 } }, [
         elQ(`div`, { key: 1 }, `• 矩陣內加權目標價最高 $${Y(tmax, 1)}，${tmax < P ? `仍低於現價，賣出方向在所有組合下成立` : `部分組合高於現價，結論對方法選擇敏感`}。`),
-        elQ(`div`, { key: 2 }, hits.length ? `• 但 EV/EBITDA 腿單獨達到現價 95% 以上的組合：${hits.join('、')}——市場大致以穩態倍數上緣定價 FY28 以後的 EBITDA。` : `• EV/EBITDA 腿在所有組合下都低於現價的 95%。`),
+        elQ(`div`, { key: 2 }, hits.length ? `• 但 倍數法單獨達到現價 95% 以上的組合：${hits.join('、')}——市場大致以穩態倍數上緣定價 FY28 以後的 EBITDA。` : `• 倍數法在所有組合下都低於現價的 95%。`),
         elQ(`div`, { key: 3 }, `• 因此賣出結論實際依賴：(a) DCF 股權價值為負（權重 ${hA(eg.wd * 100, 0)} 取 $${Y(eg.dcf, 1)}）；(b) 6x 是穩態倍數上緣（約 3.4–6.0x）而非中值。`)
       ]),
       elQ(`p`, { key: `f`, style: { fontSize: 14, color: `var(--color-muted)`, marginTop: `auto`, lineHeight: 1.5 } },
@@ -524,7 +524,7 @@ function SumQ({ d, f, e, o, m, tr: TR, active }) {
           li(`DCF 股權價值${f.d.perShareRaw < 0 ? `為負（未截斷每股 −$${Y(-f.d.perShareRaw, 1)}），以 0 截斷` : `為正`}；截斷時，只影響 DCF 的變數（如股權折價與上限）不反映在目標價`, 1),
           li(`終值現值 ${mA(f.d.pvTv, 1)}bn、五期 FCF 現值 ${mA(f.d.pvFcf, 1)}bn：企業價值幾乎全來自終值，DCF 對 WACC、永續成長極敏感`, 2),
           li(`租金尚未改為 MW 驅動；以具名站點基準計，五期可能低估約 $${Y(rentGap, 1)}bn`, 3),
-          li(`EV/EBITDA 腿錨定 ${PERIOD_LABELS[o.evYear ?? 1]}；錨定年度與倍數的選擇會大幅改變目標價（見評價方法頁）`, 4)
+          li(`倍數法錨定 ${PERIOD_LABELS[o.evYear ?? 1]}；錨定年度與倍數的選擇會大幅改變目標價（見評價方法頁）`, 4)
         ])
       ])
     ]),

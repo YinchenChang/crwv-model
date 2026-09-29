@@ -350,5 +350,11 @@
     }
    ]
   }
- ]
+ ],
+ "live": {
+  "multiple": 6.0,
+  "wacc": 0.11,
+  "anchor": "FY29",
+  "consensusMultiple": 6.192413
+ }
 }

@@ -32,6 +32,8 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | scripts/lean_deps.py | 精簡版：以完整版 Excel 的公式建立依賴圖，依「分頁＋A 欄列名稱」定義的目標求出必須保留的列（整列保留的不動點，含被引用的空白輸入格） |
 | scripts/lean.py | 精簡版：由完整版 Excel 刪除依賴鏈外的分頁與列、清除說明欄（LibreOffice 自動改寫參照），並寫出精簡版 outline 對照；verify.sh 步驟 5b |
 | scripts/lean_check.py | 精簡版驗收：三情境 × 兩種 DCF 模式下，目標價、評等、資金缺口與融資、焦點季、各判斷句與完整版逐項一致（verify.sh 步驟 5b） |
+| scripts/check_terms.py | 用語規則檢查（PR #12 第 6 輪）：CLAUDE.md「用語規則」表「不用」欄的詞不得出現在 repo（已存檔的 docs/reports、dist/、scripts/expect/ 除外）與本次建置的 HTML、Excel；verify.sh 步驟 5a |
+| scripts/expect/pr12_vs_v4_5.txt | PR #12 對 v4.5 成品的預期差異清單：「替換 舊 => 新」（用語統一，xl_diff 與畫面比對都先換再比）、「畫面新增 行首文字」（完整版網頁新增的穩健性段）。本 PR 驗收以 `EXPECT=scripts/expect/pr12_vs_v4_5.txt scripts/verify.sh --vs-dist` 執行 |
 | scripts/uno_q.py | v4.5：以 LibreOffice UNO 驅動 Excel 的共用模組（依 A 欄列名稱找格、改值、讀重算後的值；不存檔） |
 | data/consensus_crwv_20260925.json | 市場共識資料檔（v4.3；Andy 查證後提供，只讀，不得增補或修改數字）；路徑寫在 `company.json` → `meta.consensusFile`，HTML 建置時併入 `COMPANY_DATA.consensus`，Excel 直接讀取 |
 | xl_diff.py | Excel 比對：`python3 xl_diff.py 舊.xlsx 新.xlsx [--values] [--by-label] [--ignore=工作表,…] [--expect=清單檔]`（v4.5 `--expect`：預期差異清單，每行「工作表!儲存格 原因」，列出但不計入差異數）；（v4.2 `--by-label`：新增列造成位移時以「區段＋列名稱」配對，見「v4.2 核對方式」；v4.3 `--ignore`：兩檔都略過指定工作表） |
@@ -40,7 +42,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | scripts/recalc.py | LibreOffice headless 重算：`python3 scripts/recalc.py 檔案.xlsx [逾時秒數]`＝開啟、全部重算、原地存檔，輸出 JSON 並回報公式錯誤數（#REF!、#DIV/0!、#VALUE!、#NAME?、#N/A）；有錯誤或失敗時代碼 1 |
 | scripts/verify.sh | 一次跑完建置與核對（見下節） |
 | scripts/first_screen.py | v4.5：擷取「第一屏」文字——HTML 各頁面／分頁在 1440×900 視窗、捲動到頂端時可見的文字；Excel 各工作表前 40 個可見列（A–J 欄，重算後的值）。`python3 scripts/first_screen.py 檔案.html｜檔案.xlsx [輸出.json]` |
-| scripts/attrib.py | 目標價變動拆解：輸入前一版與各步驟（.xlsx、company.json 或 repo 目錄），以 Excel 求值，輸出三情境兩條腿與加權目標價的 (a)(b)(c)(d)，檢查四項相加＝總變動 |
+| scripts/attrib.py | 目標價變動拆解：輸入前一版與各步驟（.xlsx、company.json 或 repo 目錄），以 Excel 求值，輸出三情境兩種評價方法與加權目標價的 (a)(b)(c)(d)，檢查四項相加＝總變動 |
 | scripts/test_attrib.py | 拆解工具測試：月數推算、同版對同版全為 0、滾動一季且 WACC 改為 12% 時 (a) 係數＝(1.12)^(3/12)。verify.sh 步驟 8c |
 | scripts/test_rolling.py | v4.5：期間滾動測試（暫存副本）。B：日曆推算 6 種情況（12 月財年 Q1–Q4 已申報、5 月財年、無已申報季度）× 2 種目標價時點；C：只滾日曆、未更新 `asOf` 時建置必須失敗並逐項列出；A：把副本滾動到下一個已申報季度（只改日曆與標籤、不改數字），建 HTML 與 Excel，第一屏不得出現舊日曆特有的字樣（評價日、年初至今／首期標籤、已申報季度）。例外：版本紀錄與來源頁、整段落在 company.json／共識檔資料字串內的字樣。verify.sh 步驟 8b |
 | scripts/check_offline.py | 離線開啟檢查（已決定事項 11）：`python3 scripts/check_offline.py 檔案.html 同版.xlsx`。HTML 單獨複製到空資料夾，Playwright 阻斷網路、以 file:// 開啟；(a) 除 HTML 本身外的請求數＝0（網路與旁邊的本機檔案都算）、(b) console 無錯誤與例外、(c) 5 個分頁 10 項關鍵數字（依 A 欄列名稱取自同版 Excel）出現在畫面且無 NaN／undefined／Infinity；v4.5 另比對第一屏（視窗內）的資料更新日、模型期間、現價日與評價日（`CHECKS_FIRST`；列名稱中的期間佔位符以任意文字比對，新舊版 Excel 皆可）。verify.sh 步驟 5c 對新建 HTML 與 dist/ 成品各跑一次 |
@@ -118,17 +120,17 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 
 ## v4.5 期間滾動＋反向 DCF（5a-1）
 - **日曆**：`company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、`modelYears`＝4、`targetHorizon`）；`calendar_q.py` 推算期間標籤、期間長度、評價日、各期期末日、折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整（`evOffset`）。Excel「輸入與假設」F 區「期間與日期」列出推算結果；HTML 讀 `COMPANY_DATA.cal`（`CALQ`）。首期長度支援 0.25／0.5／0.75／1 年；5 月財年（Oracle 型）與沒有已申報季度（OpenAI 型）皆可推算（`scripts/test_rolling.py` B）。
-- **折現**：DCF 的 UFCF 折到評價日至各期期末（首期 0.5、FY27 1.5…）、終值與選擇權期限＝評價日至模型期末、新股 PV＝評價日至各期期初；EV/EBITDA 腿自錨定期期末以 WACC 折回目標價時點（錨定期 k 的年數＝k − `evOffset`）。
+- **折現**：DCF 的 UFCF 折到評價日至各期期末（首期 0.5、FY27 1.5…）、終值與選擇權期限＝評價日至模型期末、新股 PV＝評價日至各期期初；倍數法自錨定期期末以 WACC 折回目標價時點（錨定期 k 的年數＝k − `evOffset`）。
 - **評價日**（Andy 決定）：最新**已申報**（10-Q／10-K）季度的季末（目前 2026-06-30）。DCF 現值、淨負債與股數的基準日。
-- **目標價時點**（2026-09-26 Andy 決定）：`valuationPlus12m`＝評價日＋12 個月（目前 2027-06-30）；`firstFullYearEnd`＝首期之後第一個完整財年末，即 v4.4 的「FY27 末」。EV/EBITDA 腿自錨定期期末以 WACC 折回此時點；DCF 腿（0 截斷與選擇權皆同）以 WACC 自評價日推到此時點（`perShareT`；Excel「DCF 每股（推到目標價時點）」），兩條腿同一時點。「DCF 每股」仍是評價日現值，反向 DCF 以它對現價求解。依設計，任何日曆下錨定期的折回年數都不為負，不需內插。
-- **與賣方 12 個月目標價的差異**：賣方以股價日起算（2026-09-24 → 2027-09-24），本模型以評價日起算，目前早約 2.8 個月。若以股價日起算，兩條腿約 × 1.025：基準 $45.5 → 約 $46.6（[Derived]）。差距在 10-Q 申報後最小（約 1.5–3 個月）、下一次申報前最大（約 4–5 個月）。
+- **目標價時點**（2026-09-26 Andy 決定）：`valuationPlus12m`＝評價日＋12 個月（目前 2027-06-30）；`firstFullYearEnd`＝首期之後第一個完整財年末，即 v4.4 的「FY27 末」。倍數法自錨定期期末以 WACC 折回此時點；DCF 法（0 截斷與選擇權皆同）以 WACC 自評價日推到此時點（`perShareT`；Excel「DCF 每股（推到目標價時點）」），兩種評價方法同一時點。「DCF 每股」仍是評價日現值，反向 DCF 以它對現價求解。依設計，任何日曆下錨定期的折回年數都不為負，不需內插。
+- **與賣方 12 個月目標價的差異**：賣方以股價日起算（2026-09-24 → 2027-09-24），本模型以評價日起算，目前早約 2.8 個月。若以股價日起算，兩種評價方法約 × 1.025：基準 $45.5 → 約 $46.6（[Derived]）。差距在 10-Q 申報後最小（約 1.5–3 個月）、下一次申報前最大（約 4–5 個月）。
 - **升版驗收**：對前一版成品做 `EXPECT=scripts/expect/v4_5_vs_v4_4.txt scripts/verify.sh --vs-dist`。清單列出預期變動的格（每格附原因），以及「區段 舊 => 新」「列 舊 => 新」改名對照；Excel 其餘須 0 差異。畫面文字差異另外分類說明。
 - **期間字樣**：說明文字以佔位符書寫，建置時換成目前日曆的字樣；期間特有的敘述與數字放 `texts`、`ytdActual.notes`。滾動後第一屏不得出現舊日曆字樣（`test_rolling.py` A；離線檢查另比對第一屏的資料更新日、模型期間、現價日與評價日）。
 - **反向 DCF**：`scripts/rv_solve.py` 以 Excel（LibreOffice UNO）求解，取代 JS 快照（verify.sh 步驟 3b）。
 - **目標價變動拆解**（已決定事項 12）：每次升版把目標價變動拆成 (a) 時間推移、(b) 實際數更新、(c) 假設變更、(d) 方法變更，依序重算，四項相加＝總變動，並列於版本紀錄。v4.5 全部屬 (d)。
-  - (a) 時間推移是**定義值**（純時間價值，以 WACC 累積；2026-09-26 Andy 決定）：前一版兩條腿（0 截斷前）×（1＋WACC）^（評價日後移月數 ÷ 12），再做 0 截斷與加權。WACC 讀前一版 Excel 的 WACC 輸入格，月數由 `calendar_q.py` 推算的評價日計算（`calendar_q.months_between`），不寫死。等同「離開模型期的季度以模型值當作暫定實際數、淨負債與股數推到新評價日、其餘路徑不變」。不可用「只滾動日曆、不改其他資料」重算：那樣會刪掉該季流入、保留流出，淨負債與股數停在舊評價日，結果偏低。
+  - (a) 時間推移是**定義值**（純時間價值，以 WACC 累積；2026-09-26 Andy 決定）：前一版兩種評價方法（0 截斷前）×（1＋WACC）^（評價日後移月數 ÷ 12），再做 0 截斷與加權。WACC 讀前一版 Excel 的 WACC 輸入格，月數由 `calendar_q.py` 推算的評價日計算（`calendar_q.months_between`），不寫死。等同「離開模型期的季度以模型值當作暫定實際數、淨負債與股數推到新評價日、其餘路徑不變」。不可用「只滾動日曆、不改其他資料」重算：那樣會刪掉該季流入、保留流出，淨負債與股數停在舊評價日，結果偏低。
   - (b) 實際數更新含兩個來源：該季實際與模型的差異；以及融資時點殘差（(a) 以 WACC 累積淨負債，實際以債務成本累積；該季實際發股）。
-  - 只拆解目標價採用的 0 截斷口徑；選擇權模式的 DCF 腿只列前後值（Andy 決定）。
+  - 只拆解目標價採用的 0 截斷口徑；選擇權模式的 DCF 法只列前後值（Andy 決定）。
   - 工具：`scripts/attrib.py`（數值取自 Excel；三情境以「情境選擇」切換）。測試：`scripts/test_attrib.py`（verify.sh 步驟 8c）。
 - **每季滾動流程**（已決定事項 10）：(1) 財報當天（新聞稿）：填 `quarterly.actuals`、`calendar.latestQuarterReported` 加一季、焦點季改為下一季；年度首期不動。(2) 10-Q／10-K 申報後：`calendar.latestQuarterFiled` 加一季；更新 `ytdActual`（含 `throughQuarter`、`months`、`label`、`notes`、`jvSplit`）、`historicalPL` 最後一格、`latestQuarter`、RPO 桶、債務與租賃到期表、`texts`（頁首來源一行、現金稅、首期股權組成）與各期清單（首期縮短一季）；更新首期一次性金額與期初餘額，並把 `asOf` 對應季度改為新的 `latestQuarterFiled`（滾動檢查，清單見下方「asOf」欄位說明）；建置時 `calendar_q.py` 檢查截止季與月數、`historicalPL` 與 `ytdActual.label` 的標籤是否一致，以及 `asOf` 各項的所屬季度。(3) 財年最後一季（10-K）後：首期為下一財年全年模型，模型期延長一年，需補新一年的假設（Andy 決定）。
 
@@ -570,6 +572,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `texts.fy0EquityNote` | 首期股權／可轉債的組成說明（含年初至今與首期模型的金額；v4.5；可用期間佔位符 «P0»、«YTD»、«STUB»） | 文字 | «P0»＝«YTD» 私募股權 2.982＋«STU… | 必改 |
 | `texts.sourceLine` | 頁首的資料來源一行（例如最新 10-Q、法說、期後 8-K；v4.5） | 文字 | Q2 2026 10-Q + 法說 + 9/17 8… | 必改 |
 | `texts.cashTaxNote` | 年初至今現金稅的說明（損益與評價頁；v4.5） | 文字 | H1 現金稅約 0.1bn | 必改 |
+| `texts.customerConcentration` | 客戶集中的一句（檢查頁第一屏；精簡版在摘要的檢查區第一行；已決定事項 9；PR #12） | 文字 | 客戶集中：A 36%、B 26%、C 10%（Q2 … | 必改 |
 | `texts.mwYearEndNotes` | 各年底主動電力的來源說明，以年份為鍵（Excel「輸入與假設」說明欄；5a） | 物件（文字） | 物件（2023、2024、2025） | 必改 |
 
 ## v4.0 架構：公司資料單一來源

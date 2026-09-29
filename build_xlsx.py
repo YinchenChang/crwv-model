@@ -495,7 +495,7 @@ _calc(r, "模型期間", "", f"{PERIODS[0]}–{PERIODS[-1]}", "首期＋4 個完
 _calc(r, "資料更新日", "", CO['meta']['updateDate'], "company.json → meta.updateDate", "@"); r += 1
 _calc(r, "現價日（收盤）", "", CO['meta']['priceDate'], "company.json → meta.priceDate", "@"); r += 1
 OFF = _calc(r, "錨定期折回年數調整（目標價時點 − 首期長度）", "年", CAL['evOffset'],
-            "EV/EBITDA 腿：錨定期 k 的期末折回目標價時點的年數＝k − 此值", NUM); r += 1
+            "倍數法：錨定期 k 的期末折回目標價時點的年數＝k − 此值", NUM); r += 1
 r = phdr(r, first="期間與日期")
 CAL_R = {}
 for key, nm, fmt in [('periodEnd', "期末日", "@"), ('tEnd', "折現年數：評價日 → 期末", NUM), ('tStart', "折現年數：評價日 → 期初", NUM)]:
@@ -1592,7 +1592,7 @@ EVE_ADJ = f"C{m0+6}"
 
 r += 1
 r = section(ws, r, "加權目標價")
-# v4.5：DCF 腿以 WACC 推到目標價時點（0 截斷與選擇權皆同），與 EV/EBITDA 腿同一時點；「DCF 每股」仍為評價日現值（反向 DCF 用）
+# v4.5：DCF 法以 WACC 推到目標價時點（0 截斷與選擇權皆同），與 倍數法同一時點；「DCF 每股」仍為評價日現值（反向 DCF 用）
 ws.cell(row=r, column=1, value="DCF 每股（推到目標價時點）").font = BLACK
 c = ws.cell(row=r, column=3, value=f"={DCF_PS}*(1+{WACC})^{CAL_TT}"); c.number_format = USD; c.font = BLACK
 ws.cell(row=r, column=9, value="＝DCF 每股 ×（1＋WACC）^（評價日至目標價時點的年數）").font = SMALL
@@ -1673,7 +1673,7 @@ for rr in (R0 + 5, R0 + 6, R0 + 7):
 ws.cell(row=R0 + 11, column=4).number_format = NUM0
 ws.cell(row=R0 + 3, column=3).number_format = NUM0
 ws.cell(row=R0 + 5, column=9, value="引用『輸入與假設』底部模擬運算表（情境選擇 1／2／3），保留其餘手動輸入").font = SMALL
-ws.cell(row=R0 + 10, column=9, value="＝DCF 採用值 × 有效權重 ＋ EV/EBITDA 腿（倍數換成兩端）× 有效權重").font = SMALL
+ws.cell(row=R0 + 10, column=9, value="＝DCF 採用值 × 有效權重 ＋ 倍數法（倍數換成兩端）× 有效權重").font = SMALL
 _A0, _A1, _B0, _B1 = f"C{R0+8}", f"D{R0+8}", f"C{R0+10}", f"D{R0+10}"
 _TH = f"$C${R0+4}"
 _mg = lambda j, k: (f'IF(ABS(E{R0+5+j})<{RT_MG}*{PX},"{DT_SHORT[k]}情境 $"&{_T1(f"C{R0+5+j}")}&"，"&IF(E{R0+5+j}<0,"距賣出門檻","高於賣出門檻")'
@@ -1710,9 +1710,9 @@ RG_PT_CODE = f"C{R0+3}"
 from openpyxl.formatting.rule import CellIsRule as _CIR
 r += 1
 r = section(ws, r, "錨定年度 × 倍數矩陣（每股；«EVDISC»）")
-ws.cell(row=r, column=9, value="EV/EBITDA 腿＝(錨定年 EBITDA × 倍數 − 錨定年末淨負債) ÷ 錨定年末股數 × 折現因子；加權＝DCF 採用值 × 有效權重 ＋ 腿 × 有效權重。綠底＝不低於現價").font = SMALL
+ws.cell(row=r, column=9, value="倍數法＝(錨定年 EBITDA × 倍數 − 錨定年末淨負債) ÷ 錨定年末股數 × 折現因子；加權＝DCF 採用值 × 有效權重 ＋ 倍數法 × 有效權重。綠底＝不低於現價").font = SMALL
 EVG_M = [3.4, 4.5, 5.0, 6.0, 7.0]
-for kind in ("EV/EBITDA 腿", "加權目標價"):
+for kind in ("倍數法", "加權目標價"):
     for j, h in enumerate(["倍數 ＼ 錨定（" + kind + "）", "倍數", "FY27", "FY28", "FY29", "FY30"]):
         c = ws.cell(row=r, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
     r += 1
@@ -1722,7 +1722,7 @@ for kind in ("EV/EBITDA 腿", "加權目標價"):
         cb = ws.cell(row=r, column=2, value=m); cb.number_format = MULT; cb.font = BLUE
         for k in range(1, 5):
             col = 2 + k
-            if kind == "EV/EBITDA 腿":
+            if kind == "倍數法":
                 f = (f"=MAX(0,(INDEX({_EB},1,{k})*$B{r}-(INDEX({_TD},1,{k})-INDEX({_CU},1,{k})))"
                      f"/INDEX({_SHR},1,{k}))/(1+{WACC})^({k}-{OFF})")
             else:
@@ -1732,7 +1732,7 @@ for kind in ("EV/EBITDA 腿", "加權目標價"):
         r += 1
     rng = f"C{g0}:F{r-1}"
     ws.conditional_formatting.add(rng, _CIR(operator="greaterThanOrEqual", formula=[PX], fill=PatternFill("solid", fgColor="E3F1E8")))
-    if kind == "EV/EBITDA 腿":
+    if kind == "倍數法":
         LEG0 = g0
     r += 1
 
@@ -1909,7 +1909,7 @@ _rows = [
     ("FY30 每 MW 年收入（US$m）", rv["rev30"], rv["rev30"] * rv["R"], rv["R"] - 1, "期末 ARR 指引隱含約 $10.0–10.5m；7 月新約漲價約 25%"),
     ("每 MW 建置成本（US$m）", rv["cost30"], rv["cost30"] * rv["C"], rv["C"] - 1, "FY26 指引隱含約 $32–37m"),
     ("穩態 EBITDA 率（FY30）", rv["eb30"], rv["Eb"], rv["Eb"] - rv["eb30"], "Q2 實際 59%；由下而上上緣約 67–71%（變動為百分點）"),
-    ("（對照）加權目標價＝現價所需每 MW 年收入", rv["rev30"], rv["rev30"] * rv["Rt"], rv["Rt"] - 1, "含 EV/EBITDA 6x（FY29 錨定） 腿；非純反向 DCF"),
+    ("（對照）加權目標價＝現價所需每 MW 年收入", rv["rev30"], rv["rev30"] * rv["Rt"], rv["Rt"] - 1, "含倍數法（EV/EBITDA 6x，FY29 錨定）；非純反向 DCF"),
 ]
 RV_R0 = r  # v4.3：單一槓桿快照第一列（「摘要」頁引用）
 for k, (nm, a, b, d, note) in enumerate(_rows):
@@ -1967,6 +1967,8 @@ ws.column_dimensions["D"].width = 12
 ws.column_dimensions["E"].width = 100
 ws["A1"] = "連動檢查 — 恆等式與口徑"
 ws["A1"].font = TITLE
+ws["A2"] = CO['texts']['customerConcentration']  # 已決定事項 9：「客戶集中」一句放檢查頁第一屏（PR #12 第 6 輪；精簡版併入摘要後為檢查區第一行）
+ws["A2"].font = BOLD
 r = 3
 for j, h in enumerate(["檢查項目", "實際值", "標準", "結果", "說明"]):
     c = ws.cell(row=r, column=1 + j, value=h)
@@ -2941,7 +2943,7 @@ r = section(ws, r, "3｜現價隱含什麼")
 _E28, _N28, _PTM = CIR("年度｜調整後 EBITDA", 2), CIR("年度｜淨負債", 2), CIR("目標價｜平均")
 srow("隱含｜共識平均目標價隱含 FY28 EV/EBITDA", "x", [f"=({_PTM}*{SH}+{_N28})/{_E28}"], MULT, "＝（共識平均目標價 × 股數＋共識 FY28 淨負債）÷ 共識 FY28 調整後 EBITDA")
 srow("隱含｜現價隱含 FY28 EV/EBITDA", "x", [f"=({PX}*{SH}+{_N28})/{_E28}"], MULT, "同一共識 FY28 數字，價格換成現價")
-srow("隱含｜模型方法區間上緣", "x", [f"=MAX({RM_LO},{RM_HI})"], MULT, "模型 EV/EBITDA 腿錨定 FY29 並折回 «TGT»，錨定年度與此不同")
+srow("隱含｜模型方法區間上緣", "x", [f"=MAX({RM_LO},{RM_HI})"], MULT, "模型 倍數法錨定 FY29 並折回 «TGT»，錨定年度與此不同")
 _i1, _i2, _mh = f"C{SM['隱含｜共識平均目標價隱含 FY28 EV/EBITDA']}", f"C{SM['隱含｜現價隱含 FY28 EV/EBITDA']}", f"C{SM['隱含｜模型方法區間上緣']}"
 srow("隱含｜隱含倍數句", "", [(f'="共識平均目標價 $"&TEXT({_PTM},"0.00")&" 隱含 FY28 EV/EBITDA "&TEXT({_i1},"0.0")&"x，"'
                             f'&IF(ROUND({_i1},1)>{_mh},"高於",IF(ROUND({_i1},1)<{_mh},"低於","等於"))&"模型方法區間上緣 "&{_MT(_mh)}&"x；現價 $"&TEXT({PX},"0.00")&" 隱含 "&TEXT({_i2},"0.0")&"x。"')], bold=True)
@@ -2990,14 +2992,13 @@ def _ssrow(name, unit, vals, fmt, note=None):
     if note: ws.cell(row=r, column=9, value=note).font = SMALL
     r += 1
 _S = SS['scenarios']
-_ANC = f"'評價_DCF與目標價'!$C${_lab(ws, '錨定年度')}"
 _CFY = max(k for k in CONS['annualEstimates'] if k.startswith('FY'))
 _fs = CO['methodology']['flipSearch']
 # 第 5 輪：三種倍數分兩組，算法不同的不並列比較（Andy 決定）。
-#   同一算法（加權目標價；模型錨定年 EBITDA × 倍數 − 錨定年末淨負債、÷ 錨定年末股數、以 WACC 折回目標價時點、含 DCF 腿與權重）：翻轉倍數、現價所需倍數。
-#   對照（共識的算法；未折現、不含 DCF 腿、用目標價而非現價）：共識平均目標價隱含倍數，及同一公式換成模型數字。
+#   同一算法（加權目標價；模型錨定年 EBITDA × 倍數 − 錨定年末淨負債、÷ 錨定年末股數、以 WACC 折回目標價時點、含 DCF 法與權重）：翻轉倍數、現價所需倍數。
+#   對照（共識的算法；未折現、不含 DCF 法、用目標價而非現價）：共識平均目標價隱含倍數，及同一公式換成模型數字。
 _ssrow("穩健性｜翻轉評等（離開賣出）所需 EV/EBITDA 倍數", "x", [s['flipMultiple'] for s in _S], '0.00x',
-       f"＝使評等離開賣出的最小倍數：加權目標價 ≥ 賣出門檻價（現價 × (1 − {RT_PCT(RT['sellUpsideMax'])})）；加權目標價＝DCF 腿 × 有效權重 ＋ "
+       f"＝使評等離開賣出的最小倍數：加權目標價 ≥ 賣出門檻價（現價 × (1 − {RT_PCT(RT['sellUpsideMax'])})）；加權目標價＝DCF 法 × 有效權重 ＋ "
        f"MAX(0,(錨定年 EBITDA × 倍數 − 錨定年末淨負債) ÷ 錨定年末股數) ÷ (1＋WACC)^(錨定年末至目標價時點年數) × 有效權重；由目前倍數每 {_fs['multipleStep']}x 往上掃描，至 {_fs['multipleMax']}x")
 _ssrow("穩健性｜加權目標價等於現價所需 EV/EBITDA 倍數", "x", [s['priceMultiple'] for s in _S], '0.00x',
        "＝同一算法下，加權目標價＝現價的倍數（對半求解）；與翻轉倍數同口徑、可直接比較（本列必大於翻轉倍數）")
@@ -3005,7 +3006,7 @@ SSR["穩健性｜共識平均目標價隱含 EV/EBITDA"] = r
 ws.cell(row=r, column=1, value=f"對照｜共識平均目標價隱含 EV/EBITDA（共識 {_CFY} 數字）").font = BLACK
 ws.cell(row=r, column=2, value="x").font = SMALL
 c = ws.cell(row=r, column=3, value=f"='摘要'!C{SM['隱含｜共識平均目標價隱含 FY28 EV/EBITDA']}"); c.number_format = '0.00x'; c.font = GREEN
-ws.cell(row=r, column=9, value=f"＝(共識平均目標價 × 股數 ＋ 共識 {_CFY} 淨負債) ÷ 共識 {_CFY} 調整後 EBITDA；未折現、不含 DCF 腿、用目標價而非現價——算法與上兩列不同，不可與上兩列比較").font = SMALL
+ws.cell(row=r, column=9, value=f"＝(共識平均目標價 × 股數 ＋ 共識 {_CFY} 淨負債) ÷ 共識 {_CFY} 調整後 EBITDA；未折現、不含 DCF 法、用目標價而非現價——算法與上兩列不同，不可與上兩列比較").font = SMALL
 r += 1
 _cys = sorted(k for k in CONS['annualEstimates'] if k.startswith('FY')); _cc = "CDE"[_cys.index(_CFY)]
 SSR["對照｜同式（活）"] = r
@@ -3017,7 +3018,7 @@ ws.cell(row=r, column=9, value=f"＝(共識平均目標價 × 股數 ＋ 模型 
 r += 1
 _ssrow("對照｜同式：共識平均目標價以模型數字換算的 EV/EBITDA", "x", [s['sameFormula'] for s in _S], '0.00x', "上一列在各情境下的值（建置時讀取）")
 _ssrow("穩健性｜翻轉為非賣出所需 WACC", "%", [s['flipWacc'] for s in _S], '0.00%',
-       f"＝使評等離開賣出的最高 WACC（DCF 折現與 EV/EBITDA 腿折回都用此 WACC）；由目前 WACC 每 {_fs['waccStep']:.2%} 往下掃描，至 {_fs['waccMin']:.0%}")
+       f"＝使評等離開賣出的最高 WACC（DCF 折現與 倍數法折回都用此 WACC）；由目前 WACC 每 {_fs['waccStep']:.2%} 往下掃描，至 {_fs['waccMin']:.0%}")
 _TOP = SS['topN']
 for k in range(_TOP):
     _ssrow(f"關鍵假設｜第 {k + 1} 名", "", [s['keyAssumptions'][k]['name'] for s in _S], '@')
@@ -3042,14 +3043,14 @@ ws.cell(row=r, column=1, value="快照｜狀態").font = BLACK
 ws.cell(row=r, column=3, value=(f'=IF(MAX(ABS(C{_q}-C{_p}),ABS(D{_q}-D{_p}),ABS(E{_q}-E{_p}))<0.005,"快照與目前輸入一致",'
                                 f'"快照已過期：輸入已變動，本段數字需重新建置")')).font = BOLD
 r += 1
-_x = lambda cell, fmt: f'IF(ISNUMBER({cell}),TEXT({cell},"{fmt}"),"不適用")'
-_sl = lambda row, fmt, suf: '&"／"&'.join(f'"{DT_SHORT[kk]} "&{_x(f"{col}{row}", fmt)}&"{suf}"' for kk, col in zip(DT_SC, "CDE"))
+_x = lambda cell, fmt, suf="": f'IF(ISNUMBER({cell}),TEXT({cell},"{fmt}")&"{suf}","不適用")'
+_sl = lambda row, fmt, suf: '&"／"&'.join(f'"{DT_SHORT[kk]} "&{_x(f"{col}{row}", fmt, suf)}' for kk, col in zip(DT_SC, "CDE"))
 _fm, _pm, _fw = SSR["穩健性｜翻轉評等（離開賣出）所需 EV/EBITDA 倍數"], SSR["穩健性｜加權目標價等於現價所需 EV/EBITDA 倍數"], SSR["穩健性｜翻轉為非賣出所需 WACC"]
 _cm, _sf = SSR["穩健性｜共識平均目標價隱含 EV/EBITDA"], SSR["對照｜同式：共識平均目標價以模型數字換算的 EV/EBITDA"]
 text_ss = [
     ("穩健性｜翻轉倍數句", f'="評等離開賣出所需倍數（現 "&TEXT({EVEBITDA},"0.0")&"x）："&{_sl(_fm, "0.0#", "x")}'
                          f'&"；加權目標價等於現價所需："&{_sl(_pm, "0.0", "x")}'
-                         f'&"（同一算法：模型 "&{_ANC}&" 錨定、扣屆時淨負債、折回目標價時點、含 DCF 腿）。"'),
+                         f'&"（同一算法：模型 {SS["live"]["anchor"]} 錨定、扣屆時淨負債、折回目標價時點、含 DCF 法）。"'),  # 錨定年度用快照當時的值（與數字一致）
     ("對照｜共識倍數句", f'="對照（算法不同，不與上一句比較）：共識平均目標價隱含 "&TEXT(C{_cm},"0.0")&"x（共識 {_CFY} 數字）；'
                        f'同一公式換成模型 {_CFY} 數字："&{_sl(_sf, "0.0", "x")}&"。"'),
     ("穩健性｜翻轉 WACC 句", f'="翻轉為非賣出所需 WACC（現 "&TEXT({WACC},"0.0%")&"）："&{_sl(_fw, "0.00%", "")}&"。"'),

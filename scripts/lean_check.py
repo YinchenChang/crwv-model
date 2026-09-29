@@ -1,9 +1,9 @@
 # 精簡版（PR #12）驗收：精簡版與完整版在「三情境 × 兩種 DCF 模式」下逐項一致（已決定事項 13）。
 # 兩邊都以 LibreOffice（UNO）開啟，改情境選擇與 DCF 下限方式後讀值；以「分頁＋A 欄列名稱」找格，數值差 < 1e-9 且顯示字串相同才算一致。
-# 比較項：目標價與評等（含情境區間、方法區間、賣出門檻、兩條腿）、資金缺口與融資（5 期）、FY28 起未簽約收入占比、焦點季、
+# 比較項：目標價與評等（含情境區間、方法區間、賣出門檻、兩種評價方法）、資金缺口與融資（5 期）、FY28 起未簽約收入占比、焦點季、
 #   結論句與判斷句、差異原因摘要、穩健性與關鍵假設（快照與句子）。
-# 用法：python3 scripts/lean_check.py 完整版.xlsx 精簡版.xlsx
-import sys, os
+# 用法：python3 scripts/lean_check.py 完整版.xlsx 精簡版.xlsx [合併對照 json，lean.py 寫出的 outline_lean_merges.json]
+import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from uno_q import Workbook
 
@@ -21,11 +21,15 @@ P = [(VA, '加權目標價', 'C'), (VA, '目標價區間｜點位評等代碼（
     [(QT, lab, col) for lab in ('焦點｜營收', '焦點｜調整後 EBITDA', '焦點｜調整後營業利益', '焦點｜CapEx（毛額）', '焦點｜差異原因') for col in 'CDEFGHI']
 
 
-def read(path):
+MERGED = {}  # 精簡版的合併對照（lean.py 寫出的 *_merges.json）：來源分頁 → 目的分頁
+if len(sys.argv) > 3: MERGED = json.load(open(sys.argv[3], encoding='utf-8'))
+
+
+def read(path, merged={}):
     out = {}
     with Workbook(path, timeout=90) as wb:
         sc, md = wb.cell(IN, '情境選擇（', prefix=True), wb.cell(IN, 'DCF 下限方式（', prefix=True)
-        refs = {p: wb.cell(p[0], p[1], col=p[2], prefix=p[1].endswith('（'), need_value=False) for p in P}
+        refs = {p: wb.cell(merged.get(p[0], p[0]), p[1], col=p[2], prefix=p[1].endswith('（'), need_value=False) for p in P}
         for s in (1, 2, 3):
             for m in (1, 2):
                 wb.set(sc, s); wb.set(md, m)
@@ -34,7 +38,7 @@ def read(path):
     return out
 
 
-F, L = read(sys.argv[1]), read(sys.argv[2])
+F, L = read(sys.argv[1]), read(sys.argv[2], MERGED)
 bad = [(k, F[k], L.get(k)) for k in F if L.get(k) is None or F[k][2] or L[k][2] or F[k][1] != L[k][1] or abs(F[k][0] - L[k][0]) >= 1e-9]
 print(f'精簡版 vs 完整版：三情境 × 兩種 DCF 模式，共 {len(F)} 項；不一致 {len(bad)} 項')
 for k, a, b in bad[:15]: print('  ', k, a, b)

@@ -2,7 +2,7 @@
 # 1. 月數：calendar_q.months_between 的幾種日期（跨年、5 月財年季末）。
 # 2. 同一版對同一版：評價日不動、四項皆 0。
 # 3. 滾動一季（副本：calendar 加一季、asOf 標為已檢視、數值不動），且 WACC 改為 12%（確認折現率讀 Excel 輸入格、不是寫死 11%）：
-#    (a) 係數須＝(1＋Excel 的 WACC)^(calendar_q 推算的月數 ÷ 12)；EV/EBITDA 腿與加權目標價的 (a) 變動率須等於係數；四項相加＝總變動。
+#    (a) 係數須＝(1＋Excel 的 WACC)^(calendar_q 推算的月數 ÷ 12)；倍數法與加權目標價的 (a) 變動率須等於係數；四項相加＝總變動。
 # 用法：python3 scripts/test_attrib.py 已建好的.xlsx
 import os, sys, json, subprocess, tempfile, shutil
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

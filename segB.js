@@ -136,7 +136,7 @@ function dcfValue(e, t) {
     pvEquityRaised: q,
     postShares: z,
     perShare: ps,
-    // v4.5：DCF 腿以 WACC 推到目標價時點（評價日＋12 個月；0 截斷與選擇權兩種模式皆同），與 EV/EBITDA 腿同一時點；perShare 仍為評價日現值（反向 DCF 用）
+    // v4.5：DCF 法以 WACC 推到目標價時點（評價日＋12 個月；0 截斷與選擇權兩種模式皆同），與 倍數法同一時點；perShare 仍為評價日現值（反向 DCF 用）
     perShareT: ps * (1 + t.wacc) ** CALQ.targetT,
     perShareRaw: (u + q) / z,
     tvShare: o / Math.max(Math.abs(s), 1) * Math.sign(s || 1),
@@ -153,7 +153,7 @@ function evEbitdaLeg(e, t) {
     r = t.fund ? e[k].shares : t.shares; // 損益股數：SBC 逐年複利稀釋＋瀑布新股（FY27 與 v3.4 相同）
   return (e[k].ebitda * t.evEbitda - n) / r / Math.pow(1 + t.wacc, k - CALQ.evOffset) // v4.5：錨定期末折回目標價時點（calendar.targetHorizon）
 }
-// v3.5：錨定年度 × 倍數矩陣（加權目標價與 EV/EBITDA 腿，均為每股）
+// v3.5：錨定年度 × 倍數矩陣（加權目標價與 倍數法，均為每股）
 var EVG_MULTS = [3.4, 4.5, 5, 6, 7];
 function evAnchorGrid(d, st, o) {
   let base = runValuation(d, st, o);
@@ -423,6 +423,29 @@ function gapTxtQ(g, pt) { // 差距文字：比例 → +1.4%；pt＝true 時為�
 function annGapTxtQ(r, k) { // v4.4：年度對照的差距文字——營收、CapEx 為比例；EBITDA 為金額差／EBITDA 率百分點；淨負債為金額差；EBITDA 率為百分點
   return k === `ebitda` ? `${dTxtQ(r.dif.ebitda, `US$bn`)}／${gapTxtQ(r.gap.ebM, true)}` : k === `nd` ? dTxtQ(r.dif.nd, `US$bn`) : gapTxtQ(r.gap[k], k === `ebM`)
 }
+// PR #12（精簡版；已決定事項 13(6)）：穩健性與關鍵假設——只顯示 Excel 求得的建置時快照（COMPANY_DATA.sensSnap，scripts/sens_solve.py），
+// 不做任何模型計算；字串與 Excel「評價_DCF與目標價」底部的四個句子逐字相同（cmp31 比對）。
+// stale＝目前三情境目標價與快照不同（使用者改了輸入）：畫面改灰字並加註「快照未更新」。
+function sensView(TR, st) {
+  const SS = COMPANY_DATA.sensSnap;
+  if (!SS) return null;
+  const S = SS.scenarios, L = SS.live, nm = [`low`, `base`, `high`].map(k => SCENARIOS[k].label.split(` `)[0]);
+  const t1 = x => x.toFixed(1), t2 = x => { const s = x.toFixed(2); return s.endsWith(`0`) ? s.slice(0, -1) : s };  // Excel TEXT "0.0"、"0.0#"
+  const na = (x, f) => Number.isFinite(x) ? f(x) : `不適用`;
+  const sl = (key, f, suf) => S.map((s, i) => `${nm[i]} ${na(s[key], f)}${Number.isFinite(s[key]) ? suf : ``}`).join(`／`);
+  const sg = x => `${x < 0 ? `-` : `+`}$${Math.abs(x).toFixed(1)}`;   // Excel TEXT "+$0.0;-$0.0"
+  const cur = S[[`low`, `base`, `high`].indexOf(st.scenario)] || S[1];
+  const top = cur.keyAssumptions.slice(0, SS.topN).map(e => `${e.name} ${sg(e.down)}／${sg(e.up)}`).join(`；`);
+  const fixed = (SS.alwaysShow || []).map(n => { const e = cur.keyAssumptions.find(x => x.name === n); return `；固定列示 ${n}（第 ${e.rank} 名）${sg(e.down)}／${sg(e.up)}` }).join(``);
+  return {
+    flip: `評等離開賣出所需倍數（現 ${t1(L.multiple)}x）：${sl(`flipMultiple`, t2, `x`)}；加權目標價等於現價所需：${sl(`priceMultiple`, t1, `x`)}（同一算法：模型 ${L.anchor} 錨定、扣屆時淨負債、折回目標價時點、含 DCF 法）。`,
+    cons: `對照（算法不同，不與上一句比較）：共識平均目標價隱含 ${t1(L.consensusMultiple)}x（共識 ${Object.keys(COMPANY_DATA.consensus.annualEstimates).filter(k => k.startsWith(`FY`)).sort().pop()} 數字）；同一公式換成模型 ${Object.keys(COMPANY_DATA.consensus.annualEstimates).filter(k => k.startsWith(`FY`)).sort().pop()} 數字：${sl(`sameFormula`, t1, `x`)}。`,
+    wacc: `翻轉為非賣出所需 WACC（現 ${(L.wacc * 100).toFixed(1)}%）：${S.map((s, i) => `${nm[i]} ${na(s.flipWacc, x => (x * 100).toFixed(2) + `%`)}`).join(`／`)}。`,
+    key: `目標價最敏感的 ${SS.topN} 項（假設下調／上調時目標價的變動；${SS.note}）：${top}${fixed}。`,
+    stale: TR.scen.some((s, i) => Math.abs(s.tgt - S[i].target) >= .005)
+  }
+}
+
 function consensusView(d, p, o, TR, st) { // d＝runFunding、p＝runValuation、o＝評價參數、TR＝targetRange、st＝目前輸入（v4.4：差異原因的數字）
   let E = CONSENSUS.annualEstimates, y = d.years, f = p.fwd,
     rows = CONS_YEARS.map((yr, i) => {

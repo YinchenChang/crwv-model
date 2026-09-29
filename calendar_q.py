@@ -77,10 +77,10 @@ def derive(co):
         'periodEnd': [_eom(*e) for e in ends],
         'tEnd': [num(x) for x in t_end], 'tStart': [num(x) for x in t_start],
         'targetDate': _eom(ty, tm), 'targetT': num(tgt_m / 12),
-        # EV/EBITDA 腿：錨定期 k（1..N）期末折回目標價時點的年數＝k − evOffset；evOffset＝目標價時點年數 − 首期長度
+        # 倍數法：錨定期 k（1..N）期末折回目標價時點的年數＝k − evOffset；evOffset＝目標價時點年數 − 首期長度
         'evOffset': num(tgt_m / 12 - stub / 12),
     }
-    # 目標價時點的寫法：現行口徑＝「FY27 末」；評價日＋12 個月＝日期。EV/EBITDA 腿自哪個錨定期起需要折回（折回年數 > 0）
+    # 目標價時點的寫法：現行口徑＝「FY27 末」；評價日＋12 個月＝日期。倍數法自哪個錨定期起需要折回（折回年數 > 0）
     out['targetText'] = f"{out['periods'][1]} 末" if hz == 'firstFullYearEnd' else out['targetDate']
     k0 = next(k for k in range(1, len(out['periods'])) if k - out['evOffset'] > 0)
     out['evDiscFrom'] = k0
