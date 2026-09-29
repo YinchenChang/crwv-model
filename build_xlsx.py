@@ -2992,23 +2992,43 @@ def _ssrow(name, unit, vals, fmt, note=None):
 _S = SS['scenarios']
 _ANC = f"'評價_DCF與目標價'!$C${_lab(ws, '錨定年度')}"
 _CFY = max(k for k in CONS['annualEstimates'] if k.startswith('FY'))
+_fs = CO['methodology']['flipSearch']
+# 第 5 輪：三種倍數分兩組，算法不同的不並列比較（Andy 決定）。
+#   同一算法（加權目標價；模型錨定年 EBITDA × 倍數 − 錨定年末淨負債、÷ 錨定年末股數、以 WACC 折回目標價時點、含 DCF 腿與權重）：翻轉倍數、現價所需倍數。
+#   對照（共識的算法；未折現、不含 DCF 腿、用目標價而非現價）：共識平均目標價隱含倍數，及同一公式換成模型數字。
 _ssrow("穩健性｜翻轉評等（離開賣出）所需 EV/EBITDA 倍數", "x", [s['flipMultiple'] for s in _S], '0.00x',
-       f"由目前倍數往上掃描（每 {CO['methodology']['flipSearch']['multipleStep']}x，至 {CO['methodology']['flipSearch']['multipleMax']}x）；已非賣出或上限內無解時為「不適用」")
-_ssrow("穩健性｜現價隱含 EV/EBITDA 倍數（模型錨定年口徑）", "x", [s['impliedMultiple'] for s in _S], '0.00x',
-       "EV/EBITDA 腿（錨定年 EBITDA、折回目標價時點）等於現價的倍數")
+       f"＝使評等離開賣出的最小倍數：加權目標價 ≥ 賣出門檻價（現價 × (1 − {RT_PCT(RT['sellUpsideMax'])})）；加權目標價＝DCF 腿 × 有效權重 ＋ "
+       f"MAX(0,(錨定年 EBITDA × 倍數 − 錨定年末淨負債) ÷ 錨定年末股數) ÷ (1＋WACC)^(錨定年末至目標價時點年數) × 有效權重；由目前倍數每 {_fs['multipleStep']}x 往上掃描，至 {_fs['multipleMax']}x")
+_ssrow("穩健性｜加權目標價等於現價所需 EV/EBITDA 倍數", "x", [s['priceMultiple'] for s in _S], '0.00x',
+       "＝同一算法下，加權目標價＝現價的倍數（對半求解）；與翻轉倍數同口徑、可直接比較（本列必大於翻轉倍數）")
 SSR["穩健性｜共識平均目標價隱含 EV/EBITDA"] = r
-ws.cell(row=r, column=1, value=f"穩健性｜共識平均目標價隱含 EV/EBITDA（共識 {_CFY} 口徑）").font = BLACK
+ws.cell(row=r, column=1, value=f"對照｜共識平均目標價隱含 EV/EBITDA（共識 {_CFY} 數字）").font = BLACK
 ws.cell(row=r, column=2, value="x").font = SMALL
 c = ws.cell(row=r, column=3, value=f"='摘要'!C{SM['隱含｜共識平均目標價隱含 FY28 EV/EBITDA']}"); c.number_format = '0.00x'; c.font = GREEN
-ws.cell(row=r, column=9, value="引用『摘要』；共識數字只到此年度，口徑與模型錨定年不同").font = SMALL
+ws.cell(row=r, column=9, value=f"＝(共識平均目標價 × 股數 ＋ 共識 {_CFY} 淨負債) ÷ 共識 {_CFY} 調整後 EBITDA；未折現、不含 DCF 腿、用目標價而非現價——算法與上兩列不同，不可與上兩列比較").font = SMALL
 r += 1
+_cys = sorted(k for k in CONS['annualEstimates'] if k.startswith('FY')); _cc = "CDE"[_cys.index(_CFY)]
+SSR["對照｜同式（活）"] = r
+ws.cell(row=r, column=1, value="對照｜同式：共識平均目標價以模型數字換算的 EV/EBITDA（目前情境，活公式）").font = BLACK
+ws.cell(row=r, column=2, value="x").font = SMALL
+c = ws.cell(row=r, column=3, value=f"=({_PTM}*{SH}+'摘要'!{_cc}{SM['差異｜淨負債｜模型']})/'摘要'!{_cc}{SM['差異｜調整後 EBITDA｜模型']}")
+c.number_format = '0.00x'; c.font = BLACK
+ws.cell(row=r, column=9, value=f"＝(共識平均目標價 × 股數 ＋ 模型 {_CFY} 淨負債) ÷ 模型 {_CFY} 調整後 EBITDA：與上一列同一公式，只把共識數字換成模型數字，差距即來自 EBITDA 與淨負債的看法").font = SMALL
+r += 1
+_ssrow("對照｜同式：共識平均目標價以模型數字換算的 EV/EBITDA", "x", [s['sameFormula'] for s in _S], '0.00x', "上一列在各情境下的值（建置時讀取）")
 _ssrow("穩健性｜翻轉為非賣出所需 WACC", "%", [s['flipWacc'] for s in _S], '0.00%',
-       f"由目前 WACC 往下掃描（每 {CO['methodology']['flipSearch']['waccStep']:.2%}，至 {CO['methodology']['flipSearch']['waccMin']:.0%}）")
+       f"＝使評等離開賣出的最高 WACC（DCF 折現與 EV/EBITDA 腿折回都用此 WACC）；由目前 WACC 每 {_fs['waccStep']:.2%} 往下掃描，至 {_fs['waccMin']:.0%}")
 _TOP = SS['topN']
 for k in range(_TOP):
     _ssrow(f"關鍵假設｜第 {k + 1} 名", "", [s['keyAssumptions'][k]['name'] for s in _S], '@')
     _ssrow(f"關鍵假設｜第 {k + 1} 名｜下調對目標價", "US$", [s['keyAssumptions'][k]['down'] for s in _S], USD)
     _ssrow(f"關鍵假設｜第 {k + 1} 名｜上調對目標價", "US$", [s['keyAssumptions'][k]['up'] for s in _S], USD)
+_AS = SS.get('alwaysShow', [])
+_ka = lambda s, nm: next(e for e in s['keyAssumptions'] if e['name'] == nm)
+for nm in _AS:
+    _ssrow(f"關鍵假設｜固定列示｜{nm}｜名次", "", [_ka(s, nm)['rank'] for s in _S], '0', "company.json → methodology.keyAssumptions.alwaysShow：不論名次都列示")
+    _ssrow(f"關鍵假設｜固定列示｜{nm}｜下調對目標價", "US$", [_ka(s, nm)['down'] for s in _S], USD)
+    _ssrow(f"關鍵假設｜固定列示｜{nm}｜上調對目標價", "US$", [_ka(s, nm)['up'] for s in _S], USD)
 _ssrow("快照｜建置時目標價", "US$", [s['target'] for s in _S], USD)
 SSR["快照｜目前目標價"] = r
 ws.cell(row=r, column=1, value="快照｜目前目標價（模擬運算表活值）").font = BLACK
@@ -3024,21 +3044,28 @@ ws.cell(row=r, column=3, value=(f'=IF(MAX(ABS(C{_q}-C{_p}),ABS(D{_q}-D{_p}),ABS(
 r += 1
 _x = lambda cell, fmt: f'IF(ISNUMBER({cell}),TEXT({cell},"{fmt}"),"不適用")'
 _sl = lambda row, fmt, suf: '&"／"&'.join(f'"{DT_SHORT[kk]} "&{_x(f"{col}{row}", fmt)}&"{suf}"' for kk, col in zip(DT_SC, "CDE"))
-_fm, _im, _fw = SSR["穩健性｜翻轉評等（離開賣出）所需 EV/EBITDA 倍數"], SSR["穩健性｜現價隱含 EV/EBITDA 倍數（模型錨定年口徑）"], SSR["穩健性｜翻轉為非賣出所需 WACC"]
-_cm = SSR["穩健性｜共識平均目標價隱含 EV/EBITDA"]
+_fm, _pm, _fw = SSR["穩健性｜翻轉評等（離開賣出）所需 EV/EBITDA 倍數"], SSR["穩健性｜加權目標價等於現價所需 EV/EBITDA 倍數"], SSR["穩健性｜翻轉為非賣出所需 WACC"]
+_cm, _sf = SSR["穩健性｜共識平均目標價隱含 EV/EBITDA"], SSR["對照｜同式：共識平均目標價以模型數字換算的 EV/EBITDA"]
 text_ss = [
-    ("穩健性｜翻轉倍數句", f'="翻轉評等所需倍數（現 "&TEXT({EVEBITDA},"0.0")&"x）："&{_sl(_fm, "0.0#", "x")}'
-                         f'&"；現價隱含（模型 "&{_ANC}&" 口徑）："&{_sl(_im, "0.0", "x")}'
-                         f'&"；共識平均目標價隱含 "&TEXT(C{_cm},"0.0")&"x（共識 {_CFY} 口徑）。"'),
+    ("穩健性｜翻轉倍數句", f'="評等離開賣出所需倍數（現 "&TEXT({EVEBITDA},"0.0")&"x）："&{_sl(_fm, "0.0#", "x")}'
+                         f'&"；加權目標價等於現價所需："&{_sl(_pm, "0.0", "x")}'
+                         f'&"（同一算法：模型 "&{_ANC}&" 錨定、扣屆時淨負債、折回目標價時點、含 DCF 腿）。"'),
+    ("對照｜共識倍數句", f'="對照（算法不同，不與上一句比較）：共識平均目標價隱含 "&TEXT(C{_cm},"0.0")&"x（共識 {_CFY} 數字）；'
+                       f'同一公式換成模型 {_CFY} 數字："&{_sl(_sf, "0.0", "x")}&"。"'),
     ("穩健性｜翻轉 WACC 句", f'="翻轉為非賣出所需 WACC（現 "&TEXT({WACC},"0.0%")&"）："&{_sl(_fw, "0.00%", "")}&"。"'),
 ]
 _kn = lambda k, col: f"{col}{SSR[f'關鍵假設｜第 {k + 1} 名']}"
 _kv = lambda k, col, w: f"{col}{SSR[f'關鍵假設｜第 {k + 1} 名｜{w}對目標價']}"
 _pick = lambda f: f"CHOOSE({SEL},{','.join(f(col) for col in 'CDE')})"
+_asr = lambda nm, w: _pick(lambda col: f"{col}{SSR['關鍵假設｜固定列示｜' + nm + '｜' + w]}")
+_asx = lambda nm: (f'&"；固定列示 {nm}（第 "&{_asr(nm, "名次")}&" 名）"&TEXT({_asr(nm, "下調對目標價")},"+$0.0;-$0.0")'
+                   f'&"／"&TEXT({_asr(nm, "上調對目標價")},"+$0.0;-$0.0")')
 text_ss.append(("關鍵假設｜句（目前情境）",
                 f'="目標價最敏感的 {_TOP} 項（假設下調／上調時目標價的變動；{SS["note"]}）："&' + '&"；"&'.join(
                     f'{_pick(lambda col, k=k: _kn(k, col))}&" "&TEXT({_pick(lambda col, k=k: _kv(k, col, "下調"))},"+$0.0;-$0.0")'
-                    f'&"／"&TEXT({_pick(lambda col, k=k: _kv(k, col, "上調"))},"+$0.0;-$0.0")' for k in range(_TOP)) + '&"。"'))
+                    f'&"／"&TEXT({_pick(lambda col, k=k: _kv(k, col, "上調"))},"+$0.0;-$0.0")' for k in range(_TOP))
+                + ''.join(_asx(nm) for nm in _AS)
+                + '&"。"'))
 for nm, f in text_ss:
     SSR[nm] = r
     ws.cell(row=r, column=1, value=nm).font = BOLD

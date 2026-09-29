@@ -73,7 +73,7 @@ def analyse(path):
         'G3 共識與指引差異及原因': cells(SM, rows_where(SM, lambda a: a.startswith(('差異', '隱含｜', '驗證｜目標價')))),
         'G4 季度追蹤（整張）': cells(QT, range(1, wb[QT].max_row + 1)) + cells(SM, rows_where(SM, lambda a: a.startswith('驗證｜') and '評等分布' not in a)),
         'G5 反向 DCF 摘要': cells(SM, rows_where(SM, lambda a: a.startswith('反向 DCF｜'))),
-        'G1b／G11 穩健性與關鍵假設（建置時快照）': cells(VA, rows_where(VA, lambda a: a.startswith(('穩健性｜', '關鍵假設｜', '快照｜')))),
+        'G1b／G11 穩健性與關鍵假設（建置時快照）': cells(VA, rows_where(VA, lambda a: a.startswith(('穩健性｜', '對照｜', '關鍵假設｜', '快照｜')))),
         'G8 核心檢查（現金橋）': cells(CF, span(CF, '四層橋（驗算）', '差異（應為 0）')) + cells('檢查_連動', rows_where('檢查_連動', lambda a: a == '現金橋差異')),
     }
     T = {k: [c for c in v if c in kind] for k, v in T.items()}

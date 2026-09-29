@@ -856,6 +856,9 @@
   "keyAssumptions": {
    "note": "±10% 為彈性，非可能性（GPU 經濟壽命為 ±1 年）",
    "topN": 3,
+   "alwaysShow": [
+    "GPU 經濟壽命"
+   ],
    "candidates": [
     {
      "name": "每 MW 年收入（含利用率）",

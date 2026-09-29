@@ -509,6 +509,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `methodology.rating.tvShareWarn` | 終值占企業價值超過此值時提出警示（融資說明、檢查頁） | 比例 | 0.85 | 可沿用 |
 | `methodology.keyAssumptions.note` | 關鍵假設一行的附註（精簡版目標 11；畫面須標明「±10% 為彈性，非可能性」；PR #12） | 文字 | ±10% 為彈性，非可能性（GPU 經濟壽命為 ±1… | 可沿用 |
 | `methodology.keyAssumptions.topN` | 關鍵假設顯示前幾名（依目標價變動絕對值排序） | 項 | 3 | 可沿用 |
+| `methodology.keyAssumptions.alwaysShow` | 不論名次都列示的關鍵假設（候選的 name；PR #12 第 5 輪：GPU 經濟壽命） | 文字清單 | GPU 經濟壽命 | 檢查 |
 | `methodology.keyAssumptions.candidates` | 關鍵假設候選，一項一列：name 顯示名稱、label「輸入與假設」A 欄列名稱的開頭（須剛好對到一列輸入）、perYear 是否為逐年列（整列同改）、mode rel＝相對 ±step／abs＝絕對 ±step、step 幅度。建置時 scripts/sens_solve.py 逐項上下各重跑一次 Excel | 清單 | 13 筆 | 檢查 |
 | `methodology.flipSearch.multipleMax` | 翻轉倍數與現價隱含倍數的搜尋上限 | 倍 | 12 | 可沿用 |
 | `methodology.flipSearch.multipleStep` | 翻轉倍數的掃描精度 | 倍 | 0.05 | 可沿用 |

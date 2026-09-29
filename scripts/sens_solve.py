@@ -2,7 +2,9 @@
 # 以 LibreOffice（UNO）開啟建好的 Excel，逐情境（0 截斷口徑）改輸入、重算、讀值；結果寫入 sens_snap.json，
 # build_xlsx.py 讀此檔寫入「評價_DCF與目標價」底部「穩健性與關鍵假設」段（完整版與精簡版共用）。
 #   翻轉倍數＝評等離開「賣出」所需的最小 EV/EBITDA 倍數（由目前倍數往上掃描；已非賣出時不算）。
-#   現價隱含倍數＝EV/EBITDA 腿（模型錨定年、折回目標價時點）等於現價的倍數（對半求解）。
+#   現價所需倍數＝加權目標價（與翻轉倍數同一算法：模型錨定年 EBITDA × 倍數 − 屆時淨負債、÷ 屆時股數、折回目標價時點，含 DCF 腿與權重）
+#     等於現價的倍數（對半求解；第 5 輪取代第 4 輪「EV/EBITDA 腿單獨等於現價」的算法——那不含 DCF 腿、比較對象也不同，並列會誤讀）。
+#   同式對照＝「穩健性｜同式對照：共識平均目標價以模型數字換算的 EV/EBITDA（目前情境，活公式）」逐情境讀值（Excel 公式，非求解）。
 #   翻轉 WACC＝評等離開「賣出」所需的最高 WACC（由目前 WACC 往下掃描）。
 #   關鍵假設＝company.json → methodology.keyAssumptions 的候選各上下一步（rel＝相對 ±step、abs＝絕對 ±step；逐年列整列同改），
 #     依目標價變動絕對值（兩端取大）排序，取前 topN 名。
@@ -32,10 +34,11 @@ def unique_row(wb, sheet, prefix):
 
 
 r6 = lambda x: None if x is None else round(x, 6)
-res = {'note': KA['note'], 'topN': KA['topN'], 'scenarios': []}
+res = {'note': KA['note'], 'topN': KA['topN'], 'alwaysShow': KA.get('alwaysShow', []), 'scenarios': []}
 with Workbook(xlsx, timeout=90) as wb:
     sc = wb.cell(IN, '情境選擇（', prefix=True); md = wb.cell(IN, 'DCF 下限方式（', prefix=True)
-    tgt, leg = wb.cell(VA, '加權目標價'), wb.cell(VA, 'EV/EBITDA 每股（融資後）')
+    tgt = wb.cell(VA, '加權目標價')
+    same = wb.cell(VA, '對照｜同式：共識平均目標價以模型數字換算的 EV/EBITDA（目前情境，活公式）')
     rate = wb.cell(VA, '目標價區間｜點位評等代碼（', prefix=True)
     mult, wacc, px = wb.cell(IN, 'EV/EBITDA 倍數'), wb.cell(IN, 'WACC'), wb.cell(IN, '現價（', prefix=True)
     cand = []
@@ -58,16 +61,16 @@ with Workbook(xlsx, timeout=90) as wb:
                 wb.set(mult, m0 + k * FS['multipleStep'])
                 if wb.get(rate) != SELL: flip = m0 + k * FS['multipleStep']; break
                 k += 1
-        # 現價隱含倍數（EV/EBITDA 腿＝現價；腿對倍數遞增）
-        lo, hi = 0.0, FS['multipleMax'] * 2; wb.set(mult, hi); implied = None
-        if wb.get(leg) >= P:
+        # 現價所需倍數（加權目標價＝現價；加權目標價對倍數遞增）
+        lo, hi = 0.0, FS['multipleMax'] * 2; wb.set(mult, hi); pm = None
+        if wb.get(tgt) >= P:
             for _ in range(40):
                 mid = (lo + hi) / 2; wb.set(mult, mid)
-                if wb.get(leg) >= P: hi = mid
+                if wb.get(tgt) >= P: hi = mid
                 else: lo = mid
-            implied = (lo + hi) / 2
+            pm = (lo + hi) / 2
         wb.set(mult, m0)
-        row['flipMultiple'], row['impliedMultiple'] = r6(flip), r6(implied)
+        row['flipMultiple'], row['priceMultiple'], row['sameFormula'] = r6(flip), r6(pm), r6(wb.get(same))
         # 翻轉 WACC
         w0 = wb.get(wacc); fw = None
         if code == SELL:
@@ -89,6 +92,7 @@ with Workbook(xlsx, timeout=90) as wb:
             for x, v in zip(cells, v0): wb.set(x, v)
             ka.append({'name': c['name'], 'down': r6(d[0]), 'up': r6(d[1]), 'mode': c['mode'], 'step': c['step']})
         ka.sort(key=lambda e: -max(abs(e['down']), abs(e['up'])))
+        for i, e in enumerate(ka): e['rank'] = i + 1
         row['keyAssumptions'] = ka
         if abs(wb.get(tgt) - base) > 1e-9: raise RuntimeError('輸入還原後目標價不同：求解過程改動了輸入')
         res['scenarios'].append(row)
@@ -97,7 +101,7 @@ with Workbook(xlsx, timeout=90) as wb:
 txt = json.dumps(res, ensure_ascii=False, indent=1)
 for row in res['scenarios']:
     top = '、'.join(f"{e['name']} {e['down']:+.1f}／{e['up']:+.1f}" for e in row['keyAssumptions'][:res['topN']])
-    print(f"情境 {row['scenario']}：目標價 {row['target']:.2f}、翻轉倍數 {row['flipMultiple']}、現價隱含倍數 {row['impliedMultiple']}、翻轉 WACC {row['flipWacc']}；前三：{top}")
+    print(f"情境 {row['scenario']}：目標價 {row['target']:.2f}、翻轉倍數 {row['flipMultiple']}、現價所需倍數 {row['priceMultiple']}、同式對照 {row['sameFormula']}、翻轉 WACC {row['flipWacc']}；前三：{top}")
 old = open(out, encoding='utf-8').read() if os.path.exists(out) else None
 if old == txt:
     print('sens_snap.json 無變動'); sys.exit(0)

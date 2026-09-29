@@ -1,13 +1,17 @@
 {
  "note": "±10% 為彈性，非可能性（GPU 經濟壽命為 ±1 年）",
  "topN": 3,
+ "alwaysShow": [
+  "GPU 經濟壽命"
+ ],
  "scenarios": [
   {
    "scenario": 1,
    "target": 69.741657,
    "rating": -1.0,
    "flipMultiple": 6.4,
-   "impliedMultiple": 5.515161,
+   "priceMultiple": 7.171916,
+   "sameFormula": 7.020594,
    "flipWacc": 0.1025,
    "keyAssumptions": [
     {
@@ -15,91 +19,104 @@
      "down": -25.330839,
      "up": 28.259058,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 1
     },
     {
      "name": "穩態 EBITDA 率",
      "down": -22.430151,
      "up": 26.746572,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 2
     },
     {
      "name": "每 MW 建置成本",
      "down": 18.482927,
      "up": -20.420848,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 3
     },
     {
      "name": "GPU 經濟壽命",
      "down": -18.194434,
      "up": 17.972688,
      "mode": "abs",
-     "step": 1
+     "step": 1,
+     "rank": 4
     },
     {
      "name": "終值維持性 CapEx",
      "down": 12.110544,
      "up": -11.7352,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 5
     },
     {
      "name": "WACC",
      "down": 10.950564,
      "up": -8.713819,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 6
     },
     {
      "name": "新產能簽約率",
      "down": -10.660111,
      "up": 10.654768,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 7
     },
     {
      "name": "起始 EBITDA 率",
      "down": -7.098755,
      "up": 7.066725,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 8
     },
     {
      "name": "永續成長 g",
      "down": -1.693608,
      "up": 1.825578,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 9
     },
     {
      "name": "新債利率",
      "down": 1.094933,
      "up": -1.132357,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 10
     },
     {
      "name": "客戶違約率",
      "down": 0.045342,
      "up": -0.045342,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 11
     },
     {
      "name": "債務／backlog 上限",
      "down": 0.0,
      "up": 0.0,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 12
     },
     {
      "name": "股權發行折價",
      "down": 0.0,
      "up": 0.0,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 13
     }
    ]
   },
@@ -108,7 +125,8 @@
    "target": 45.50115,
    "rating": -1.0,
    "flipMultiple": 7.95,
-   "impliedMultiple": 6.253985,
+   "priceMultiple": 8.784791,
+   "sameFormula": 7.343968,
    "flipWacc": 0.0745,
    "keyAssumptions": [
     {
@@ -116,91 +134,104 @@
      "down": -12.046161,
      "up": 18.712467,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 1
     },
     {
      "name": "穩態 EBITDA 率",
      "down": -9.877397,
      "up": 18.478944,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 2
     },
     {
      "name": "每 MW 建置成本",
      "down": 12.714843,
      "up": -9.442564,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 3
     },
     {
      "name": "GPU 經濟壽命",
      "down": -5.733007,
      "up": 10.054663,
      "mode": "abs",
-     "step": 1
+     "step": 1,
+     "rank": 4
     },
     {
      "name": "終值維持性 CapEx",
      "down": 7.48472,
      "up": 0.0,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 5
     },
     {
      "name": "新產能簽約率",
      "down": -4.435999,
      "up": 5.668077,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 6
     },
     {
      "name": "起始 EBITDA 率",
      "down": -4.867955,
      "up": 5.613475,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 7
     },
     {
      "name": "WACC",
      "down": 2.893325,
      "up": -1.108018,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 8
     },
     {
      "name": "新債利率",
      "down": 1.420464,
      "up": -1.363049,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 9
     },
     {
      "name": "債務／backlog 上限",
      "down": -0.271274,
      "up": 1.230448,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 10
     },
     {
      "name": "股權發行折價",
      "down": 0.074947,
      "up": -0.076377,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 11
     },
     {
      "name": "客戶違約率",
      "down": 0.051178,
      "up": -0.051063,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 12
     },
     {
      "name": "永續成長 g",
      "down": 0.0,
      "up": 0.0,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 13
     }
    ]
   },
@@ -209,7 +240,8 @@
    "target": 30.953266,
    "rating": -1.0,
    "flipMultiple": 8.7,
-   "impliedMultiple": 7.087893,
+   "priceMultiple": 9.457791,
+   "sameFormula": 7.838611,
    "flipWacc": 0.056,
    "keyAssumptions": [
     {
@@ -217,91 +249,104 @@
      "down": -12.076642,
      "up": 13.899896,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 1
     },
     {
      "name": "每 MW 建置成本",
      "down": 10.973962,
      "up": -10.428544,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 2
     },
     {
      "name": "穩態 EBITDA 率",
      "down": -9.924326,
      "up": 10.469512,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 3
     },
     {
      "name": "新產能簽約率",
      "down": -4.833621,
      "up": 5.648325,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 4
     },
     {
      "name": "起始 EBITDA 率",
      "down": -4.069947,
      "up": 4.462656,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 5
     },
     {
      "name": "GPU 經濟壽命",
      "down": -4.295071,
      "up": 1.881683,
      "mode": "abs",
-     "step": 1
+     "step": 1,
+     "rank": 6
     },
     {
      "name": "新債利率",
      "down": 1.195316,
      "up": -1.151841,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 7
     },
     {
      "name": "債務／backlog 上限",
      "down": 0.798512,
      "up": -0.829274,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 8
     },
     {
      "name": "WACC",
      "down": 0.78036,
      "up": -0.753756,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 9
     },
     {
      "name": "股權發行折價",
      "down": 0.083345,
      "up": -0.084756,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 10
     },
     {
      "name": "客戶違約率",
      "down": 0.037975,
      "up": -0.037936,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 11
     },
     {
      "name": "永續成長 g",
      "down": 0.0,
      "up": 0.0,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 12
     },
     {
      "name": "終值維持性 CapEx",
      "down": 0.0,
      "up": 0.0,
      "mode": "rel",
-     "step": 0.1
+     "step": 0.1,
+     "rank": 13
     }
    ]
   }
