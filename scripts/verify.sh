@@ -101,7 +101,13 @@ if python3 scripts/lean.py "$XLSX" "$LEAN_XLSX" "$OUT/outline.json" "$OUT/outlin
    && python3 scripts/recalc.py "$LEAN_XLSX" 120 && python3 fix_outline.py "$LEAN_XLSX" "$OUT/outline_lean.json" \
    && python3 fix_datatable.py "$LEAN_XLSX" && python3 verify_ooxml.py "$LEAN_XLSX"; then ok "精簡版 Excel：刪減、重算 0 錯誤、OOXML OK"
 else bad "精簡版 Excel 建置"; fi
-if python3 scripts/lean_check.py "$XLSX" "$LEAN_XLSX" "$OUT/outline_lean_merges.json"; then ok "精簡版 vs 完整版：三情境 × 兩種 DCF 模式逐項一致"; else bad "精簡版 vs 完整版"; fi
+if python3 scripts/lean_check.py "$XLSX" "$LEAN_XLSX" "$OUT/outline_lean_merges.json"; then ok "精簡版 vs 完整版：三情境 × 兩種 DCF 模式逐項一致"
+  # 預覽（PR #12；Andy 要求）：通過檢查的精簡版複製到 preview/，檔名含「預覽」與建置時的提交編號；舊預覽移除。
+  # preview/ 不是 dist/、不升版；本 PR 合併前刪除（CLAUDE.md 待辦 5「精簡版」）。
+  SRC="$(git rev-parse --short HEAD)"; git diff --quiet HEAD -- . ':(exclude)preview' || SRC="${SRC}_未提交"
+  mkdir -p preview && rm -f preview/*精簡版*預覽*.xlsx
+  cp "$LEAN_XLSX" "preview/$(basename "${LEAN_XLSX%.xlsx}")_預覽_${SRC}.xlsx" && echo "預覽：preview/$(basename "${LEAN_XLSX%.xlsx}")_預覽_${SRC}.xlsx"
+else bad "精簡版 vs 完整版"; fi
 
 step "5c. 離線開啟檢查（已決定事項 11：單一檔案、無網路請求、console 無錯誤、關鍵數字正常顯示）"
 if python3 scripts/check_offline.py "$HTML" "$XLSX"; then ok "離線開啟：新建 HTML"; else bad "離線開啟：新建 HTML"; fi

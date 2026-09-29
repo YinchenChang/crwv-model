@@ -32,6 +32,7 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | scripts/lean_deps.py | 精簡版：以完整版 Excel 的公式建立依賴圖，依「分頁＋A 欄列名稱」定義的目標求出必須保留的列（整列保留的不動點，含被引用的空白輸入格） |
 | scripts/lean.py | 精簡版：由完整版 Excel 刪除依賴鏈外的分頁與列、清除說明欄（LibreOffice 自動改寫參照），並寫出精簡版 outline 對照；verify.sh 步驟 5b |
 | scripts/lean_check.py | 精簡版驗收：三情境 × 兩種 DCF 模式下，目標價、評等、資金缺口與融資、焦點季、各判斷句與完整版逐項一致（verify.sh 步驟 5b） |
+| preview/ | PR #12 期間的預覽：最新建置的精簡版 Excel（檔名含「預覽」與建置時的提交編號），`verify.sh` 步驟 5b 通過後自動更新；不是交付成品、不升版，PR 合併前刪除 |
 | scripts/check_terms.py | 用語規則檢查（PR #12 第 6 輪）：CLAUDE.md「用語規則」表「不用」欄的詞不得出現在 repo（已存檔的 docs/reports、dist/、scripts/expect/ 除外）與本次建置的 HTML、Excel；verify.sh 步驟 5a |
 | scripts/expect/pr12_vs_v4_5.txt | PR #12 對 v4.5 成品的預期差異清單：「替換 舊 => 新」（用語統一，xl_diff 與畫面比對都先換再比）、「畫面新增 行首文字」（完整版網頁新增的穩健性段）。本 PR 驗收以 `EXPECT=scripts/expect/pr12_vs_v4_5.txt scripts/verify.sh --vs-dist` 執行 |
 | scripts/uno_q.py | v4.5：以 LibreOffice UNO 驅動 Excel 的共用模組（依 A 欄列名稱找格、改值、讀重算後的值；不存檔） |
