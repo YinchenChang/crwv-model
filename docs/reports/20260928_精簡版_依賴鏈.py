@@ -1,78 +1,118 @@
-# 以 v4.5 xlsx 的公式建立依賴圖，計算各「目標輸出」的前導格集合（精簡版至少要保留的格）
-import openpyxl, re, sys, json
+# 精簡版：以完整版 xlsx 的公式建立依賴圖，計算各「目標輸出」的前導格（精簡版至少要保留的格）。
+# 第 3 輪：目標改以「分頁＋A 欄列名稱」定義（不寫死列號，完整版增刪列時不失準）；無法解析的參照直接報錯，不略過。
+# 用法：python3 docs/reports/20260928_精簡版_依賴鏈.py [xlsx，預設 dist/ 內的 xlsx]
+#   作為模組：g = {}; exec(...); g['analyse'](path) → dict（allk、kind、wb、targets…）
+import sys, glob
+import openpyxl
 from openpyxl.formula import Tokenizer
-from openpyxl.utils import range_boundaries, get_column_letter
+from openpyxl.utils import range_boundaries
 from openpyxl.worksheet.formula import DataTableFormula
-P='dist/20260926_CoreWeave收支模型_v4_5.xlsx'
-wb=openpyxl.load_workbook(P)
-def cells_of(sheet, ref):
-    ref=ref.replace('$','')
-    if ':' in ref:
-        c1,r1,c2,r2=range_boundaries(ref)
-    else:
-        c1,r1,c2,r2=range_boundaries(ref+':'+ref)
-    return [(sheet,r,c) for r in range(r1,r2+1) for c in range(c1,c2+1)]
-deps={}; kind={}
-for ws in wb.worksheets:
-    for row in ws.iter_rows():
-        for x in row:
-            v=x.value; k=(ws.title,x.row,x.column)
-            if v is None: continue
-            if isinstance(v,DataTableFormula):
-                kind[k]='f'; deps[k]=None; continue
-            if isinstance(v,str) and v.startswith('='):
-                kind[k]='f'; ds=[]
-                for t in Tokenizer(v).items:
-                    if t.type=='OPERAND' and t.subtype=='RANGE':
-                        s=t.value
-                        if '!' in s:
-                            sh,rf=s.rsplit('!',1); sh=sh.strip("'")
-                        else: sh,rf=ws.title,s
-                        try: ds+=cells_of(sh,rf)
-                        except Exception: pass
-                deps[k]=ds
-            else:
-                kind[k]='t' if isinstance(v,str) else 'n'
-# 模擬運算表（輸入與假設 D166:E168）：每格＝以情境 1/2/3 重算整個模型，依賴公式列 D165:E165 與情境輸入格 C5
-for r in (166,167,168):
-    for c in (4,5):
-        deps[('輸入與假設',r,c)]=[('輸入與假設',165,4),('輸入與假設',165,5),('輸入與假設',5,3),('輸入與假設',r,3)]
-        kind[('輸入與假設',r,c)]='f'
-def closure(targets):
-    seen=set(); st=list(targets)
-    while st:
-        k=st.pop()
-        if k in seen: continue
-        seen.add(k)
-        for d in deps.get(k) or []: st.append(d)
-    return seen
-def rng(sh,ref): return cells_of(sh,ref)
-# 第 2 輪修訂：目標 4 改為季度追蹤整張；目標 2 加「總債務 ÷ EBITDA」；另加錨定矩陣與核心檢查
-def rows(sh,rs): 
-    ws=wb[sh]; return [(sh,r,c) for r in rs for c in range(1,ws.max_column+1) if kind.get((sh,r,c))=='f']
-q=wb['季度追蹤']
-T={
- 'G1 三情境目標價與評等': rng('評價_DCF與目標價','C48:D70')+rng('摘要','C5:D15'),
- 'G1b 錨定×倍數矩陣（穩健性一行）': rows('評價_DCF與目標價',range(74,86)),
- 'G2 資金缺口與股權稀釋': rng('各期收支','C39:G41')+rng('各期收支','C58:G70')+rows('資產負債_新債與新股',[31]),
- 'G3 共識與指引差異及原因': rng('摘要','C17:E48')+rng('摘要','C51:C54')+rows('摘要',[69]),
- 'G4 季度追蹤（整張：焦點季第一屏＋實際數比較＋原因＋核對）': rows('季度追蹤',range(1,q.max_row+1))+rng('摘要','C61:G67'),
- 'G5 反向 DCF 摘要': rng('摘要','C55:E58'),
- 'G8 核心檢查（現金橋、季度核對）': rows('各期收支',range(74,85))+rows('檢查_連動',[5]),
-}
-allk=set()
-for n,t in T.items():
-    s=closure(t); allk|=s
-    print(n,'公式',sum(1 for k in s if kind.get(k)=='f'),'數值輸入',sum(1 for k in s if kind.get(k)=='n'))
-F=sum(1 for v in kind.values() if v=='f'); N=sum(1 for v in kind.values() if v=='n')
-print('全部 公式',F,'數值',N,'｜聯集 公式',sum(1 for k in allk if kind.get(k)=='f'),'數值',sum(1 for k in allk if kind.get(k)=='n'))
-per={}
-for k,v in kind.items():
-    d=per.setdefault(k[0],[0,0,0,0])
-    if v=='f': d[0]+=1; d[1]+= k in allk
-    if v=='n': d[2]+=1; d[3]+= k in allk
-for s,d in per.items(): print(s,'公式 %d→%d 數值 %d→%d'%tuple(d))
-rs={(k[0],k[1]) for k in allk if k in kind}
-print('保留列',len(rs),'標籤字數',sum(len(v) for (s,r) in rs for v in [wb[s].cell(r,1).value] if isinstance(v,str) and not v.startswith('=')))
-ws=wb['輸入與假設']
-print('輸入列（數值）不在聯集：',[ (r,str(ws.cell(r,1).value)[:18]) for r in range(1,ws.max_row+1) if any(kind.get(('輸入與假設',r,c))=='n' for c in range(3,9)) and not any(('輸入與假設',r,c) in allk for c in range(3,9))])
+
+IN, VA, CF, SM, QT = '輸入與假設', '評價_DCF與目標價', '各期收支', '摘要', '季度追蹤'
+
+
+def analyse(path):
+    wb = openpyxl.load_workbook(path)
+    deps, kind = {}, {}
+
+    def cells_of(sheet, ref):
+        ref = ref.replace('$', '')
+        c1, r1, c2, r2 = range_boundaries(ref if ':' in ref else ref + ':' + ref)
+        return [(sheet, r, c) for r in range(r1, r2 + 1) for c in range(c1, c2 + 1)]
+
+    dt_cells = []
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for x in row:
+                v = x.value; k = (ws.title, x.row, x.column)
+                if v is None: continue
+                if isinstance(v, DataTableFormula):
+                    kind[k] = 'f'; dt_cells.append((k, v)); continue
+                if isinstance(v, str) and v.startswith('='):
+                    kind[k] = 'f'; ds = []
+                    for t in Tokenizer(v).items:
+                        if t.type == 'OPERAND' and t.subtype == 'RANGE':
+                            s = t.value
+                            sh, rf = (s.rsplit('!', 1) if '!' in s else (ws.title, s))
+                            sh = sh.strip("'")
+                            if sh not in wb.sheetnames: raise ValueError(f'{k}：參照不存在的分頁 {s}')
+                            ds += cells_of(sh, rf)   # 解析失敗即報錯
+                    deps[k] = ds
+                else:
+                    kind[k] = 't' if isinstance(v, str) else 'n'
+    # 模擬運算表：區塊內每格＝以輸入值代入輸入格、重算公式列；依賴公式列、輸入格與該列輸入值
+    for (k, v) in dt_cells:
+        s = k[0]; c1, r1, c2, r2 = range_boundaries(v.ref); inp = cells_of(s, v.r1)[0]
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                kind[(s, r, c)] = 'f'
+                deps[(s, r, c)] = [(s, r1 - 1, cc) for cc in range(c1, c2 + 1)] + [inp, (s, r, c1 - 1)]
+
+    def rows_where(sheet, pred):
+        ws = wb[sheet]
+        return [r for r in range(1, ws.max_row + 1) if isinstance(ws.cell(r, 1).value, str) and pred(ws.cell(r, 1).value)]
+
+    def row_of(sheet, label, nth=0):
+        rs = rows_where(sheet, lambda a: a == label)
+        if len(rs) <= nth: raise KeyError(f'找不到列：{sheet}｜{label}')
+        return rs[nth]
+
+    def cells(sheet, rs):
+        ws = wb[sheet]
+        return [(sheet, r, c) for r in rs for c in range(2, ws.max_column + 1) if kind.get((sheet, r, c)) == 'f']
+
+    def span(sheet, a, b):
+        return list(range(row_of(sheet, a), row_of(sheet, b) + 1))
+
+    T = {
+        'G1 三情境目標價與評等': cells(VA, span(VA, 'DCF 每股（推到目標價時點）', '目標價區間｜判斷句')) + cells(SM, rows_where(SM, lambda a: a.startswith('結論｜'))),
+        'G1b 錨定×倍數矩陣': cells(VA, rows_where(VA, lambda a: a.startswith('錨定×倍數｜'))),
+        'G2 資金缺口與股權稀釋': cells(CF, span(CF, '營運缺口（不含融資、不含還本）', '期末累積現金') + span(CF, '新債舉借', '期末總債務（既有＋可轉債＋新債＋高息債）'))
+                              + cells('資產負債_新債與新股', rows_where('資產負債_新債與新股', lambda a: a.startswith('總債務 ÷ EBITDA')))
+                              + cells('檢查_連動', rows_where('檢查_連動', lambda a: 'FY28 起收入是否依賴未簽約' in a)),
+        'G3 共識與指引差異及原因': cells(SM, rows_where(SM, lambda a: a.startswith(('差異', '隱含｜', '驗證｜目標價')))),
+        'G4 季度追蹤（整張）': cells(QT, range(1, wb[QT].max_row + 1)) + cells(SM, rows_where(SM, lambda a: a.startswith('驗證｜') and '評等分布' not in a)),
+        'G5 反向 DCF 摘要': cells(SM, rows_where(SM, lambda a: a.startswith('反向 DCF｜'))),
+        'G8 核心檢查（現金橋）': cells(CF, span(CF, '四層橋（驗算）', '差異（應為 0）')) + cells('檢查_連動', rows_where('檢查_連動', lambda a: a == '現金橋差異')),
+    }
+    T = {k: [c for c in v if c in kind] for k, v in T.items()}
+
+    def closure(targets):
+        seen, st = set(), list(targets)
+        while st:
+            k = st.pop()
+            if k in seen: continue
+            seen.add(k); st += deps.get(k) or []
+        return seen
+
+    per_goal, allk = {}, set()
+    for n, t in T.items():
+        if not t: raise KeyError(f'{n}：目標沒有任何公式格（列名稱改了？）')
+        s = closure(t); allk |= s
+        per_goal[n] = (sum(1 for k in s if kind.get(k) == 'f'), sum(1 for k in s if kind.get(k) == 'n'))
+    # 列層級的不動點：精簡版以整列為單位保留，保留列上的每個公式格（即使本身不在目標依賴鏈內）的前導格也要保留，
+    # 否則刪列後該格會變成 #REF!（第 3 輪可行性測試發現：損益「全年 EBITDA」FY26 欄）。被引用的空白格（例如未公布的實際數）也保留。
+    keep = set(allk)
+    while True:
+        rows = {(s, r) for (s, r, c) in keep if s in wb.sheetnames}
+        extra = [k for k in kind if kind[k] == 'f' and (k[0], k[1]) in rows and k not in keep]
+        if not extra: break
+        keep |= closure(extra)
+    rows = {(s, r) for (s, r, c) in keep if s in wb.sheetnames}
+    return dict(wb=wb, kind=kind, deps=deps, allk=allk, keep=keep, rows=rows, targets=T, per_goal=per_goal, closure=closure)
+
+
+if __name__ == '__main__':
+    path = sys.argv[1] if len(sys.argv) > 1 else glob.glob('dist/*.xlsx')[0]
+    g = analyse(path); kind, allk = g['kind'], g['allk']
+    for n, (f, i) in g['per_goal'].items(): print(f'{n}：公式 {f}、數值輸入 {i}')
+    F = sum(1 for v in kind.values() if v == 'f'); N = sum(1 for v in kind.values() if v == 'n')
+    print(f'全部：公式 {F}、數值 {N}｜聯集：公式 {sum(1 for k in allk if kind.get(k) == "f")}、數值 {sum(1 for k in allk if kind.get(k) == "n")}')
+    per = {}
+    for k, v in kind.items():
+        d = per.setdefault(k[0], [0, 0, 0, 0])
+        if v == 'f': d[0] += 1; d[1] += k in allk
+        if v == 'n': d[2] += 1; d[3] += k in allk
+    for s, d in per.items(): print(f'  {s}：公式 {d[0]}→{d[1]}、數值 {d[2]}→{d[3]}')
+    kp = g['keep']
+    print(f'整列保留（不動點）後：公式 {sum(1 for k in kp if kind.get(k) == "f")}、數值 {sum(1 for k in kp if kind.get(k) == "n")}、列 {len(g["rows"])}')
