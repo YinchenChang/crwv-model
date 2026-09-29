@@ -1,7 +1,7 @@
-# 精簡版：以完整版 xlsx 的公式建立依賴圖，計算各「目標輸出」的前導格（精簡版至少要保留的格）。
+# 精簡版（PR #12）：以完整版 xlsx 的公式建立依賴圖，計算各「目標輸出」的前導格（精簡版至少要保留的格）。
 # 第 3 輪：目標改以「分頁＋A 欄列名稱」定義（不寫死列號，完整版增刪列時不失準）；無法解析的參照直接報錯，不略過。
-# 用法：python3 docs/reports/20260928_精簡版_依賴鏈.py [xlsx，預設 dist/ 內的 xlsx]
-#   作為模組：g = {}; exec(...); g['analyse'](path) → dict（allk、kind、wb、targets…）
+# 用法：python3 scripts/lean_deps.py [xlsx，預設 dist/ 內的 xlsx]（印出各目標的公式數與保留列數）
+#   作為模組：from lean_deps import analyse; analyse(path) → dict（allk、keep、rows、kind、wb、targets…）；scripts/lean.py 使用
 import sys, glob
 import openpyxl
 from openpyxl.formula import Tokenizer
@@ -73,6 +73,7 @@ def analyse(path):
         'G3 共識與指引差異及原因': cells(SM, rows_where(SM, lambda a: a.startswith(('差異', '隱含｜', '驗證｜目標價')))),
         'G4 季度追蹤（整張）': cells(QT, range(1, wb[QT].max_row + 1)) + cells(SM, rows_where(SM, lambda a: a.startswith('驗證｜') and '評等分布' not in a)),
         'G5 反向 DCF 摘要': cells(SM, rows_where(SM, lambda a: a.startswith('反向 DCF｜'))),
+        'G1b／G11 穩健性與關鍵假設（建置時快照）': cells(VA, rows_where(VA, lambda a: a.startswith(('穩健性｜', '關鍵假設｜', '快照｜')))),
         'G8 核心檢查（現金橋）': cells(CF, span(CF, '四層橋（驗算）', '差異（應為 0）')) + cells('檢查_連動', rows_where('檢查_連動', lambda a: a == '現金橋差異')),
     }
     T = {k: [c for c in v if c in kind] for k, v in T.items()}

@@ -15,8 +15,8 @@ lean = outdir / 'lean.xlsx'
 shutil.copy(full, lean)
 
 # ── 1. 依賴鏈（沿用第 2 輪的目標定義）：保留的 (分頁, 列)
-g = {}; exec(open(ROOT / 'docs/reports/20260928_精簡版_依賴鏈.py', encoding='utf-8').read().split("if __name__")[0], g)
-A = g['analyse'](str(full)); allk, kind, wbx = A['allk'], A['kind'], A['wb']
+from lean_deps import analyse   # 第 4 輪起依賴分析移到 scripts/lean_deps.py
+A = analyse(str(full)); allk, kind, wbx = A['allk'], A['kind'], A['wb']
 keep = {}
 for (s, r) in A['rows']:   # 列層級不動點（含被引用但目前空白的輸入格）
     keep.setdefault(s, set()).add(r)

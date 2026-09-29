@@ -2969,6 +2969,82 @@ srow("驗證｜目標價（平均／中位數／最低／最高）", "US$", [f"=
 ws.cell(row=r + 1, column=1, value="來源獨立性：" + CONS['sourceIndependence']).font = SMALL
 ws.cell(row=r + 2, column=1, value=f"共識來源：{CONS['annualEstimates']['source']}、{CONS['priceTarget']['source']}；擷取 {CONS['annualEstimates']['retrieved']}。逐筆來源、日期與標記見『輸入與假設』I 區。").font = SMALL
 
+# 精簡版（PR #12；已決定事項 13）：穩健性與關鍵假設——建置時由 scripts/sens_solve.py 重跑本活頁簿求得的快照（sens_snap.json），
+# 寫在「評價_DCF與目標價」底部（完整版與精簡版共用）。快照只對應建置時的輸入：「快照｜狀態」比對快照目標價與模擬運算表的活值。
+SS = _jrv.load(open(_osrv.path.join(_osrv.path.dirname(_osrv.path.abspath(__file__)), 'sens_snap.json'), encoding='utf-8'))
+ws = wb["評價_DCF與目標價"]
+_lab = lambda w, t: next(rr for rr in range(1, w.max_row + 1) if w.cell(rr, 1).value == t)
+r = ws.max_row + 2
+r = section(ws, r, f"穩健性與關鍵假設（建置時由 Python 重跑本活頁簿求得的快照；0 截斷口徑；{SS['note']}）")
+for j, h in enumerate(["項目", "單位"] + [DT_SHORT[k] for k in DT_SC]):
+    c = ws.cell(row=r, column=1 + j, value=h); c.font = HEAD; c.fill = FILL_HEAD
+r += 1
+SSR = {}
+def _ssrow(name, unit, vals, fmt, note=None):
+    global r
+    SSR[name] = r
+    ws.cell(row=r, column=1, value=name).font = BLACK
+    ws.cell(row=r, column=2, value=unit).font = SMALL
+    for j, v in enumerate(vals):
+        c = ws.cell(row=r, column=3 + j, value="不適用" if v is None else v); c.number_format = fmt; c.font = BLACK
+    if note: ws.cell(row=r, column=9, value=note).font = SMALL
+    r += 1
+_S = SS['scenarios']
+_ANC = f"'評價_DCF與目標價'!$C${_lab(ws, '錨定年度')}"
+_CFY = max(k for k in CONS['annualEstimates'] if k.startswith('FY'))
+_ssrow("穩健性｜翻轉評等（離開賣出）所需 EV/EBITDA 倍數", "x", [s['flipMultiple'] for s in _S], '0.00x',
+       f"由目前倍數往上掃描（每 {CO['methodology']['flipSearch']['multipleStep']}x，至 {CO['methodology']['flipSearch']['multipleMax']}x）；已非賣出或上限內無解時為「不適用」")
+_ssrow("穩健性｜現價隱含 EV/EBITDA 倍數（模型錨定年口徑）", "x", [s['impliedMultiple'] for s in _S], '0.00x',
+       "EV/EBITDA 腿（錨定年 EBITDA、折回目標價時點）等於現價的倍數")
+SSR["穩健性｜共識平均目標價隱含 EV/EBITDA"] = r
+ws.cell(row=r, column=1, value=f"穩健性｜共識平均目標價隱含 EV/EBITDA（共識 {_CFY} 口徑）").font = BLACK
+ws.cell(row=r, column=2, value="x").font = SMALL
+c = ws.cell(row=r, column=3, value=f"='摘要'!C{SM['隱含｜共識平均目標價隱含 FY28 EV/EBITDA']}"); c.number_format = '0.00x'; c.font = GREEN
+ws.cell(row=r, column=9, value="引用『摘要』；共識數字只到此年度，口徑與模型錨定年不同").font = SMALL
+r += 1
+_ssrow("穩健性｜翻轉為非賣出所需 WACC", "%", [s['flipWacc'] for s in _S], '0.00%',
+       f"由目前 WACC 往下掃描（每 {CO['methodology']['flipSearch']['waccStep']:.2%}，至 {CO['methodology']['flipSearch']['waccMin']:.0%}）")
+_TOP = SS['topN']
+for k in range(_TOP):
+    _ssrow(f"關鍵假設｜第 {k + 1} 名", "", [s['keyAssumptions'][k]['name'] for s in _S], '@')
+    _ssrow(f"關鍵假設｜第 {k + 1} 名｜下調對目標價", "US$", [s['keyAssumptions'][k]['down'] for s in _S], USD)
+    _ssrow(f"關鍵假設｜第 {k + 1} 名｜上調對目標價", "US$", [s['keyAssumptions'][k]['up'] for s in _S], USD)
+_ssrow("快照｜建置時目標價", "US$", [s['target'] for s in _S], USD)
+SSR["快照｜目前目標價"] = r
+ws.cell(row=r, column=1, value="快照｜目前目標價（模擬運算表活值）").font = BLACK
+ws.cell(row=r, column=2, value="US$").font = SMALL
+for j in range(3):
+    c = ws.cell(row=r, column=3 + j, value=f"={_IW}D{DT_H + 1 + j}"); c.number_format = USD; c.font = BLACK
+r += 1
+_q, _p = SSR["快照｜建置時目標價"], SSR["快照｜目前目標價"]
+SSR["快照｜狀態"] = r
+ws.cell(row=r, column=1, value="快照｜狀態").font = BLACK
+ws.cell(row=r, column=3, value=(f'=IF(MAX(ABS(C{_q}-C{_p}),ABS(D{_q}-D{_p}),ABS(E{_q}-E{_p}))<0.005,"快照與目前輸入一致",'
+                                f'"快照已過期：輸入已變動，本段數字需重新建置")')).font = BOLD
+r += 1
+_x = lambda cell, fmt: f'IF(ISNUMBER({cell}),TEXT({cell},"{fmt}"),"不適用")'
+_sl = lambda row, fmt, suf: '&"／"&'.join(f'"{DT_SHORT[kk]} "&{_x(f"{col}{row}", fmt)}&"{suf}"' for kk, col in zip(DT_SC, "CDE"))
+_fm, _im, _fw = SSR["穩健性｜翻轉評等（離開賣出）所需 EV/EBITDA 倍數"], SSR["穩健性｜現價隱含 EV/EBITDA 倍數（模型錨定年口徑）"], SSR["穩健性｜翻轉為非賣出所需 WACC"]
+_cm = SSR["穩健性｜共識平均目標價隱含 EV/EBITDA"]
+text_ss = [
+    ("穩健性｜翻轉倍數句", f'="翻轉評等所需倍數（現 "&TEXT({EVEBITDA},"0.0")&"x）："&{_sl(_fm, "0.0#", "x")}'
+                         f'&"；現價隱含（模型 "&{_ANC}&" 口徑）："&{_sl(_im, "0.0", "x")}'
+                         f'&"；共識平均目標價隱含 "&TEXT(C{_cm},"0.0")&"x（共識 {_CFY} 口徑）。"'),
+    ("穩健性｜翻轉 WACC 句", f'="翻轉為非賣出所需 WACC（現 "&TEXT({WACC},"0.0%")&"）："&{_sl(_fw, "0.00%", "")}&"。"'),
+]
+_kn = lambda k, col: f"{col}{SSR[f'關鍵假設｜第 {k + 1} 名']}"
+_kv = lambda k, col, w: f"{col}{SSR[f'關鍵假設｜第 {k + 1} 名｜{w}對目標價']}"
+_pick = lambda f: f"CHOOSE({SEL},{','.join(f(col) for col in 'CDE')})"
+text_ss.append(("關鍵假設｜句（目前情境）",
+                f'="目標價最敏感的 {_TOP} 項（假設下調／上調時目標價的變動；{SS["note"]}）："&' + '&"；"&'.join(
+                    f'{_pick(lambda col, k=k: _kn(k, col))}&" "&TEXT({_pick(lambda col, k=k: _kv(k, col, "下調"))},"+$0.0;-$0.0")'
+                    f'&"／"&TEXT({_pick(lambda col, k=k: _kv(k, col, "上調"))},"+$0.0;-$0.0")' for k in range(_TOP)) + '&"。"'))
+for nm, f in text_ss:
+    SSR[nm] = r
+    ws.cell(row=r, column=1, value=nm).font = BOLD
+    ws.cell(row=r, column=3, value=f).font = BLACK
+    r += 1
+
 for s in wb.worksheets:
     s.sheet_view.showGridLines = False
     if s.title not in ("導覽", "來源", "摘要"):

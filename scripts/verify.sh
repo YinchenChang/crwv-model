@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 一次跑完建置與核對：季度層檢查 → 建 HTML → 建 Excel → 重算 → fix_outline → fix_datatable → verify_ooxml → 離線開啟檢查 → 三情境 xlx＋cmp31 → FY27 錨定 cmp31 → 季度層測試（v4.4）→ 期間滾動測試 → 目標價變動拆解工具測試。
+# 一次跑完建置與核對：季度層檢查 → 建 HTML → 建 Excel → 重算 → 反向 DCF／穩健性求解 → fix_outline → fix_datatable → verify_ooxml → 精簡版 Excel → 離線開啟檢查 → 三情境 xlx＋cmp31 → FY27 錨定 cmp31 → 季度層測試（v4.4）→ 期間滾動測試 → 目標價變動拆解工具測試。
 # 任何一項失敗即以非零代碼結束。產物放在 repo 根目錄的 out/（不納入版控）。
 # 用法：scripts/verify.sh [--vs-dist]
 #   --vs-dist  另與 dist/ 內現行成品比對：crawl.py 畫面文字與 xl_diff.py --by-label（值與公式）皆須 0 差異（純結構修改的驗收）。
@@ -24,6 +24,7 @@ DATE="${DATE:-${DATE_TAG:0:4}-${DATE_TAG:4:2}-${DATE_TAG:6:2}}"  # 2026-09-24
 NAME="${DATE//-/}_CoreWeave收支模型_v${VER//./_}"
 HTML="$OUT/$NAME.html"
 XLSX="$OUT/$NAME.xlsx"
+LEAN_XLSX="$OUT/${DATE//-/}_CoreWeave收支模型精簡版_v${VER//./_}.xlsx"   # 精簡版（PR #12；已決定事項 13）
 
 PASS=(); FAIL=()
 step() { echo; echo "=== $1"; }
@@ -73,6 +74,15 @@ if (( rc == 3 )); then  # 反解結果有變動：rv_snap.json 已更新，重�
 fi
 if (( rc == 0 )); then ok "反向 DCF：Excel 求解，rv_snap.json 與 Excel 一致"; else bad "反向 DCF 求解（代碼 $rc）"; finish; fi
 
+step "3c. 穩健性與關鍵假設：以 Excel 求解（scripts/sens_solve.py；精簡版 PR #12，兩版共用）"
+set +e; python3 scripts/sens_solve.py "$XLSX"; rc=$?; set -e
+if (( rc == 3 )); then  # 快照有變動：sens_snap.json 已更新，重建 Excel 後再解一次須無變動
+  echo "sens_snap.json 已更新：重建 Excel"
+  python3 build_xlsx.py "$XLSX" && python3 scripts/recalc.py "$XLSX" 120 >/dev/null || { bad "重建 Excel（穩健性快照更新後）"; finish; }
+  set +e; python3 scripts/sens_solve.py "$XLSX"; rc=$?; set -e
+fi
+if (( rc == 0 )); then ok "穩健性與關鍵假設：Excel 求解，sens_snap.json 與 Excel 一致"; else bad "穩健性與關鍵假設求解（代碼 $rc）"; finish; fi
+
 step "4. fix_outline"
 if python3 fix_outline.py "$XLSX"; then ok "fix_outline"; else bad "fix_outline"; finish; fi
 
@@ -81,6 +91,13 @@ if python3 fix_datatable.py "$XLSX"; then ok "fix_datatable"; else bad "fix_data
 
 step "5. verify_ooxml"
 if python3 verify_ooxml.py "$XLSX"; then ok "verify_ooxml：OOXML OK"; else bad "verify_ooxml"; fi
+
+step "5b. 精簡版 Excel：由完整版刪減 → 重算 → outline → 模擬運算表 → OOXML → 與完整版逐項一致（scripts/lean.py、lean_check.py；PR #12）"
+if python3 scripts/lean.py "$XLSX" "$LEAN_XLSX" "$OUT/outline.json" "$OUT/outline_lean.json" \
+   && python3 scripts/recalc.py "$LEAN_XLSX" 120 && python3 fix_outline.py "$LEAN_XLSX" "$OUT/outline_lean.json" \
+   && python3 fix_datatable.py "$LEAN_XLSX" && python3 verify_ooxml.py "$LEAN_XLSX"; then ok "精簡版 Excel：刪減、重算 0 錯誤、OOXML OK"
+else bad "精簡版 Excel 建置"; fi
+if python3 scripts/lean_check.py "$XLSX" "$LEAN_XLSX"; then ok "精簡版 vs 完整版：三情境 × 兩種 DCF 模式逐項一致"; else bad "精簡版 vs 完整版"; fi
 
 step "5c. 離線開啟檢查（已決定事項 11：單一檔案、無網路請求、console 無錯誤、關鍵數字正常顯示）"
 if python3 scripts/check_offline.py "$HTML" "$XLSX"; then ok "離線開啟：新建 HTML"; else bad "離線開啟：新建 HTML"; fi

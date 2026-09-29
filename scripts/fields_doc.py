@@ -7,7 +7,7 @@ import json, sys, re, os
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CO = json.load(open(os.path.join(REPO, 'company.json'), encoding='utf-8'))
 CODE = ''.join(open(f'{REPO}/{f}', encoding='utf-8').read() for f in
-               ['segA.js', 'segB.js', 'segC.js', 'segD.js', 'segE.js', 'tail.js', 'build_xlsx.py', 'cmp31.js'])
+               ['segA.js', 'segB.js', 'segC.js', 'segD.js', 'segE.js', 'tail.js', 'build_xlsx.py', 'cmp31.js', 'scripts/sens_solve.py'])
 sys.path.insert(0, REPO); import calendar_q, vlog  # 5a：期間字樣與版本號自動帶入（滾動或升版後不必手改）
 CAL = calendar_q.derive(CO)
 VER = vlog.VLOG[-1][0]
@@ -157,6 +157,13 @@ F = [
  ('methodology.rating.sellUpsideMaxIfEquityOver', '股權募資超標時，空間小於或等於此值即賣出', '比例（負數）', K),
  ('methodology.rating.sellMarginAlert', '任一情境與賣出門檻的距離小於「現價 × 此值」時，判斷句另外揭露', '比例', K),
  ('methodology.rating.tvShareWarn', '終值占企業價值超過此值時提出警示（融資說明、檢查頁）', '比例', K),
+ ('methodology.keyAssumptions.note', '關鍵假設一行的附註（精簡版目標 11；畫面須標明「±10% 為彈性，非可能性」；PR #12）', '文字', K),
+ ('methodology.keyAssumptions.topN', '關鍵假設顯示前幾名（依目標價變動絕對值排序）', '項', K),
+ ('methodology.keyAssumptions.candidates', '關鍵假設候選，一項一列：name 顯示名稱、label「輸入與假設」A 欄列名稱的開頭（須剛好對到一列輸入）、perYear 是否為逐年列（整列同改）、mode rel＝相對 ±step／abs＝絕對 ±step、step 幅度。建置時 scripts/sens_solve.py 逐項上下各重跑一次 Excel', '清單', C),
+ ('methodology.flipSearch.multipleMax', '翻轉倍數與現價隱含倍數的搜尋上限', '倍', K),
+ ('methodology.flipSearch.multipleStep', '翻轉倍數的掃描精度', '倍', K),
+ ('methodology.flipSearch.waccMin', '翻轉 WACC 的搜尋下限', '比例', K),
+ ('methodology.flipSearch.waccStep', '翻轉 WACC 的掃描精度', '比例', K),
  ('methodology.checks.capexPerMwBand', '檢查頁：模型期 CapEx 強度（每 MW 百萬美元）的合理區間下端與上端（5a）', 'US$m/MW 清單', C),
  ('methodology.checks.leaseVsCommitMin', '檢查頁：表外租金路徑 ÷ 已承諾租約至少要達到的倍數（5a）', '倍', C),
  ('methodology.checks.unsignedRevShareMax', '檢查頁：後段年度依賴未簽約收入的比例上限（5a）', '比例', C),

@@ -852,6 +852,109 @@
    "unsignedRevShareMax": 0.5,
    "siteRentGapMax": 10,
    "rentVsBenchMin": 0.8
+  },
+  "keyAssumptions": {
+   "note": "±10% 為彈性，非可能性（GPU 經濟壽命為 ±1 年）",
+   "topN": 3,
+   "candidates": [
+    {
+     "name": "每 MW 年收入（含利用率）",
+     "label": "每 MW 年收入倍數",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "每 MW 建置成本",
+     "label": "每 MW 建置成本倍數",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "穩態 EBITDA 率",
+     "label": "穩態 EBITDA 率",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "起始 EBITDA 率",
+     "label": "起始 EBITDA 率",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "WACC",
+     "label": "WACC",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "永續成長 g",
+     "label": "永續成長 g",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "新產能簽約率",
+     "label": "新產能簽約率",
+     "perYear": true,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "債務／backlog 上限",
+     "label": "債務／backlog 上限",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "新債利率",
+     "label": "新債利率",
+     "perYear": true,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "終值維持性 CapEx",
+     "label": "終值維持性 CapEx",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "股權發行折價",
+     "label": "股權發行折價",
+     "perYear": false,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "客戶違約率",
+     "label": "客戶違約率",
+     "perYear": true,
+     "mode": "rel",
+     "step": 0.1
+    },
+    {
+     "name": "GPU 經濟壽命",
+     "label": "GPU 經濟壽命",
+     "perYear": false,
+     "mode": "abs",
+     "step": 1
+    }
+   ]
+  },
+  "flipSearch": {
+   "multipleMax": 12,
+   "multipleStep": 0.05,
+   "waccMin": 0.05,
+   "waccStep": 0.0005
   }
  },
  "peers": {

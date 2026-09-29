@@ -27,6 +27,11 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | calendar_q.py | v4.5（5a-1）：期間滾動。由 `company.json` → `calendar`（財年結束月份、最新已申報／已公布季度、模型年數、目標價時點）推算期間標籤、期間長度、評價日、各期期末日與折現年數（以月計）、目標價時點與 EV/EBITDA 折回調整；`build_xlsx.py`、`build_html_portable.py`、`load_engine.js` 都讀同一份推算結果（`COMPANY_DATA.cal`；Excel「輸入與假設」F 區「期間與日期」）。`periods`、`periodYears`、`valuation.optT` 不再存於 company.json。`python3 calendar_q.py` 印出推算結果 | 說明文字中的期間字樣以佔位符書寫（«YTD»、«STUB»、«VMD»、«P0»…，`tokens`），build_xlsx 存檔前、cmp31 查列名稱時換成目前日曆的字樣；目前日曆下換出的文字與 v4.4 相同。期間特有的敘述句與數字放 `company.json` → `texts`、`ytdActual.notes`，隨每季資料更新 || vlog.py | 版本紀錄資料，Excel 的唯一來源（v3.4 起 build_xlsx.py 直接 import，不再內嵌副本）；HTML 的 VLOG 在 tail.js 末尾，需同步 |
 | rv_snap.json | 反向 DCF 快照（Excel「評價_反向DCF」與「摘要」頁使用）。v4.5 起由 `scripts/rv_solve.py` 以 Excel 求解產生（verify.sh 步驟 3b；有變動時自動重建 Excel），不再用 JS 引擎（`scripts/rv_snap.js` 已移除） |
 | scripts/rv_solve.py | v4.5：反向 DCF 求解。以 LibreOffice（UNO，`scripts/uno_q.py`）開啟建好的 Excel，改「每 MW 年收入倍數」「每 MW 建置成本倍數」「穩態 EBITDA 率」並重算，依與 HTML `reverseDcf` 相同的規則（同一上下界、22 次對半）二分法反解，寫入 rv_snap.json；結果有變動時代碼 3 |
+| sens_snap.json | 精簡版（PR #12）：穩健性與關鍵假設快照（翻轉倍數、現價隱含倍數、翻轉 WACC、關鍵假設 ±10%）；`scripts/sens_solve.py` 產生，Excel「評價_DCF與目標價」底部「穩健性與關鍵假設」段使用（兩版共用），段內有「快照｜狀態」檢查 |
+| scripts/sens_solve.py | 精簡版：以 LibreOffice（UNO）重跑 Excel，逐情境（0 截斷口徑）求翻轉倍數、現價隱含倍數、翻轉 WACC，並依 `company.json` → `methodology.keyAssumptions` 做 ±10%（GPU 壽命 ±1 年）；verify.sh 步驟 3c，有變動時自動重建 Excel |
+| scripts/lean_deps.py | 精簡版：以完整版 Excel 的公式建立依賴圖，依「分頁＋A 欄列名稱」定義的目標求出必須保留的列（整列保留的不動點，含被引用的空白輸入格） |
+| scripts/lean.py | 精簡版：由完整版 Excel 刪除依賴鏈外的分頁與列、清除說明欄（LibreOffice 自動改寫參照），並寫出精簡版 outline 對照；verify.sh 步驟 5b |
+| scripts/lean_check.py | 精簡版驗收：三情境 × 兩種 DCF 模式下，目標價、評等、資金缺口與融資、焦點季、各判斷句與完整版逐項一致（verify.sh 步驟 5b） |
 | scripts/uno_q.py | v4.5：以 LibreOffice UNO 驅動 Excel 的共用模組（依 A 欄列名稱找格、改值、讀重算後的值；不存檔） |
 | data/consensus_crwv_20260925.json | 市場共識資料檔（v4.3；Andy 查證後提供，只讀，不得增補或修改數字）；路徑寫在 `company.json` → `meta.consensusFile`，HTML 建置時併入 `COMPANY_DATA.consensus`，Excel 直接讀取 |
 | xl_diff.py | Excel 比對：`python3 xl_diff.py 舊.xlsx 新.xlsx [--values] [--by-label] [--ignore=工作表,…] [--expect=清單檔]`（v4.5 `--expect`：預期差異清單，每行「工作表!儲存格 原因」，列出但不計入差異數）；（v4.2 `--by-label`：新增列造成位移時以「區段＋列名稱」配對，見「v4.2 核對方式」；v4.3 `--ignore`：兩檔都略過指定工作表） |
@@ -502,6 +507,13 @@ HTML 與 Excel 都由這裡的原始碼產生。所有路徑皆相對於 repo �
 | `methodology.rating.sellUpsideMaxIfEquityOver` | 股權募資超標時，空間小於或等於此值即賣出 | 比例（負數） | -0.08 | 可沿用 |
 | `methodology.rating.sellMarginAlert` | 任一情境與賣出門檻的距離小於「現價 × 此值」時，判斷句另外揭露 | 比例 | 0.05 | 可沿用 |
 | `methodology.rating.tvShareWarn` | 終值占企業價值超過此值時提出警示（融資說明、檢查頁） | 比例 | 0.85 | 可沿用 |
+| `methodology.keyAssumptions.note` | 關鍵假設一行的附註（精簡版目標 11；畫面須標明「±10% 為彈性，非可能性」；PR #12） | 文字 | ±10% 為彈性，非可能性（GPU 經濟壽命為 ±1… | 可沿用 |
+| `methodology.keyAssumptions.topN` | 關鍵假設顯示前幾名（依目標價變動絕對值排序） | 項 | 3 | 可沿用 |
+| `methodology.keyAssumptions.candidates` | 關鍵假設候選，一項一列：name 顯示名稱、label「輸入與假設」A 欄列名稱的開頭（須剛好對到一列輸入）、perYear 是否為逐年列（整列同改）、mode rel＝相對 ±step／abs＝絕對 ±step、step 幅度。建置時 scripts/sens_solve.py 逐項上下各重跑一次 Excel | 清單 | 13 筆 | 檢查 |
+| `methodology.flipSearch.multipleMax` | 翻轉倍數與現價隱含倍數的搜尋上限 | 倍 | 12 | 可沿用 |
+| `methodology.flipSearch.multipleStep` | 翻轉倍數的掃描精度 | 倍 | 0.05 | 可沿用 |
+| `methodology.flipSearch.waccMin` | 翻轉 WACC 的搜尋下限 | 比例 | 0.05 | 可沿用 |
+| `methodology.flipSearch.waccStep` | 翻轉 WACC 的掃描精度 | 比例 | 0.0005 | 可沿用 |
 | `methodology.checks.capexPerMwBand` | 檢查頁：模型期 CapEx 強度（每 MW 百萬美元）的合理區間下端與上端（5a） | US$m/MW 清單 | 20、45 | 檢查 |
 | `methodology.checks.leaseVsCommitMin` | 檢查頁：表外租金路徑 ÷ 已承諾租約至少要達到的倍數（5a） | 倍 | 0.8 | 檢查 |
 | `methodology.checks.unsignedRevShareMax` | 檢查頁：後段年度依賴未簽約收入的比例上限（5a） | 比例 | 0.5 | 檢查 |
