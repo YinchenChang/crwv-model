@@ -21,7 +21,7 @@ NOTE_COL = 9  # I 欄起為說明欄（build_xlsx.py 慣例）
 MERGES = [('評價_反向DCF', '評價_DCF與目標價', 'bottom'), ('檢查_連動', '摘要', 'bottom'),
           ('資產負債_既有債務', '各期收支', 'bottom'), ('資產負債_新債與新股', '各期收支', 'bottom'),
           ('損益', '評價_DCF與目標價', 'top')]
-RENAMES = {'評價_DCF與目標價': '損益與評價'}  # 合併後改名（只改精簡版；第 7 輪 Andy 核可）
+RENAMES = {'評價_DCF與目標價': '損益與評價', '各期收支': '收支與融資', '運營_產能與收入': '產能與收入'}  # 改名（只改精簡版；第 7、8 輪 Andy 核可）
 
 A = analyse(full)
 wbx, keep_cells = A['wb'], A['keep']
@@ -78,6 +78,11 @@ with Workbook(lean, timeout=90) as wb:
         if doc.Sheets.hasByName(old): doc.Sheets.getByName(old).setName(new)
     pos = {s: (RENAMES.get(d, d), o) for s, (d, o) in pos.items()}
     moved = {s: d for s, (d, o) in pos.items() if d != s}
+    # 說明文字中以『分頁名』提到的分頁也跟著改（公式引用已由 LibreOffice 自動改寫，純文字不會）
+    for i in range(doc.Sheets.Count):
+        sh = doc.Sheets.getByIndex(i)
+        for s, d in moved.items():
+            rd = sh.createReplaceDescriptor(); rd.setSearchString(f'『{s}』'); rd.setReplaceString(f'『{d}』'); sh.replaceAll(rd)
     from com.sun.star.beans import PropertyValue
     pv = PropertyValue(); pv.Name = 'FilterName'; pv.Value = 'Calc MS Excel 2007 XML'
     doc.storeToURL(Path(lean).as_uri(), (pv,))
